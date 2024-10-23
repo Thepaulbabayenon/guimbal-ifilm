@@ -12,13 +12,14 @@ interface MovieCardProps {
   overview: string;
   title: string;
   watchList: boolean;
-  watchListId?: string;
+  watchListId?: string; // Optional, for identifying the watchlist entry
   youtubeUrl: string;
   year: number;
   age: number;
-  time: number;
-  ratings: number; // External ratings (initial ratings)
+  time: number; // Duration in minutes
+  initialRatings: number; // External ratings (initial ratings)
 }
+
 
 export function MovieCard({
   movieId,
@@ -30,67 +31,84 @@ export function MovieCard({
   year,
   age,
   time,
-  ratings: initialRatings,
+  initialRatings,
 }: MovieCardProps) {
   const { user } = useUser();
   const userId = user?.id;
 
   const [open, setOpen] = useState(false);
   const [watchList, setWatchList] = useState(initialWatchList);
-  const [userRating, setUserRating] = useState<number>(initialRatings); // This will be updated based on backend data
+  const [userRating, setUserRating] = useState<number>(0); // For the current user
+  const [averageRating, setAverageRating] = useState<number>(initialRatings); // Average rating for all users
   const [isSavingWatchlist, setIsSavingWatchlist] = useState(false); // State to track if we're saving watchlist
   const [isSavingRating, setIsSavingRating] = useState(false); // State to track if we're saving rating
   const pathName = usePathname();
 
-  // Fetch user rating from the backend when the component mounts
+  // Fetch user rating and average rating from the backend when the component mounts
   useEffect(() => {
     if (!userId) return; // Exit if user is not authenticated
 
-    const fetchRating = async () => {
+    const fetchRatings = async () => {
       try {
         const response = await axios.get(`/api/movies/${movieId}/user-rating`, {
           params: { userId },
         });
-        // If the API returns a valid rating, use it; otherwise, fallback to initialRatings
+
         if (response.data && response.data.rating !== undefined) {
-          setUserRating(response.data.rating);
+          setUserRating(response.data.rating); // Set the user's rating
+        }
+
+        // Fetch average rating for the movie
+        const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
+        if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+          setAverageRating(avgResponse.data.averageRating); // Set the average rating
         } else {
-          setUserRating(initialRatings);
+          setAverageRating(initialRatings); // Fallback to initial rating if none is found
         }
       } catch (error) {
-        console.error("Error fetching rating from the database:", error);
-        setUserRating(initialRatings); // Fallback to initial rating in case of error
+        console.error("Error fetching ratings from the database:", error);
+        setAverageRating(initialRatings); // Fallback to initial rating in case of error
       }
     };
 
-    fetchRating();
+    fetchRatings();
   }, [movieId, initialRatings, userId]);
 
-  // Save user rating to the userInteractions table when userRating changes
+  // Save user rating to the database when userRating changes
   useEffect(() => {
     if (!userId) return; // Exit if user is not authenticated
 
-    const saveUserInteraction = async () => {
+    const saveUserRating = async () => {
       try {
         setIsSavingRating(true);
-        await axios.post(`/api/movies/${movieId}/user-rating`, {
-          userId,
-          ratings: userRating,
-        }, {
-          headers: { 'Content-Type': 'application/json' },
-        });
+        await axios.post(
+          `/api/movies/${movieId}/user-rating`,
+          {
+            userId,
+            rating: userRating,
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+        // Fetch the updated average rating after saving the user's rating
+        const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
+        if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+          setAverageRating(avgResponse.data.averageRating); // Update the average rating
+        }
       } catch (error) {
-        console.error("Error saving user interaction:", error);
+        console.error("Error saving user rating:", error);
       } finally {
         setIsSavingRating(false);
       }
     };
 
-    // Only save if the user rating has changed
-    if (userRating !== initialRatings) {
-      saveUserInteraction();
+    // Save only if the rating changes
+    if (userRating > 0) {
+      saveUserRating();
     }
-  }, [userRating, initialRatings, movieId, userId]);
+  }, [userRating, movieId, userId]);
 
   // Handle watchlist toggle
   const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -114,7 +132,7 @@ export function MovieCard({
         });
       } else {
         // Add to watchlist
-        await axios.post('/api/watchlist', {
+        await axios.post("/api/watchlist", {
           movieId,
           pathname: pathName,
           userId,
@@ -130,7 +148,7 @@ export function MovieCard({
     }
   };
 
-  // Handle rating toggle
+  // Handle rating click
   const handleRatingClick = async (newRating: number) => {
     if (isSavingRating) return; // Prevent multiple submissions
     if (!userId) {
@@ -139,24 +157,7 @@ export function MovieCard({
       return;
     }
 
-    setUserRating(newRating); // Optimistically update the rating
-
-    try {
-      setIsSavingRating(true);
-      await axios.post(`/api/movies/${movieId}/user-rating`, {
-        userId,
-        ratings: newRating,
-      }, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } catch (error) {
-      console.error("Error saving user interaction:", error);
-      // Optionally revert the rating change if there's an error
-      setUserRating(initialRatings);
-      alert("Failed to save rating. Please try again.");
-    } finally {
-      setIsSavingRating(false);
-    }
+    setUserRating(newRating); // Optimistically update the user's rating
   };
 
   return (
@@ -189,8 +190,9 @@ export function MovieCard({
             ))}
           </div>
         </div>
-        <p className="line-clamp-1 text-sm text-gray-200 font-light">
-          {overview}
+        <p className="line-clamp-1 text-sm text-gray-200 font-light">{overview}</p>
+        <p className="font-normal text-sm mt-2">
+        Average Rating: {averageRating ? averageRating.toFixed(2) : "N/A"} / 5
         </p>
       </div>
 

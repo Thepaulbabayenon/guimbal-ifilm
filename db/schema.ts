@@ -133,6 +133,24 @@ export const userInteractions = pgTable(
   })
 );
 
+export const watchedMovies = pgTable(
+  'watchedMovies',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    movieId: integer('movieId')
+      .notNull()
+      .references(() => movie.id, { onDelete: 'cascade' }),
+    timestamp: timestamp('timestamp').defaultNow().notNull(),
+  },
+  (watchedMovies) => ({
+    primaryKey: primaryKey({
+      columns: [watchedMovies.userId, watchedMovies.movieId],
+    }),
+  })
+);
+
 // WatchLists Table
 export const watchLists = pgTable('watchLists', {
   id: uuid('id').primaryKey(), // No default value

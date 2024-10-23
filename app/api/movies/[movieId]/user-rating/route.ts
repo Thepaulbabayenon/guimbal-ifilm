@@ -1,22 +1,21 @@
-// /app/api/movies/[movieId]/user-rating/route.ts
-
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from '@/db/drizzle';
-import { userRatings } from '@/db/schema';
+import { userRatings, users } from '@/db/schema'; // Import the user table schema
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 
-// Zod Schemas
+// Zod Schemas for validation
 const querySchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid(), // Validates that userId is a valid UUID
 });
 
 const bodySchema = z.object({
-  userId: z.string().uuid(),
-  rating: z.number().int().min(1).max(5),
+  userId: z.string().uuid(), // Validates that userId is a valid UUID
+  rating: z.number().int().min(1).max(5), // Rating must be an integer between 1 and 5
 });
 
+// GET: Fetch user rating for a specific movie
 export async function GET(
   request: NextRequest,
   { params }: { params: { movieId: string } }
@@ -37,6 +36,7 @@ export async function GET(
 
     const { userId } = parsed.data;
 
+    // Fetch the user's rating for the movie
     const ratingEntry = await db
       .select()
       .from(userRatings)
@@ -68,6 +68,7 @@ export async function GET(
   }
 }
 
+// POST: Add or update a user's rating for a specific movie
 export async function POST(
   request: NextRequest,
   { params }: { params: { movieId: string } }
@@ -79,6 +80,7 @@ export async function POST(
     const parsed = bodySchema.safeParse(body);
 
     if (!parsed.success) {
+      console.error('Validation Error:', parsed.error.errors);
       return NextResponse.json(
         { error: 'Invalid request body', details: parsed.error.errors },
         { status: 400 }
@@ -87,6 +89,21 @@ export async function POST(
 
     const { userId, rating } = parsed.data;
 
+    // Check if the userId exists in the user table
+    const userExists = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (userExists.length === 0) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if the user has already rated this movie
     const existingRating = await db
       .select()
       .from(userRatings)
@@ -99,6 +116,7 @@ export async function POST(
       .limit(1);
 
     if (existingRating.length > 0) {
+      // Update the rating if it already exists
       await db
         .update(userRatings)
         .set({ rating, timestamp: new Date() })
@@ -115,6 +133,7 @@ export async function POST(
         { status: 200 }
       );
     } else {
+      // Insert a new rating if no existing rating is found
       await db
         .insert(userRatings)
         .values({
