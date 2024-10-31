@@ -1,26 +1,26 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getAllMovies } from "../api/getMovies"; // Ensure this API function exists
+import { getHorrorMovies } from "../api/getMovies"; // Update to use getHorrorMovies
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import PlayVideoModal from "./PlayVideoModal";
-import Autoplay from "embla-carousel-autoplay"
-import { FaHeart, FaPlay } from 'react-icons/fa';
+import { FaHeart, FaPlay } from 'react-icons/fa'; // Using Font Awesome icons
+import Autoplay from "embla-carousel-autoplay";
 
-export function MovieSlider() {
+export function MovieSliderHorror() {
   interface Movie {
     id: number;
     title: string;
-    age: number; // Include if your API returns this
-    duration: number; // Include if your API returns this
+    age: number;
+    duration: number;
     imageString: string;
-    overview: string; // Include if your API returns this
-    release: number; // Include if your API returns this
-    videoSource: string; // Include if your API returns this
-    category: string; // Include if your API returns this
-    youtubeString: string; // Use this instead of youtubeUrl
-    rank: number; // Include if your API returns this
+    overview: string;
+    release: number;
+    videoSource: string; // Keep if needed
+    category: string; // Keep if needed
+    youtubeUrl: string; // Ensure this is correctly mapped
+    rank: number; // Keep if needed
   }
 
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -30,8 +30,21 @@ export function MovieSlider() {
   useEffect(() => {
     async function fetchMovies() {
       try {
-        const moviesData = await getAllMovies(); // Fetch all movies
-        setMovies(moviesData);
+        const moviesData = await getHorrorMovies(); // Fetch only horror movies
+        const formattedMovies: Movie[] = moviesData.map(movie => ({
+          id: movie.id,
+          title: movie.title,
+          age: movie.age,
+          duration: movie.duration,
+          imageString: movie.imageString,
+          overview: movie.overview,
+          release: movie.release,
+          videoSource: movie.videoSource, // Keep if needed
+          category: movie.category, // Keep if needed
+          youtubeUrl: movie.youtubeString, // Map youtubeString to youtubeUrl
+          rank: movie.rank, // Keep if needed
+        }));
+        setMovies(formattedMovies); // Set the state with formatted movies
       } catch (error) {
         console.error("Error fetching movies:", error);
       }
@@ -46,21 +59,24 @@ export function MovieSlider() {
   };
 
   const handleHeart = (movieId: number) => {
+    // Implement the heart logic here
     console.log(`Heart movie with ID: ${movieId}`);
   };
 
   return (
-    <div className="recently-added-container mb-20">
+    <div className="recently-added-container mb-20"> {/* Add margin-bottom to this container */}
       <div className="flex justify-center">
         <Carousel 
-          plugins={[
-            Autoplay({
-              delay: 2000,
-            }),
-          ]}
-          opts={{ align: "start", loop: true }} 
-          className="w-full max-w-4xl"
-        >
+        plugins={[
+          Autoplay({
+            delay: 2000,
+          }),
+        ]}
+          opts={{
+            align: "start",
+            loop: true,
+          }}
+          className="w-full max-w-4xl">
           <CarouselContent className="flex space-x-4">
             {movies.map((movie) => (
               <CarouselItem key={movie.id} className="flex-none w-64 relative">
@@ -105,14 +121,14 @@ export function MovieSlider() {
       {selectedMovie && (
         <PlayVideoModal
           changeState={setModalOpen}
-          overview={selectedMovie.overview}
+          overview={selectedMovie.overview} // Pass the movie overview
           state={modalOpen}
           title={selectedMovie.title}
-          youtubeUrl={selectedMovie.youtubeString} // Use youtubeString instead of youtubeUrl
-          age={selectedMovie.age}
-          duration={selectedMovie.duration}
-          release={selectedMovie.release}
-          ratings={selectedMovie.rank} // Adjust if rank is not equivalent to ratings
+          youtubeUrl={selectedMovie.youtubeUrl} // Pass the actual movie youtube URL
+          age={selectedMovie.age} // Use the actual movie age
+          duration={selectedMovie.duration} // Use the actual movie duration
+          release={selectedMovie.release} // Use the actual movie release year
+          ratings={selectedMovie.rank} // Use the actual movie ratings
           setUserRating={function (rating: number): void {
             throw new Error("Function not implemented.");
           }}        

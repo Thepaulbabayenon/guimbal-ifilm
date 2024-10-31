@@ -1,26 +1,37 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from "react";
-import { getAllMovies } from "../api/getMovies"; // Ensure this API function exists
-import { Card, CardContent } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "./PlayVideoModal";
-import Autoplay from "embla-carousel-autoplay"
+import { useEffect, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
+import PlayVideoModal from './PlayVideoModal';
 import { FaHeart, FaPlay } from 'react-icons/fa';
+import Autoplay from 'embla-carousel-autoplay';
 
-export function MovieSlider() {
+/**
+ * Fetch movie recommendations for a user via the hybrid recommendation API.
+ * @param userId - The ID of the user.
+ */
+async function fetchRecommendedMovies(userId: number) {
+  const response = await fetch(`/api/recommendations?userId=${userId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch recommended movies');
+  }
+  return await response.json();
+}
+
+export function MovieSliderReco({ userId }: { userId: number }) {
   interface Movie {
     id: number;
     title: string;
-    age: number; // Include if your API returns this
-    duration: number; // Include if your API returns this
+    age: number;
+    duration: number;
     imageString: string;
-    overview: string; // Include if your API returns this
-    release: number; // Include if your API returns this
-    videoSource: string; // Include if your API returns this
-    category: string; // Include if your API returns this
-    youtubeString: string; // Use this instead of youtubeUrl
-    rank: number; // Include if your API returns this
+    overview: string;
+    release: number;
+    videoSource: string;
+    category: string;
+    youtubeString: string;
+    rank: number;
   }
 
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -30,15 +41,17 @@ export function MovieSlider() {
   useEffect(() => {
     async function fetchMovies() {
       try {
-        const moviesData = await getAllMovies(); // Fetch all movies
-        setMovies(moviesData);
+        const recommendedMovies = await fetchRecommendedMovies(userId); // Call the API to get recommended movies
+        setMovies(recommendedMovies);
       } catch (error) {
-        console.error("Error fetching movies:", error);
+        console.error('Error fetching recommended movies:', error);
       }
     }
 
-    fetchMovies();
-  }, []);
+    if (userId) {
+      fetchMovies();
+    }
+  }, [userId]);
 
   const handlePlay = (movie: Movie) => {
     setSelectedMovie(movie);
@@ -53,14 +66,12 @@ export function MovieSlider() {
     <div className="recently-added-container mb-20">
       <div className="flex justify-center">
         <Carousel 
-          plugins={[
-            Autoplay({
-              delay: 2000,
-            }),
-          ]}
-          opts={{ align: "start", loop: true }} 
-          className="w-full max-w-4xl"
-        >
+        plugins={[
+          Autoplay({
+            delay: 2000,
+          }),
+        ]}
+        opts={{ align: 'start', loop: true }} className="w-full max-w-4xl">
           <CarouselContent className="flex space-x-4">
             {movies.map((movie) => (
               <CarouselItem key={movie.id} className="flex-none w-64 relative">
@@ -108,14 +119,14 @@ export function MovieSlider() {
           overview={selectedMovie.overview}
           state={modalOpen}
           title={selectedMovie.title}
-          youtubeUrl={selectedMovie.youtubeString} // Use youtubeString instead of youtubeUrl
+          youtubeUrl={selectedMovie.youtubeString}
           age={selectedMovie.age}
           duration={selectedMovie.duration}
           release={selectedMovie.release}
-          ratings={selectedMovie.rank} // Adjust if rank is not equivalent to ratings
-          setUserRating={function (rating: number): void {
-            throw new Error("Function not implemented.");
-          }}        
+          ratings={selectedMovie.rank}
+          setUserRating={(rating: number) => {
+            console.log(`User rating set to: ${rating}`);
+          }}
         />
       )}
     </div>

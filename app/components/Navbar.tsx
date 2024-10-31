@@ -3,10 +3,10 @@ import Link from "next/link";
 import Image from "next/image";
 import Logo from "../../public/logo.svg";
 import { usePathname, useSelectedLayoutSegment } from "next/navigation";
-import { Bell, Menu, Search } from "lucide-react";
+import { Bell, Menu, Search, X } from "lucide-react"; // Importing X icon for closing mobile menu
 import UserNav from "./UserNav";
 import { useEffect, useRef, useState } from "react";
-import axios from 'axios';
+import axios from "axios";
 import debounce from "lodash.debounce";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
@@ -35,43 +35,36 @@ const links: LinkProps[] = [
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Track mobile menu visibility
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const segment = useSelectedLayoutSegment();
   const pathName = usePathname();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Check if the current segment is "profile"
   const isProfilePage = segment === "user";
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setIsScrolled(true);
-        setIsNavbarVisible(false);
-      } else {
-        setIsScrolled(false);
-        setIsNavbarVisible(true);
-      }
+      setIsScrolled(window.scrollY > 50);
+      setIsNavbarVisible(window.scrollY <= 50);
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const toggleNavbar = () => {
-    setIsNavbarVisible(!isNavbarVisible);
-  };
-
   const performSearch = async (query: string) => {
+    if (!query) return setSearchResults([]);
     setLoading(true);
     try {
-      const response = await axios.get('/api/search', { params: { query } });
+      const response = await axios.get("/api/search", { params: { query } });
       setSearchResults(response.data);
     } catch (error) {
-      console.error('Error fetching search results:', error);
+      console.error("Error fetching search results:", error);
     } finally {
       setLoading(false);
     }
@@ -92,9 +85,16 @@ export default function Navbar() {
     }
   }, []);
 
-  const toggleNotifications = () => {
-    setIsNotificationsOpen(!isNotificationsOpen);
+  const toggleNotifications = () => setIsNotificationsOpen(!isNotificationsOpen);
+
+  const toggleSearch = () => {
+    setIsSearchOpen((prev) => !prev);
+    if (!isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
   };
+
+  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev); // Toggle mobile menu
 
   const notifications = [
     { id: 1, message: "New films are coming", time: "2 minutes ago" },
@@ -102,19 +102,39 @@ export default function Navbar() {
     { id: 3, message: "Your profile was viewed", time: "1 hour ago" },
   ];
 
-  // Do not render the navbar if on the profile page
   if (isProfilePage) {
     return null;
   }
 
   return (
     <>
-      <div className="hidden lg:block">
+      <div className="lg:hidden fixed top-5 right-5 z-50">
         <Menu
-          onClick={toggleNavbar}
-          className={`fixed top-5 right-5 w-8 h-8 text-white cursor-pointer transition-opacity duration-300 hover:opacity-75 z-50`}
+          onClick={toggleMobileMenu}
+          className="w-8 h-8 text-white cursor-pointer transition-opacity duration-300 hover:opacity-75"
         />
       </div>
+
+      {isMobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, x: "-100%" }}
+          animate={{ opacity: 1, x: "0%" }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-40 bg-black bg-opacity-80 flex flex-col items-center justify-center lg:hidden"
+        >
+          <X
+            onClick={toggleMobileMenu}
+            className="absolute top-5 right-5 w-8 h-8 text-white cursor-pointer"
+          />
+          <ul className="flex flex-col items-center gap-y-6 text-white text-xl">
+            {links.map((link, idx) => (
+              <li key={idx} onClick={toggleMobileMenu}>
+                <Link href={link.href}>{link.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </motion.div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, scaleY: 0 }}
@@ -129,10 +149,7 @@ export default function Navbar() {
         style={{ backgroundColor: isScrolled ? "rgba(0, 0, 0, 0.8)" : "transparent" }}
       >
         <div className="flex items-center">
-          <Link
-            href="/home"
-            className={`w-32 transition-transform duration-500 ${isScrolled ? "scale-90" : "scale-100"}`}
-          >
+          <Link href="/home" className={`w-32 transition-transform duration-500 ${isScrolled ? "scale-90" : "scale-100"}`}>
             <Image src={Logo} alt="Logo" priority width={65} height={65} />
           </Link>
           <ul className="lg:flex gap-x-5 ml-14 hidden">
@@ -162,61 +179,56 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-x-8">
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Search
-                className="w-5 h-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125"
-              />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-80 bg-gray-500 text-white rounded-lg shadow-lg">
-              <div className="p-4 relative">
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search..."
-                  aria-label="Search"
-                  className="w-full p-4 pl-12 border text-black border-gray-500 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-700 transition-all duration-300"
-                  value={searchQuery}
-                  onChange={handleSearchInputChange}
-                />
-                <Search
-                  className="absolute top-1/2 left-4 transform -translate-y-1/2 w-5 h-5 text-gray-500"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute top-1/2 right-4 transform -translate-y-1/2 text-gray-500 hover:text-gray-900 transition-colors duration-300"
-                  >
-                    &times;
-                  </button>
+          <div className="relative">
+            <Search onClick={toggleSearch} className="w-5 h-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125" />
+            {isSearchOpen && (
+              <div className="absolute z-10 mt-2 w-80 bg-gray-500 rounded-lg shadow-lg">
+                <div className="p-4 relative">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search..."
+                    aria-label="Search"
+                    className="w-full p-4 pl-12 border text-black border-gray-500 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-700 transition-all duration-300"
+                    value={searchQuery}
+                    onChange={handleSearchInputChange}
+                  />
+                  <Search className="absolute top-1/2 left-4 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute top-1/2 right-4 transform -translate-y-1/2 text-gray-500 hover:text-gray-900 transition-colors duration-300"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+                {loading && <div className="flex justify-center py-2"><Loader2 /></div>}
+                {searchResults.length > 0 && (
+                  <ul className="mt-2 border-t border-gray-200 divide-y divide-gray-200">
+                    {searchResults.map((movie: { id: number; title: string }) => (
+                      <DropdownMenuItem key={movie.id} className="p-3 hover:bg-gray-700 transition-colors duration-200">
+                        {movie.title}
+                      </DropdownMenuItem>
+                    ))}
+                  </ul>
+                )}
+                {searchResults.length === 0 && searchQuery && (
+                  <p className="mt-4 text-white">No results found</p>
                 )}
               </div>
-              {loading && <div className="flex justify-center py-2"><Loader2 /></div>}
-              {searchResults.length > 0 && (
-                <ul className="mt-2 border-t border-gray-200 divide-y divide-gray-200">
-                  {searchResults.map((movie: { id: number; title: string }) => (
-                    <DropdownMenuItem key={movie.id} className="p-3 hover:bg-gray-700 transition-colors duration-200">
-                      {movie.title}
-                    </DropdownMenuItem>
-                  ))}
-                </ul>
-              )}
-              {searchResults.length === 0 && searchQuery && (
-                <p className="mt-4 text-white">No results found</p>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+          </div>
+
           <DropdownMenu>
             <DropdownMenuTrigger>
-              <Bell
-                className="h-5 w-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125"
-              />
+              <Bell onClick={toggleNotifications} className="h-5 w-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125" />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64 bg-gray-800 text-white rounded-lg shadow-lg">
               <DropdownMenuLabel>Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {notifications.map(notification => (
+              {isNotificationsOpen && notifications.map(notification => (
                 <DropdownMenuItem key={notification.id} className="p-3 hover:bg-gray-700 transition-colors duration-200">
                   <div className="flex justify-between">
                     <p>{notification.message}</p>
@@ -226,6 +238,7 @@ export default function Navbar() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
           <UserNav />
         </div>
       </motion.div>

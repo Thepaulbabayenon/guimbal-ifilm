@@ -61,7 +61,7 @@ export default async function Watchlist() {
                         title={movie?.title as string}
                         year={parseInt(movie?.release.toString())}
                         youtubeUrl={movie?.youtubeString as string}
-                        ratings={0}
+                        initialRatings={0}
                         watchList={false}
                       />
                     )}

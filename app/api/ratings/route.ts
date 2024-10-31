@@ -11,3 +11,7 @@ export default async function handler(
     res.status(500).send({ error: 'failed to fetch data' })
   }
 }
+
+function someAsyncOperation() {
+  throw new Error('Function not implemented.')
+}

@@ -79,6 +79,7 @@ export function MovieCard({
     if (!userId) return; // Exit if user is not authenticated
 
     const saveUserRating = async () => {
+      console.log("Sending rating for movieId:", movieId);
       try {
         setIsSavingRating(true);
         await axios.post(
