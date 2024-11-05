@@ -5,36 +5,38 @@ import {
   FieldValues, 
   UseFormRegister 
 } from "react-hook-form";
-import { BiDollar } from "react-icons/bi";
+import { BiSearch } from "react-icons/bi";
 
 interface InputProps {
   id: string;
-  label: string;
+  label?: string;
+  placeholder?: string;
   type?: string;
   disabled?: boolean;
-  formatPrice?: boolean;
+  showSearchIcon?: boolean;
+  register: UseFormRegister<FieldValues>;
   required?: boolean;
-  register: UseFormRegister<FieldValues>,
-  errors: FieldErrors
+  errors: FieldErrors;
 }
 
 const Input: React.FC<InputProps> = ({
   id,
   label,
+  placeholder = "Search...",
   type = "text", 
   disabled, 
-  formatPrice,
+  showSearchIcon,
   register,
   required,
   errors,
 }) => {
   return (
     <div className="w-full relative">
-      {formatPrice && (
-        <BiDollar
+      {showSearchIcon && (
+        <BiSearch
           size={24}  
           className="
-            text-neutral-700
+            text-neutral-500
             absolute
             top-5
             left-2
@@ -45,7 +47,7 @@ const Input: React.FC<InputProps> = ({
         id={id}
         disabled={disabled}
         {...register(id, { required })}
-        placeholder=" "
+        placeholder={placeholder}
         type={type}
         className={`
           peer
@@ -60,33 +62,35 @@ const Input: React.FC<InputProps> = ({
           transition
           disabled:opacity-70
           disabled:cursor-not-allowed
-          ${formatPrice ? 'pl-9' : 'pl-4'}
-          ${errors[id] ? 'border-rose-500' : 'border-neutral-300'}
-          ${errors[id] ? 'focus:border-rose-500' : 'focus:border-black'}
+          ${showSearchIcon ? 'pl-10' : 'pl-4'}
+          ${errors[id] ? 'border-red-500' : 'border-neutral-300'}
+          ${errors[id] ? 'focus:border-red-500' : 'focus:border-black'}
         `}
       />
-      <label 
-        className={`
-          absolute 
-          text-md
-          duration-150 
-          transform 
-          -translate-y-3 
-          top-5 
-          z-10 
-          origin-[0] 
-          ${formatPrice ? 'left-9' : 'left-4'}
-          peer-placeholder-shown:scale-100 
-          peer-placeholder-shown:translate-y-0 
-          peer-focus:scale-75
-          peer-focus:-translate-y-4
-          ${errors[id] ? 'text-rose-500' : 'text-zinc-400'}
-        `}
-      >
-        {label}
-      </label>
+      {label && (
+        <label 
+          className={`
+            absolute 
+            text-md
+            duration-150 
+            transform 
+            -translate-y-3 
+            top-5 
+            z-10 
+            origin-[0] 
+            ${showSearchIcon ? 'left-10' : 'left-4'}
+            peer-placeholder-shown:scale-100 
+            peer-placeholder-shown:translate-y-0 
+            peer-focus:scale-75
+            peer-focus:-translate-y-4
+            ${errors[id] ? 'text-red-500' : 'text-zinc-400'}
+          `}
+        >
+          {label}
+        </label>
+      )}
     </div>
    );
 }
- 
+
 export default Input;
