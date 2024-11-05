@@ -1,3 +1,4 @@
+'use client';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import React, { useState } from 'react';
 import { Modal, Button, Select } from 'antd';
