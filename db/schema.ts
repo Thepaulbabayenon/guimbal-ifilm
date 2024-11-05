@@ -178,7 +178,7 @@ export const userRatings = pgTable(
       columns: [userRatings.userId, userRatings.movieId],
     }),
   })
-);
+);z
 
 // Zod Schema for Inserting Movies
 export const insertMovieSchema = z.object({

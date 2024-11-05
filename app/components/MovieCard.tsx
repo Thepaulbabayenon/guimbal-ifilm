@@ -6,6 +6,8 @@ import PlayVideoModal from "./PlayVideoModal";
 import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
+import { ToastContainer, toast } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 interface MovieCardProps {
   movieId: number;
@@ -19,7 +21,6 @@ interface MovieCardProps {
   time: number; // Duration in minutes
   initialRatings: number; // External ratings (initial ratings)
 }
-
 
 export function MovieCard({
   movieId,
@@ -100,6 +101,7 @@ export function MovieCard({
         }
       } catch (error) {
         console.error("Error saving user rating:", error);
+        toast.error("Failed to save your rating. Please try again.");
       } finally {
         setIsSavingRating(false);
       }
@@ -116,12 +118,10 @@ export function MovieCard({
     e.preventDefault();
 
     if (!userId) {
-      // Optionally, prompt the user to log in
       alert("Please log in to manage your watchlist.");
       return;
     }
 
-    // Optimistically update UI
     setWatchList((prev) => !prev);
     setIsSavingWatchlist(true);
 
@@ -129,8 +129,9 @@ export function MovieCard({
       if (watchList) {
         // Remove from watchlist
         await axios.delete(`/api/watchlist/${watchListId}`, {
-          data: { userId }, // Some servers require data in DELETE requests
+          data: { userId },
         });
+        toast.success("Removed from your watchlist.");
       } else {
         // Add to watchlist
         await axios.post("/api/watchlist", {
@@ -138,12 +139,12 @@ export function MovieCard({
           pathname: pathName,
           userId,
         });
+        toast.success("Added to your watchlist.");
       }
     } catch (error) {
       console.error("Error toggling watchlist:", error);
-      // Revert watchlist change if there's an error
       setWatchList((prev) => !prev);
-      alert("Failed to update watchlist. Please try again.");
+      toast.error("Failed to update watchlist. Please try again.");
     } finally {
       setIsSavingWatchlist(false);
     }
@@ -151,18 +152,49 @@ export function MovieCard({
 
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
-    if (isSavingRating) return; // Prevent multiple submissions
+    if (isSavingRating) {
+      toast.info("Saving in progress. Please wait.");
+      return;
+    }
+
     if (!userId) {
-      // Optionally, prompt the user to log in
-      alert("Please log in to rate movies.");
+      toast.warning("Please log in to rate movies.");
       return;
     }
 
     setUserRating(newRating); // Optimistically update the user's rating
+
+    try {
+      setIsSavingRating(true);
+      await axios.post(
+        `/api/movies/${movieId}/user-rating`,
+        {
+          userId,
+          rating: newRating,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
+      if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+        setAverageRating(avgResponse.data.averageRating);
+      }
+
+      toast.success("Your rating has been saved!");
+    } catch (error) {
+      console.error("Error saving user rating:", error);
+      toast.error("Failed to save your rating. Please try again.");
+      setUserRating((prev) => prev); // Optionally revert the rating
+    } finally {
+      setIsSavingRating(false);
+    }
   };
 
   return (
     <>
+      <ToastContainer />
       <button onClick={() => setOpen(true)} className="-mt-14">
         <PlayCircle className="h-20 w-20" />
       </button>
@@ -177,9 +209,7 @@ export function MovieCard({
         <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
         <div className="flex gap-x-2 items-center">
           <p className="font-normal text-sm">{year}</p>
-          <p className="font-normal border py-0.5 px-1 border-gray-200 rounded text-sm">
-            {age}+
-          </p>
+          <p className="font-normal border py-0.5 px-1 border-gray-200 rounded text-sm">{age}+</p>
           <p className="font-normal text-sm">{time}m</p>
           <div className="flex items-center">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -193,7 +223,7 @@ export function MovieCard({
         </div>
         <p className="line-clamp-1 text-sm text-gray-200 font-light">{overview}</p>
         <p className="font-normal text-sm mt-2">
-        Average Rating: {averageRating ? averageRating.toFixed(2) : "N/A"} / 5
+          Average Rating: {averageRating ? averageRating.toFixed(2) : "N/A"} / 5
         </p>
       </div>
 
