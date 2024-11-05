@@ -1,37 +1,33 @@
-'use client';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import React, { useState } from 'react';
-import { Modal, Button, Select } from 'antd'; // Keeping Ant Design for Modal and Select
+import { Modal, Button, Select } from 'antd';
 import axios from 'axios';
-import Input from '../Input/Input'; // Importing the custom Input component
+import Input from '../Input/Input';
 
 interface SearchModalProps {
   isVisible: boolean;
   onClose: () => void;
 }
 
+interface FormValues {
+  title: string;
+  release: string;
+  category: string;
+}
+
 const SearchModal: React.FC<SearchModalProps> = ({ isVisible, onClose }) => {
-  const [title, setTitle] = useState('');
-  const [release, setRelease] = useState<number | undefined>();
-  const [category, setCategory] = useState('');
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>();
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-/*************  ✨ Codeium Command ⭐  *************/
-  /**
-   * Handles the search request.
-   *
-   * @async
-   * @function
-   */
-/******  b19312cd-8027-4403-a5b3-f34e89161954  *******/
-  const handleSearch = async () => {
+  const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setLoading(true);
     try {
       const response = await axios.get('/api/search', {
         params: {
-          title,
-          release,
-          category,
+          title: data.title,
+          release: data.release ? parseInt(data.release, 10) : undefined,
+          category: data.category,
         },
       });
       setResults(response.data);
@@ -44,39 +40,33 @@ const SearchModal: React.FC<SearchModalProps> = ({ isVisible, onClose }) => {
 
   return (
     <Modal title="Search Movies" visible={isVisible} onCancel={onClose} footer={null}>
-      <div>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <Input
           id="title"
           placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          register={() => ({})} // Mocked register for illustration
-          errors={{}}
+          register={register('title', { required: 'Title is required' })}
+          errors={errors}
         />
         <Input
           id="release"
           type="number"
           placeholder="Release Year"
-          value={release !== undefined ? release.toString() : ''}
-          onChange={(e) => setRelease(parseInt(e.target.value) || undefined)}
-          register={() => ({})}
-          errors={{}}
+          register={register('release')}
+          errors={errors}
         />
         <Select
           placeholder="Category"
-          value={category}
-          onChange={(value) => setCategory(value)}
+          {...register('category')}
           style={{ width: '100%', marginBottom: '10px' }}
         >
           <Select.Option value="Action">Action</Select.Option>
           <Select.Option value="Drama">Drama</Select.Option>
           <Select.Option value="Comedy">Comedy</Select.Option>
-          {/* Add more categories as needed */}
         </Select>
-        <Button type="primary" onClick={handleSearch} loading={loading}>
+        <Button type="primary" htmlType="submit" loading={loading}>
           Search
         </Button>
-      </div>
+      </form>
       {results.length > 0 && (
         <div style={{ marginTop: '20px' }}>
           <h3>Results:</h3>

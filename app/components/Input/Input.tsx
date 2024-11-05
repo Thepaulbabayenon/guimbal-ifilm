@@ -2,8 +2,7 @@
 
 import { 
   FieldErrors, 
-  FieldValues, 
-  UseFormRegister 
+  UseFormRegisterReturn // Import the correct type
 } from "react-hook-form";
 import { BiSearch } from "react-icons/bi";
 
@@ -14,7 +13,7 @@ interface InputProps {
   type?: string;
   disabled?: boolean;
   showSearchIcon?: boolean;
-  register: UseFormRegister<FieldValues>;
+  register: UseFormRegisterReturn; // Updated type
   required?: boolean;
   errors: FieldErrors;
 }
@@ -46,7 +45,7 @@ const Input: React.FC<InputProps> = ({
       <input
         id={id}
         disabled={disabled}
-        {...register(id, { required })}
+        {...register} // Spread the register object returned by `register(id)`
         placeholder={placeholder}
         type={type}
         className={`
@@ -90,7 +89,7 @@ const Input: React.FC<InputProps> = ({
         </label>
       )}
     </div>
-   );
+  );
 }
 
 export default Input;
