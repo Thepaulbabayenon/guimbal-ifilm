@@ -52,7 +52,7 @@ export function MovieSliderHorror() {
 
     fetchMovies();
   }, []);
-
+  // play the movie functionality
   const handlePlay = (movie: Movie) => {
     setSelectedMovie(movie);
     setModalOpen(true);
