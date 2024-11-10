@@ -10,9 +10,7 @@ export async function GET(
   try {
     const url = new URL(req.url);
     const userId = url.searchParams.get("userId");
-    
-    
-    
+
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
@@ -39,7 +37,7 @@ export async function POST(
   { params }: { params: { movieId: string } }
 ) {
   console.log("Received POST request for movieId:", params.movieId);
-  console.log("Request method:", req.method); // Log method
+  console.log("Request method:", req.method);
 
   try {
     const { userId, rating } = await req.json();
@@ -47,7 +45,7 @@ export async function POST(
     console.log("User ID:", userId);
     console.log("Rating:", rating);
 
-    if (!userId || rating === undefined) { // Ensure rating is defined
+    if (!userId || rating === undefined) {
       return NextResponse.json(
         { error: "User ID and rating are required" },
         { status: 400 }
@@ -62,12 +60,38 @@ export async function POST(
     if (!userExists) {
       return NextResponse.json(
         { error: "User not found" },
-        { status: 408 }
+        { status: 404 }
       );
     }
 
-    // Existing rating handling and saving logic here...
-    
+    // Check if a rating already exists for this user and movie
+    const existingRating = await db.query.userRatings.findFirst({
+      where: and(
+        eq(userRatings.movieId, parseInt(params.movieId)),
+        eq(userRatings.userId, userId)
+      ),
+    });
+
+    if (existingRating) {
+      // Update the existing rating
+      await db.update(userRatings)
+        .set({ rating })
+        .where(and(
+          eq(userRatings.movieId, parseInt(params.movieId)),
+          eq(userRatings.userId, userId)
+        ));
+
+      return NextResponse.json({ message: "Rating updated successfully" });
+    } else {
+      // Create a new rating if none exists
+      await db.insert(userRatings).values({
+        movieId: parseInt(params.movieId),
+        userId,
+        rating,
+      });
+
+      return NextResponse.json({ message: "Rating created successfully" });
+    }
   } catch (error) {
     console.error("Error saving rating:", error);
     return NextResponse.json(
@@ -76,4 +100,3 @@ export async function POST(
     );
   }
 }
-
