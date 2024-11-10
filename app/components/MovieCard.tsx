@@ -152,45 +152,42 @@ export function MovieCard({
 
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
+    console.log("Clicked rating:", newRating);
+  
     if (isSavingRating) {
       toast.info("Saving in progress. Please wait.");
       return;
     }
-
+  
     if (!userId) {
       toast.warning("Please log in to rate movies.");
       return;
     }
-
-    setUserRating(newRating); // Optimistically update the user's rating
-
+  
+    setUserRating(newRating); // Optimistically update UI
+  
     try {
       setIsSavingRating(true);
       await axios.post(
         `/api/movies/${movieId}/user-rating`,
-        {
-          userId,
-          rating: newRating,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
+        { userId, rating: newRating },
+        { headers: { "Content-Type": "application/json" } }
       );
-
+  
       const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
       if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
         setAverageRating(avgResponse.data.averageRating);
       }
-
+  
       toast.success("Your rating has been saved!");
     } catch (error) {
       console.error("Error saving user rating:", error);
       toast.error("Failed to save your rating. Please try again.");
-      setUserRating((prev) => prev); // Optionally revert the rating
     } finally {
       setIsSavingRating(false);
     }
   };
+  
 
   return (
     <>

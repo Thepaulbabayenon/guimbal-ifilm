@@ -1,102 +1,172 @@
+import { Hono } from "hono";
+import { createId } from "@paralleldrive/cuid2";
 import { db } from "@/db/drizzle";
 import { userRatings, users } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import { eq, and, inArray } from "drizzle-orm";
 
-export async function GET(
-  req: Request,
-  { params }: { params: { movieId: string } }
-) {
-  try {
-    const url = new URL(req.url);
-    const userId = url.searchParams.get("userId");
+// Initialize Hono app
+const app = new Hono();
 
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
-    }
+// GET all ratings for a user (with Clerk authentication)
+app.get("/", clerkMiddleware(), async (c) => {
+  const auth = getAuth(c);
 
-    const rating = await db.query.userRatings.findFirst({
-      where: and(
-        eq(userRatings.movieId, parseInt(params.movieId)),
-        eq(userRatings.userId, userId)
-      ),
-    });
-
-    return NextResponse.json({ rating: rating?.rating || 0 });
-  } catch (error) {
-    console.error("Error fetching user rating:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch rating" },
-      { status: 500 }
-    );
+  if (!auth?.userId) {
+    return c.json({ error: "Unauthorized" }, 401);
   }
-}
 
-export async function POST(
-  req: Request,
-  { params }: { params: { movieId: string } }
-) {
-  console.log("Received POST request for movieId:", params.movieId);
-  console.log("Request method:", req.method);
+  const data = await db
+    .select({
+      id: userRatings.id, // Ensure the 'id' field is present in the schema
+      movieId: userRatings.movieId,
+      rating: userRatings.rating,
+    })
+    .from(userRatings)
+    .where(eq(userRatings.userId, auth.userId));
 
-  try {
-    const { userId, rating } = await req.json();
+  return c.json({ data });
+});
 
-    console.log("User ID:", userId);
-    console.log("Rating:", rating);
+// GET a specific rating by movie ID
+app.get(
+  "/:id",
+  zValidator("param", z.object({ id: z.string().optional() })),
+  clerkMiddleware(),
+  async (c) => {
+    const auth = getAuth(c);
+    const { id } = c.req.valid("param");
 
-    if (!userId || rating === undefined) {
-      return NextResponse.json(
-        { error: "User ID and rating are required" },
-        { status: 400 }
-      );
+    if (!id) {
+      return c.json({ error: "Missing id" }, 400);
     }
 
-    // Check if the user exists
-    const userExists = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
-
-    if (!userExists) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+    if (!auth?.userId) {
+      return c.json({ error: "Unauthorized" }, 401);
     }
 
-    // Check if a rating already exists for this user and movie
-    const existingRating = await db.query.userRatings.findFirst({
-      where: and(
-        eq(userRatings.movieId, parseInt(params.movieId)),
-        eq(userRatings.userId, userId)
-      ),
-    });
+    const [data] = await db
+      .select({
+        id: userRatings.id, // Ensure this column exists
+        movieId: userRatings.movieId,
+        rating: userRatings.rating,
+      })
+      .from(userRatings)
+      .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.movieId, parseInt(id, 10))));
 
-    if (existingRating) {
-      // Update the existing rating
-      await db.update(userRatings)
-        .set({ rating })
-        .where(and(
-          eq(userRatings.movieId, parseInt(params.movieId)),
-          eq(userRatings.userId, userId)
-        ));
-
-      return NextResponse.json({ message: "Rating updated successfully" });
-    } else {
-      // Create a new rating if none exists
-      await db.insert(userRatings).values({
-        movieId: parseInt(params.movieId),
-        userId,
-        rating,
-      });
-
-      return NextResponse.json({ message: "Rating created successfully" });
+    if (!data) {
+      return c.json({ error: "Not found" }, 404);
     }
-  } catch (error) {
-    console.error("Error saving rating:", error);
-    return NextResponse.json(
-      { error: "Failed to save rating" },
-      { status: 500 }
-    );
+
+    return c.json({ data });
   }
-}
+);
+
+// POST a new rating (create or update a rating for a movie)
+app.post(
+  "/",
+  clerkMiddleware(),
+  zValidator(
+    "json",
+    z.object({
+      movieId: z.string(),
+      rating: z.number().min(1).max(5),
+    })
+  ),
+  async (c) => {
+    const auth = getAuth(c);
+    const values = c.req.valid("json");
+
+    if (!auth?.userId) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    // Insert new rating or update if it exists
+    const result = await db
+      .insert(userRatings)
+      .values({
+        userId: auth.userId,
+        movieId: parseInt(values.movieId, 10),  // Convert movieId to number
+        rating: values.rating,
+      })
+      .onConflictDoUpdate({
+        target: [userRatings.movieId, userRatings.userId],
+        set: { rating: values.rating },
+      })
+      .returning();
+
+    return c.json({ data: result });
+  }
+);
+
+// DELETE ratings for a specific movie (bulk or by ID)
+app.delete(
+  "/:id",
+  clerkMiddleware(),
+  zValidator("param", z.object({ id: z.string().optional() })),
+  async (c) => {
+    const auth = getAuth(c);
+    const { id } = c.req.valid("param");
+
+    if (!id) {
+      return c.json({ error: "Missing id" }, 400);
+    }
+
+    if (!auth?.userId) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const [data] = await db
+      .delete(userRatings)
+      .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.movieId, parseInt(id, 10))))
+      .returning();
+
+    if (!data) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+    return c.json({ data });
+  }
+);
+
+// PATCH (update) the rating for a specific movie
+app.patch(
+  "/:id",
+  clerkMiddleware(),
+  zValidator("param", z.object({ id: z.string().optional() })),
+  zValidator(
+    "json",
+    z.object({
+      rating: z.number().min(1).max(5),
+    })
+  ),
+  async (c) => {
+    const auth = getAuth(c);
+    const { id } = c.req.valid("param");
+    const values = c.req.valid("json");
+
+    if (!id) {
+      return c.json({ error: "Missing id" }, 400);
+    }
+
+    if (!auth?.userId) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const [data] = await db
+      .update(userRatings)
+      .set({ rating: values.rating })
+      .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.movieId, parseInt(id, 10))))
+      .returning();
+
+    if (!data) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+    return c.json({ data });
+  }
+);
+
+export default app;

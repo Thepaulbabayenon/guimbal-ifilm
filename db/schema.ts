@@ -161,9 +161,11 @@ export const watchLists = pgTable('watchLists', {
 });
 
 // UserRatings Table (New)
+// UserRatings Table (New)
 export const userRatings = pgTable(
   'userRatings',
   {
+    id: serial('id').primaryKey(), // Adding an 'id' column as a serial type
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -178,7 +180,8 @@ export const userRatings = pgTable(
       columns: [userRatings.userId, userRatings.movieId],
     }),
   })
-);z
+);
+
 
 // Zod Schema for Inserting Movies
 export const insertMovieSchema = z.object({
