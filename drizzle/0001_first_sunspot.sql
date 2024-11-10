@@ -1,1 +1,0 @@
-ALTER TABLE "userInteractions" DROP COLUMN IF EXISTS "id";

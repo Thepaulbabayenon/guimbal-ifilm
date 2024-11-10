@@ -165,7 +165,7 @@ export const watchLists = pgTable('watchLists', {
 export const userRatings = pgTable(
   'userRatings',
   {
-    id: serial('id').primaryKey(), // Adding an 'id' column as a serial type
+    id: serial('id'), // This is now just a regular column, not a primary key
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -176,11 +176,14 @@ export const userRatings = pgTable(
     timestamp: timestamp('timestamp').defaultNow().notNull(),
   },
   (userRatings) => ({
+    // Composite primary key on 'userId' and 'movieId'
     primaryKey: primaryKey({
       columns: [userRatings.userId, userRatings.movieId],
     }),
   })
 );
+
+
 
 
 // Zod Schema for Inserting Movies

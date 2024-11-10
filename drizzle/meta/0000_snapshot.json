@@ -1,5 +1,5 @@
 {
-  "id": "1f4803bf-453d-46f3-82ff-5b1406a6af51",
+  "id": "05820bd9-519f-44fe-8958-b88861bddd14",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -313,12 +313,6 @@
       "name": "userInteractions",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
         "userId": {
           "name": "userId",
           "type": "text",
@@ -385,6 +379,82 @@
       },
       "uniqueConstraints": {}
     },
+    "public.userRatings": {
+      "name": "userRatings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "movieId": {
+          "name": "movieId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rating": {
+          "name": "rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "userRatings_userId_user_id_fk": {
+          "name": "userRatings_userId_user_id_fk",
+          "tableFrom": "userRatings",
+          "tableTo": "user",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "userRatings_movieId_movie_id_fk": {
+          "name": "userRatings_movieId_movie_id_fk",
+          "tableFrom": "userRatings",
+          "tableTo": "movie",
+          "columnsFrom": [
+            "movieId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "userRatings_userId_movieId_pk": {
+          "name": "userRatings_userId_movieId_pk",
+          "columns": [
+            "userId",
+            "movieId"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "public.user": {
       "name": "user",
       "schema": "",
@@ -403,7 +473,7 @@
         },
         "email": {
           "name": "email",
-          "type": "varchar",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -509,6 +579,70 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.watchedMovies": {
+      "name": "watchedMovies",
+      "schema": "",
+      "columns": {
+        "userId": {
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "movieId": {
+          "name": "movieId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "watchedMovies_userId_user_id_fk": {
+          "name": "watchedMovies_userId_user_id_fk",
+          "tableFrom": "watchedMovies",
+          "tableTo": "user",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "watchedMovies_movieId_movie_id_fk": {
+          "name": "watchedMovies_movieId_movie_id_fk",
+          "tableFrom": "watchedMovies",
+          "tableTo": "movie",
+          "columnsFrom": [
+            "movieId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "watchedMovies_userId_movieId_pk": {
+          "name": "watchedMovies_userId_movieId_pk",
+          "columns": [
+            "userId",
+            "movieId"
+          ]
+        }
+      },
       "uniqueConstraints": {}
     }
   },

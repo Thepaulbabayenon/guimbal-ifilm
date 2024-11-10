@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1727883055885,
-      "tag": "0000_clever_millenium_guard",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1727967675909,
-      "tag": "0001_first_sunspot",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1727968374372,
-      "tag": "0002_easy_nick_fury",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1728028689494,
-      "tag": "0003_cynical_darwin",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1729694671962,
-      "tag": "0004_grey_cardiac",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1730689003068,
-      "tag": "0005_bright_leader",
+      "when": 1731227260494,
+      "tag": "0000_lumpy_mauler",
       "breakpoints": true
     }
   ]

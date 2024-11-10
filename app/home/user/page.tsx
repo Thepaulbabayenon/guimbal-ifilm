@@ -6,7 +6,7 @@ import { Logo } from "@/app/components/Logo";
 
 export default async function Profile() {
   try {
-    const { userId }: { userId: string | null } = auth()
+    const { userId }: { userId: string | null } = auth();
     if (!userId) {
       throw new Error("User not logged in");
     }
@@ -67,38 +67,38 @@ export default async function Profile() {
                     watchList={Boolean(movie.watchListId)}
                     year={movie.release}
                     youtubeUrl={movie.youtubeString}
-                    ratings={0}
+                    initialRatings={0} // Use initialRatings instead of ratings
                   />
                 ))}
               </div>
             )}
           </div>
-            {/*top 10 movies*/}
-          <div className="mt-10">
-  <h2 className="text-gray-400 text-3xl font-bold mb-6">Top 10 Movies</h2>
-  <div className=" grid-cols-1 grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-    {top10.map((movie) => (
-      <div key={movie.id} className="relative group">
-        <MovieCard
-          age={movie.age}
-          movieId={movie.id}
-          overview={movie.overview}
-          time={movie.duration}
-          title={movie.title}
-          watchListId=""
-          watchList={false}
-          year={movie.release}
-          youtubeUrl={movie.imageString}
-          ratings={0}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-70 transition-opacity duration-300 flex items-center justify-center text-center text-white p-4">
-          <p className="text-lg font-semibold">{movie.title}</p>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
 
+          {/* Top 10 Movies */}
+          <div className="mt-10">
+            <h2 className="text-gray-400 text-3xl font-bold mb-6">Top 10 Movies</h2>
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {top10.map((movie) => (
+                <div key={movie.id} className="relative group">
+                  <MovieCard
+                    age={movie.age}
+                    movieId={movie.id}
+                    overview={movie.overview}
+                    time={movie.duration}
+                    title={movie.title}
+                    watchListId="" // Empty watchListId for top 10 movies
+                    watchList={false} // Top 10 movies won't be in watchlist
+                    year={movie.release}
+                    youtubeUrl={movie.imageString} // Assuming imageString is the correct property
+                    initialRatings={0} // Use initialRatings instead of ratings
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-70 transition-opacity duration-300 flex items-center justify-center text-center text-white p-4">
+                    <p className="text-lg font-semibold">{movie.title}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Favorites */}
           <div className="mt-10">
@@ -115,11 +115,11 @@ export default async function Profile() {
                     overview={movie.overview}
                     time={movie.duration}
                     title={movie.title}
-                    watchListId=""
-                    watchList={false}
+                    watchListId="" // Empty watchListId for favorites
+                    watchList={false} // Favorites won't be in watchlist
                     year={movie.release}
-                    youtubeUrl={movie.imageString}
-                    ratings={0}
+                    youtubeUrl={movie.imageString} // Assuming imageString is the correct property
+                    initialRatings={0} // Use initialRatings instead of ratings
                   />
                 ))}
               </div>
