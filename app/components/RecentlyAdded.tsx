@@ -1,14 +1,13 @@
 import Image from "next/image";
 import { db } from "@/db/drizzle";
 import { MovieCard } from "./MovieCard";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
-import { accounts, movie, users } from "@/db/schema";
+import { auth } from "@clerk/nextjs/server";
+import { and, asc, eq, avg } from "drizzle-orm"; // Ensure that avg() is imported
+import { accounts, movie, userRatings } from "@/db/schema";
 
-const result = db.select().from(users).leftJoin(movie, eq(users.id, movie.id));
-
+// Fetch movie data and calculate average ratings
 async function getData(userId: string) {
-  // You can merge or join the data from `result` and movies here if necessary
+  // Get movies and calculate average rating for each movie
   const userMovies = await db
     .select({
       id: movie.id,
@@ -23,21 +22,23 @@ async function getData(userId: string) {
       age: movie.age,
       release: movie.release,
       duration: movie.duration,
+      // Aggregation to calculate average rating using avg()
+      averageRating: avg(userRatings.rating).as('averageRating'), // Using avg() to calculate the average
     })
     .from(movie)
     .leftJoin(accounts, eq(accounts.userId, userId))
-    .orderBy(asc(movie.rank))
-    .limit(4);
+    .leftJoin(userRatings, eq(userRatings.movieId, movie.id))
+    .groupBy(movie.id, accounts.userId) // Group by both movie.id and accounts.userId
+    .orderBy(asc(avg(userRatings.rating))) // Order by the calculated average rating
+    .limit(4); // Limit the results to top 4
 
   return userMovies;
 }
 
 export default async function RecentlyAdded() {
-  const { userId } = auth();
+  const { userId } = auth(); // Get the user ID from the authentication context
 
-  // Add logic to use `result` if necessary
-  // e.g., merge with movie data or filter based on users
-
+  // Get movies with their average ratings in ascending order
   const data = await getData(userId as string);
 
   return (
@@ -72,7 +73,7 @@ export default async function RecentlyAdded() {
                   age={movie.age}
                   time={movie.duration}
                   year={movie.release}
-                  initialRatings={0}
+                  initialRatings={Number(movie.averageRating) || 0} // Ensure that averageRating is always a number
                 />
               </div>
             </div>

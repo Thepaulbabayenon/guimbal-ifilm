@@ -1,12 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FaStar } from 'react-icons/fa'; // Import star icons for the rating system
 
 interface PlayVideoModalProps {
@@ -59,9 +53,7 @@ export default function PlayVideoModal({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="line-clamp-3">
-            {overview}
-          </DialogDescription>
+          <DialogDescription className="line-clamp-3">{overview}</DialogDescription>
           <div className="flex gap-x-2 items-center">
             <p>{release}</p>
             <p className="border py-0.5 px-1 border-gray-200 rounded">{age}+</p>

@@ -51,6 +51,7 @@ export function MovieCard({
 
     const fetchRatings = async () => {
       try {
+        // Fetch user rating
         const response = await axios.get(`/api/movies/${movieId}/user-rating`, {
           params: { userId },
         });
@@ -77,21 +78,15 @@ export function MovieCard({
 
   // Save user rating to the database when userRating changes
   useEffect(() => {
-    if (!userId) return; // Exit if user is not authenticated
+    if (!userId || userRating === 0) return; // Exit if user is not authenticated or rating is 0
 
     const saveUserRating = async () => {
-      console.log("Sending rating for movieId:", movieId);
       try {
         setIsSavingRating(true);
         await axios.post(
           `/api/movies/${movieId}/user-rating`,
-          {
-            userId,
-            rating: userRating,
-          },
-          {
-            headers: { "Content-Type": "application/json" },
-          }
+          { userId, rating: userRating },
+          { headers: { "Content-Type": "application/json" } }
         );
 
         // Fetch the updated average rating after saving the user's rating
@@ -99,6 +94,8 @@ export function MovieCard({
         if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
           setAverageRating(avgResponse.data.averageRating); // Update the average rating
         }
+
+        toast.success("Your rating has been saved!");
       } catch (error) {
         console.error("Error saving user rating:", error);
         toast.error("Failed to save your rating. Please try again.");
@@ -107,10 +104,8 @@ export function MovieCard({
       }
     };
 
-    // Save only if the rating changes
-    if (userRating > 0) {
-      saveUserRating();
-    }
+    // Save the rating only if it has changed
+    saveUserRating();
   }, [userRating, movieId, userId]);
 
   // Handle watchlist toggle
@@ -152,20 +147,18 @@ export function MovieCard({
 
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
-    console.log("Clicked rating:", newRating);
-  
     if (isSavingRating) {
       toast.info("Saving in progress. Please wait.");
       return;
     }
-  
+
     if (!userId) {
       toast.warning("Please log in to rate movies.");
       return;
     }
-  
+
     setUserRating(newRating); // Optimistically update UI
-  
+
     try {
       setIsSavingRating(true);
       await axios.post(
@@ -173,12 +166,12 @@ export function MovieCard({
         { userId, rating: newRating },
         { headers: { "Content-Type": "application/json" } }
       );
-  
+
       const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
       if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
-        setAverageRating(avgResponse.data.averageRating);
+        setAverageRating(avgResponse.data.averageRating); // Update the average rating
       }
-  
+
       toast.success("Your rating has been saved!");
     } catch (error) {
       console.error("Error saving user rating:", error);
@@ -187,7 +180,6 @@ export function MovieCard({
       setIsSavingRating(false);
     }
   };
-  
 
   return (
     <>

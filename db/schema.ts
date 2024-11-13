@@ -15,6 +15,14 @@ import {
 import { relations } from 'drizzle-orm';
 import z from 'zod';
 
+
+export interface UserJSON {
+  id: string;
+  email_addresses: { email_address: string }[]; // Assuming email_addresses is an array of objects
+  image_url?: string; // Optional as it may not always be present
+  name?: string; // If name is available
+}
+
 // Users Table
 export const users = pgTable('user', {
   id: text('id')

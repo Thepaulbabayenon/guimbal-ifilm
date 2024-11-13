@@ -1,57 +1,67 @@
-import { Webhook } from 'svix'
-import { headers } from 'next/headers'
-import { WebhookEvent } from '@clerk/nextjs/server'
+import { Webhook } from 'svix';
+import { headers } from 'next/headers';
+import { WebhookEvent } from '@clerk/nextjs/server';
+import { db } from '@/db/drizzle'; // Corrected import based on your schema
+import { users } from '@/db/schema';
+import { UserJSON } from '@/db/schema'; // Import the UserJSON type you defined earlier
 
 export async function POST(req: Request) {
-  // You can find this in the Clerk Dashboard -> Webhooks -> choose the endpoint
-  const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET
+  const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    throw new Error('Please add WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local')
+    throw new Error('Please add WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local');
   }
 
-  // Get the headers
-  const headerPayload = headers()
-  const svix_id = headerPayload.get('svix-id')
-  const svix_timestamp = headerPayload.get('svix-timestamp')
-  const svix_signature = headerPayload.get('svix-signature')
+  const headerPayload = headers();
+  const svix_id = headerPayload.get('svix-id');
+  const svix_timestamp = headerPayload.get('svix-timestamp');
+  const svix_signature = headerPayload.get('svix-signature');
 
-  // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response('Error occured -- no svix headers', {
-      status: 400,
-    })
+    return new Response('Error occurred -- no svix headers', { status: 400 });
   }
 
-  // Get the body
-  const payload = await req.json()
-  const body = JSON.stringify(payload)
+  const payload = await req.json();
+  const body = JSON.stringify(payload);
 
-  // Create a new Svix instance with your secret.
-  const wh = new Webhook(WEBHOOK_SECRET)
+  const wh = new Webhook(WEBHOOK_SECRET);
+  let evt: WebhookEvent;
 
-  let evt: WebhookEvent
-
-  // Verify the payload with the headers
   try {
     evt = wh.verify(body, {
       'svix-id': svix_id,
       'svix-timestamp': svix_timestamp,
       'svix-signature': svix_signature,
-    }) as WebhookEvent
+    }) as WebhookEvent;
   } catch (err) {
-    console.error('Error verifying webhook:', err)
-    return new Response('Error occured', {
-      status: 400,
-    })
+    console.error('Error verifying webhook:', err);
+    return new Response('Error occurred', { status: 400 });
   }
 
-  // Do something with the payload
-  // For this guide, you simply log the payload to the console
-  const { id } = evt.data
-  const eventType = evt.type
-  console.log(`Webhook with and ID of ${id} and type of ${eventType}`)
-  console.log('Webhook body:', body)
+  // Narrowing the type of evt.data to UserJSON if event type is 'user.created'
+  if (evt.type === 'user.created') {
+    const userData = evt.data as UserJSON; // Type assertion to UserJSON
 
-  return new Response('', { status: 200 })
+    const { id, email_addresses, image_url } = userData;
+
+    // Check if email_addresses exist and has at least one email address
+    if (!email_addresses || email_addresses.length === 0) {
+      return new Response('Missing email_addresses in webhook data', { status: 400 });
+    }
+
+    // Insert user data into the database
+    try {
+      await db.insert(users).values({
+        id,
+        email: email_addresses[0].email_address, // Ensure the correct field name
+        image: image_url || '', // Default to empty string if image_url is not provided
+      });
+      console.log('New user added to the database with ID:', id);
+    } catch (error) {
+      console.error('Error adding user to the database:', error);
+      return new Response('Database error', { status: 500 });
+    }
+  }
+
+  return new Response('', { status: 200 });
 }

@@ -3,37 +3,6 @@ import { userRatings, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-export async function GET(
-  req: Request,
-  { params }: { params: { movieId: string } }
-) {
-  try {
-    const url = new URL(req.url);
-    const userId = url.searchParams.get("userId");
-    
-    
-    
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
-    }
-
-    const rating = await db.query.userRatings.findFirst({
-      where: and(
-        eq(userRatings.movieId, parseInt(params.movieId)),
-        eq(userRatings.userId, userId)
-      ),
-    });
-
-    return NextResponse.json({ rating: rating?.rating || 0 });
-  } catch (error) {
-    console.error("Error fetching user rating:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch rating" },
-      { status: 500 }
-    );
-  }
-}
-
 export async function POST(
   req: Request,
   { params }: { params: { movieId: string } }
@@ -66,8 +35,31 @@ export async function POST(
       );
     }
 
-    // Existing rating handling and saving logic here...
-    
+    // Handle the rating logic (either create or update the rating)
+    const existingRating = await db.query.userRatings.findFirst({
+      where: and(
+        eq(userRatings.userId, userId),
+        eq(userRatings.movieId, parseInt(params.movieId))
+      ),
+    });
+
+    if (existingRating) {
+      // Update the existing rating
+      await db
+        .update(userRatings)
+        .set({ rating })
+        .where(eq(userRatings.id, existingRating.id));
+    } else {
+      // Insert new rating
+      await db.insert(userRatings).values({
+        userId,
+        movieId: parseInt(params.movieId),
+        rating,
+      });
+    }
+
+    // Return success response with the rating
+    return NextResponse.json({ message: "Rating saved successfully", rating });
   } catch (error) {
     console.error("Error saving rating:", error);
     return NextResponse.json(
@@ -76,4 +68,3 @@ export async function POST(
     );
   }
 }
-
