@@ -1,12 +1,16 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getComedyMovies } from "@/app/api/getMovies"; // Ensure this endpoint exists
+import { getComedyMovies } from "@/app/api/getMovies";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import PlayVideoModal from "../PlayVideoModal";
-import { FaHeart, FaPlay } from 'react-icons/fa';
+import { FaHeart, FaPlay, FaStar } from 'react-icons/fa';
 import Autoplay from "embla-carousel-autoplay";
+import axios from "axios";
+import { useUser } from "@clerk/nextjs";
+import { toast, ToastContainer } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 export function MovieSliderComedy() {
   interface Movie {
@@ -17,20 +21,25 @@ export function MovieSliderComedy() {
     imageString: string;
     overview: string;
     release: number;
-    videoSource: string; // Optional
-    category: string; // Optional
-    youtubeUrl: string; // Ensure this is mapped correctly
-    rank: number; // Optional
+    videoSource?: string;
+    category?: string;
+    youtubeUrl: string; // Use youtubeUrl in Movie interface
+    rank?: number;
   }
 
   const [movies, setMovies] = useState<Movie[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const { user } = useUser();
+  const userId = user?.id;
+  const [userRatings, setUserRatings] = useState<{ [key: number]: number }>({});
+  const [averageRatings, setAverageRatings] = useState<{ [key: number]: number }>({});
+  const [watchlist, setWatchlist] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     async function fetchMovies() {
       try {
-        const moviesData = await getComedyMovies(); // Fetch only comedy movies
+        const moviesData = await getComedyMovies();
         const formattedMovies: Movie[] = moviesData.map(movie => ({
           id: movie.id,
           title: movie.title,
@@ -39,17 +48,16 @@ export function MovieSliderComedy() {
           imageString: movie.imageString,
           overview: movie.overview,
           release: movie.release,
-          videoSource: movie.videoSource, // Optional
-          category: movie.category, // Optional
+          videoSource: movie.videoSource,
+          category: movie.category,
           youtubeUrl: movie.youtubeString, // Map youtubeString to youtubeUrl
-          rank: movie.rank, // Optional
+          rank: movie.rank,
         }));
         setMovies(formattedMovies);
       } catch (error) {
         console.error("Error fetching movies:", error);
       }
     }
-
     fetchMovies();
   }, []);
 
@@ -58,20 +66,53 @@ export function MovieSliderComedy() {
     setModalOpen(true);
   };
 
-  const handleHeart = (movieId: number) => {
-    console.log(`Heart movie with ID: ${movieId}`);
+  const handleHeart = async (movieId: number) => {
+    if (!userId) {
+      toast.error("You must be logged in to add to watchlist.");
+      return;
+    }
+
+    const isInWatchlist = watchlist[movieId];
+    try {
+      await axios.post('/api/updateWatchlist', {
+        userId,
+        movieId,
+        addToWatchlist: !isInWatchlist,
+      });
+
+      setWatchlist(prev => ({ ...prev, [movieId]: !isInWatchlist }));
+      toast.success(isInWatchlist ? "Removed from watchlist." : "Added to watchlist.");
+    } catch (error) {
+      console.error("Error updating watchlist:", error);
+      toast.error("Failed to update watchlist.");
+    }
+  };
+
+  const handleRating = async (movieId: number, rating: number) => {
+    if (!userId) {
+      toast.error("You must be logged in to rate movies.");
+      return;
+    }
+
+    try {
+      await axios.post('/api/updateRating', { userId, movieId, rating });
+      setUserRatings(prev => ({ ...prev, [movieId]: rating }));
+      toast.success("Rating updated.");
+    } catch (error) {
+      console.error("Error updating rating:", error);
+      toast.error("Failed to update rating.");
+    }
   };
 
   return (
     <div className="recently-added-container mb-20">
+      <ToastContainer />
       <div className="flex justify-center">
         <Carousel 
-        plugins={[
-          Autoplay({
-            delay: 2000,
-          }),
-        ]}
-        opts={{ align: "start", loop: true }} className="w-full max-w-4xl">
+          plugins={[Autoplay({ delay: 2000 })]}
+          opts={{ align: "start", loop: true }}
+          className="w-full max-w-4xl"
+        >
           <CarouselContent className="flex space-x-4">
             {movies.map((movie) => (
               <CarouselItem key={movie.id} className="flex-none w-64 relative">
@@ -93,7 +134,7 @@ export function MovieSliderComedy() {
                           </button>
                           <button
                             onClick={() => handleHeart(movie.id)}
-                            className="text-white text-3xl hover:text-red-500 transition-transform transform hover:scale-110"
+                            className={`text-3xl ${watchlist[movie.id] ? "text-red-500" : "text-white"} hover:scale-110`}
                           >
                             <FaHeart />
                           </button>
@@ -101,6 +142,18 @@ export function MovieSliderComedy() {
                       </div>
                       <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-2 text-center">
                         <span className="text-sm font-semibold">{movie.title}</span>
+                        <p className="text-xs mt-1">Avg Rating: {averageRatings[movie.id]?.toFixed(2) || "N/A"}/5</p>
+                        <div className="flex justify-center mt-2">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <button
+                              key={star}
+                              onClick={() => handleRating(movie.id, star)}
+                              className={`text-xl ${userRatings[movie.id] >= star ? "text-yellow-400" : "text-gray-400"}`}
+                            >
+                              <FaStar />
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -114,22 +167,19 @@ export function MovieSliderComedy() {
       </div>
 
       {selectedMovie && (
-        <PlayVideoModal
-          changeState={setModalOpen}
-          overview={selectedMovie.overview}
-          state={modalOpen}
-          title={selectedMovie.title}
-          youtubeUrl={selectedMovie.youtubeUrl} // Pass the actual movie youtube URL
-          age={selectedMovie.age}
-          duration={selectedMovie.duration}
-          release={selectedMovie.release}
-          ratings={selectedMovie.rank} // Pass the actual movie ratings
-          setUserRating={function (rating: number): void {
-            throw new Error("Function not implemented.");
-          }}        
-        />
-      )}
+    <PlayVideoModal
+    changeState={setModalOpen}
+    overview={selectedMovie.overview}
+    state={modalOpen}
+    title={selectedMovie.title}
+    youtubeUrl={selectedMovie.youtubeUrl}
+    age={selectedMovie.age}
+    duration={selectedMovie.duration}
+    release={selectedMovie.release}
+    ratings={selectedMovie.rank || 0} // Ensure ratings is always a number
+    setUserRating={rating => handleRating(selectedMovie.id, rating)}
+  />
+  )}
     </div>
   );
 }
-
