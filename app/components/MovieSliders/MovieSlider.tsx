@@ -152,8 +152,8 @@ export function MovieSlider() {
                       alt={movie.title}
                       className="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
                     />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50">
-                      <button onClick={() => handlePlay(movie)} className="text-white text-3xl">
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
+                        <button onClick={() => handlePlay(movie)} className="text-white text-3xl">
                         <FaPlay />
                       </button>
                       <button onClick={() => handleToggleWatchlist(movie.id)} className="text-white text-3xl">

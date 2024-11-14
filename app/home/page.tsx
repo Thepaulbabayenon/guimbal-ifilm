@@ -33,7 +33,7 @@ export default async function HomePage() {
             <MovieSliderHorror />
             
             <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
-            <MovieSliderReco userId={userId} />
+            <MovieSliderReco userId={userId.toString()} />
 
             <h1 className="text-3xl font-bold text-gray-400">SOME OF THE BEST</h1>
             <MovieGrid/>

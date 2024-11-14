@@ -11,7 +11,7 @@ export async function POST(
   console.log("Request method:", req.method);
 
   try {
-    // Parse movieId to ensure it’s a valid number
+    // Parse and validate movieId
     const movieId = parseInt(params.movieId);
     if (isNaN(movieId)) {
       return NextResponse.json(
@@ -20,11 +20,12 @@ export async function POST(
       );
     }
 
-    // Parse request JSON and check for userId and rating
+    // Parse JSON body to get userId and rating
     const { userId, rating } = await req.json();
     console.log("User ID:", userId);
     console.log("Rating:", rating);
 
+    // Ensure userId and rating are present
     if (!userId || rating === undefined) {
       return NextResponse.json(
         { error: "User ID and rating are required" },
@@ -32,7 +33,15 @@ export async function POST(
       );
     }
 
-    // Check if the user exists
+    // Validate rating is within a valid range (1-5)
+    if (rating < 1 || rating > 5) {
+      return NextResponse.json(
+        { error: "Rating must be between 1 and 5" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user exists in the users table
     const userExists = await db.query.users.findFirst({
       where: eq(users.id, userId),
     });
@@ -44,7 +53,7 @@ export async function POST(
       );
     }
 
-    // Check if there’s an existing rating
+    // Check for an existing rating for this user and movie
     const existingRating = await db.query.userRatings.findFirst({
       where: and(
         eq(userRatings.userId, userId),
@@ -53,14 +62,14 @@ export async function POST(
     });
 
     if (existingRating) {
-      // Update existing rating if it exists
+      // Update rating if it already exists
       await db
         .update(userRatings)
         .set({ rating })
         .where(eq(userRatings.id, existingRating.id));
       console.log("Updated existing rating for movieId:", movieId);
     } else {
-      // Insert new rating if none exists
+      // Insert new rating if no existing rating is found
       await db.insert(userRatings).values({
         userId,
         movieId,
@@ -69,13 +78,27 @@ export async function POST(
       console.log("Inserted new rating for movieId:", movieId);
     }
 
-    return NextResponse.json({ message: "Rating saved successfully", rating });
+    // Optional: Fetch the updated rating data or average ratings for the movie
+    const updatedRating = await db.query.userRatings.findFirst({
+      where: and(
+        eq(userRatings.userId, userId),
+        eq(userRatings.movieId, movieId)
+      ),
+    });
+
+    // Return success response with updated rating information
+    return NextResponse.json({
+      message: "Rating saved successfully",
+      rating: updatedRating?.rating || rating,  // Return the saved rating
+    });
   } catch (error) {
-    // Cast error as an Error type
     const errorMessage = (error as Error).message || "Unknown error";
+    const errorStack = (error as Error).stack || "No stack trace available";
     console.error("Error saving rating:", errorMessage);
+    console.error("Error stack:", errorStack);
+
     return NextResponse.json(
-      { error: "Failed to save rating" },
+      { error: "Failed to save rating", details: errorMessage },
       { status: 500 }
     );
   }
