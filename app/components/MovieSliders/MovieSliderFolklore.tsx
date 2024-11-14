@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getHorrorMovies } from "../api/getMovies"; // Update to use getHorrorMovies
+import { getFolkloreMovies } from "@/app/api/getMovies"; // Ensure this endpoint exists
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "./PlayVideoModal";
-import { FaHeart, FaPlay } from 'react-icons/fa'; // Using Font Awesome icons
+import PlayVideoModal from "../PlayVideoModal";
+import { FaHeart, FaPlay } from 'react-icons/fa';
 import Autoplay from "embla-carousel-autoplay";
 
-export function MovieSliderHorror() {
+export function MovieSliderFolklore() {
   interface Movie {
     id: number;
     title: string;
@@ -17,10 +17,10 @@ export function MovieSliderHorror() {
     imageString: string;
     overview: string;
     release: number;
-    videoSource: string; // Keep if needed
-    category: string; // Keep if needed
-    youtubeUrl: string; // Ensure this is correctly mapped
-    rank: number; // Keep if needed
+    videoSource: string; // Optional
+    category: string; // Optional
+    youtubeUrl: string; // Ensure this is mapped correctly
+    rank: number; // Optional
   }
 
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -30,7 +30,7 @@ export function MovieSliderHorror() {
   useEffect(() => {
     async function fetchMovies() {
       try {
-        const moviesData = await getHorrorMovies(); // Fetch only horror movies
+        const moviesData = await getFolkloreMovies(); // Fetch only folklore movies
         const formattedMovies: Movie[] = moviesData.map(movie => ({
           id: movie.id,
           title: movie.title,
@@ -39,12 +39,12 @@ export function MovieSliderHorror() {
           imageString: movie.imageString,
           overview: movie.overview,
           release: movie.release,
-          videoSource: movie.videoSource, // Keep if needed
-          category: movie.category, // Keep if needed
+          videoSource: movie.videoSource, // Optional
+          category: movie.category, // Optional
           youtubeUrl: movie.youtubeString, // Map youtubeString to youtubeUrl
-          rank: movie.rank, // Keep if needed
+          rank: movie.rank, // Optional
         }));
-        setMovies(formattedMovies); // Set the state with formatted movies
+        setMovies(formattedMovies);
       } catch (error) {
         console.error("Error fetching movies:", error);
       }
@@ -52,31 +52,26 @@ export function MovieSliderHorror() {
 
     fetchMovies();
   }, []);
-  // play the movie functionality
+
   const handlePlay = (movie: Movie) => {
     setSelectedMovie(movie);
     setModalOpen(true);
   };
 
   const handleHeart = (movieId: number) => {
-    // Implement the heart logic here
     console.log(`Heart movie with ID: ${movieId}`);
   };
 
   return (
-    <div className="recently-added-container mb-20"> {/* Add margin-bottom to this container */}
+    <div className="recently-added-container mb-20">
       <div className="flex justify-center">
-        <Carousel 
+        <Carousel
         plugins={[
           Autoplay({
             delay: 2000,
           }),
         ]}
-          opts={{
-            align: "start",
-            loop: true,
-          }}
-          className="w-full max-w-4xl">
+        opts={{ align: "start", loop: true }} className="w-full max-w-4xl">
           <CarouselContent className="flex space-x-4">
             {movies.map((movie) => (
               <CarouselItem key={movie.id} className="flex-none w-64 relative">
@@ -121,14 +116,14 @@ export function MovieSliderHorror() {
       {selectedMovie && (
         <PlayVideoModal
           changeState={setModalOpen}
-          overview={selectedMovie.overview} // Pass the movie overview
+          overview={selectedMovie.overview}
           state={modalOpen}
           title={selectedMovie.title}
           youtubeUrl={selectedMovie.youtubeUrl} // Pass the actual movie youtube URL
-          age={selectedMovie.age} // Use the actual movie age
-          duration={selectedMovie.duration} // Use the actual movie duration
-          release={selectedMovie.release} // Use the actual movie release year
-          ratings={selectedMovie.rank} // Use the actual movie ratings
+          age={selectedMovie.age}
+          duration={selectedMovie.duration}
+          release={selectedMovie.release}
+          ratings={selectedMovie.rank} // Pass the actual movie ratings
           setUserRating={function (rating: number): void {
             throw new Error("Function not implemented.");
           }}        

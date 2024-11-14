@@ -1,14 +1,25 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from "react";
-import { getFolkloreMovies } from "../api/getMovies"; // Ensure this endpoint exists
-import { Card, CardContent } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "./PlayVideoModal";
+import { useEffect, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
+import PlayVideoModal from '../PlayVideoModal';
 import { FaHeart, FaPlay } from 'react-icons/fa';
-import Autoplay from "embla-carousel-autoplay";
+import Autoplay from 'embla-carousel-autoplay';
 
-export function MovieSliderFolklore() {
+/**
+ * Fetch movie recommendations for a user via the hybrid recommendation API.
+ * @param userId - The ID of the user.
+ */
+async function fetchRecommendedMovies(userId: number) {
+  const response = await fetch(`/api/recommendations?userId=${userId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch recommended movies');
+  }
+  return await response.json();
+}
+
+export function MovieSliderReco({ userId }: { userId: number }) {
   interface Movie {
     id: number;
     title: string;
@@ -17,10 +28,10 @@ export function MovieSliderFolklore() {
     imageString: string;
     overview: string;
     release: number;
-    videoSource: string; // Optional
-    category: string; // Optional
-    youtubeUrl: string; // Ensure this is mapped correctly
-    rank: number; // Optional
+    videoSource: string;
+    category: string;
+    youtubeString: string;
+    rank: number;
   }
 
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -30,28 +41,17 @@ export function MovieSliderFolklore() {
   useEffect(() => {
     async function fetchMovies() {
       try {
-        const moviesData = await getFolkloreMovies(); // Fetch only folklore movies
-        const formattedMovies: Movie[] = moviesData.map(movie => ({
-          id: movie.id,
-          title: movie.title,
-          age: movie.age,
-          duration: movie.duration,
-          imageString: movie.imageString,
-          overview: movie.overview,
-          release: movie.release,
-          videoSource: movie.videoSource, // Optional
-          category: movie.category, // Optional
-          youtubeUrl: movie.youtubeString, // Map youtubeString to youtubeUrl
-          rank: movie.rank, // Optional
-        }));
-        setMovies(formattedMovies);
+        const recommendedMovies = await fetchRecommendedMovies(userId); // Call the API to get recommended movies
+        setMovies(recommendedMovies);
       } catch (error) {
-        console.error("Error fetching movies:", error);
+        console.error('Error fetching recommended movies:', error);
       }
     }
 
-    fetchMovies();
-  }, []);
+    if (userId) {
+      fetchMovies();
+    }
+  }, [userId]);
 
   const handlePlay = (movie: Movie) => {
     setSelectedMovie(movie);
@@ -65,13 +65,13 @@ export function MovieSliderFolklore() {
   return (
     <div className="recently-added-container mb-20">
       <div className="flex justify-center">
-        <Carousel
+        <Carousel 
         plugins={[
           Autoplay({
             delay: 2000,
           }),
         ]}
-        opts={{ align: "start", loop: true }} className="w-full max-w-4xl">
+        opts={{ align: 'start', loop: true }} className="w-full max-w-4xl">
           <CarouselContent className="flex space-x-4">
             {movies.map((movie) => (
               <CarouselItem key={movie.id} className="flex-none w-64 relative">
@@ -119,14 +119,14 @@ export function MovieSliderFolklore() {
           overview={selectedMovie.overview}
           state={modalOpen}
           title={selectedMovie.title}
-          youtubeUrl={selectedMovie.youtubeUrl} // Pass the actual movie youtube URL
+          youtubeUrl={selectedMovie.youtubeString}
           age={selectedMovie.age}
           duration={selectedMovie.duration}
           release={selectedMovie.release}
-          ratings={selectedMovie.rank} // Pass the actual movie ratings
-          setUserRating={function (rating: number): void {
-            throw new Error("Function not implemented.");
-          }}        
+          ratings={selectedMovie.rank}
+          setUserRating={(rating: number) => {
+            console.log(`User rating set to: ${rating}`);
+          }}
         />
       )}
     </div>

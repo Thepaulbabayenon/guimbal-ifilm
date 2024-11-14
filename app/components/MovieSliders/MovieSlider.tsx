@@ -1,26 +1,26 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getComedyMovies } from "../api/getMovies"; // Ensure this endpoint exists
+import { getAllMovies } from "@/app/api/getMovies"; // Ensure this API function exists
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "./PlayVideoModal";
+import PlayVideoModal from "../PlayVideoModal";
+import Autoplay from "embla-carousel-autoplay"
 import { FaHeart, FaPlay } from 'react-icons/fa';
-import Autoplay from "embla-carousel-autoplay";
 
-export function MovieSliderComedy() {
+export function MovieSlider() {
   interface Movie {
     id: number;
     title: string;
-    age: number;
-    duration: number;
+    age: number; // Include if your API returns this
+    duration: number; // Include if your API returns this
     imageString: string;
-    overview: string;
-    release: number;
-    videoSource: string; // Optional
-    category: string; // Optional
-    youtubeUrl: string; // Ensure this is mapped correctly
-    rank: number; // Optional
+    overview: string; // Include if your API returns this
+    release: number; // Include if your API returns this
+    videoSource: string; // Include if your API returns this
+    category: string; // Include if your API returns this
+    youtubeString: string; // Use this instead of youtubeUrl
+    rank: number; // Include if your API returns this
   }
 
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -30,21 +30,8 @@ export function MovieSliderComedy() {
   useEffect(() => {
     async function fetchMovies() {
       try {
-        const moviesData = await getComedyMovies(); // Fetch only comedy movies
-        const formattedMovies: Movie[] = moviesData.map(movie => ({
-          id: movie.id,
-          title: movie.title,
-          age: movie.age,
-          duration: movie.duration,
-          imageString: movie.imageString,
-          overview: movie.overview,
-          release: movie.release,
-          videoSource: movie.videoSource, // Optional
-          category: movie.category, // Optional
-          youtubeUrl: movie.youtubeString, // Map youtubeString to youtubeUrl
-          rank: movie.rank, // Optional
-        }));
-        setMovies(formattedMovies);
+        const moviesData = await getAllMovies(); // Fetch all movies
+        setMovies(moviesData);
       } catch (error) {
         console.error("Error fetching movies:", error);
       }
@@ -66,12 +53,14 @@ export function MovieSliderComedy() {
     <div className="recently-added-container mb-20">
       <div className="flex justify-center">
         <Carousel 
-        plugins={[
-          Autoplay({
-            delay: 2000,
-          }),
-        ]}
-        opts={{ align: "start", loop: true }} className="w-full max-w-4xl">
+          plugins={[
+            Autoplay({
+              delay: 2000,
+            }),
+          ]}
+          opts={{ align: "start", loop: true }} 
+          className="w-full max-w-4xl"
+        >
           <CarouselContent className="flex space-x-4">
             {movies.map((movie) => (
               <CarouselItem key={movie.id} className="flex-none w-64 relative">
@@ -119,11 +108,11 @@ export function MovieSliderComedy() {
           overview={selectedMovie.overview}
           state={modalOpen}
           title={selectedMovie.title}
-          youtubeUrl={selectedMovie.youtubeUrl} // Pass the actual movie youtube URL
+          youtubeUrl={selectedMovie.youtubeString} // Use youtubeString instead of youtubeUrl
           age={selectedMovie.age}
           duration={selectedMovie.duration}
           release={selectedMovie.release}
-          ratings={selectedMovie.rank} // Pass the actual movie ratings
+          ratings={selectedMovie.rank} // Adjust if rank is not equivalent to ratings
           setUserRating={function (rating: number): void {
             throw new Error("Function not implemented.");
           }}        
@@ -132,4 +121,3 @@ export function MovieSliderComedy() {
     </div>
   );
 }
-

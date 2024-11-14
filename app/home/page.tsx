@@ -1,10 +1,10 @@
 import { MovieGrid } from "../components/MovieGrid";
-import { MovieSlider } from "../components/MovieSlider";
-import { MovieSliderComedy } from "../components/MovieSliderComedy";
-import { MovieSliderDrama } from "../components/MovieSliderDrama";
-import { MovieSliderFolklore } from "../components/MovieSliderFolklore";
-import { MovieSliderHorror } from "../components/MovieSliderHorror";
-import { MovieSliderReco } from "../components/MovieSliderReco";
+import { MovieSlider } from "../components/MovieSliders/MovieSlider";
+import { MovieSliderComedy } from "../components/MovieSliders/MovieSliderComedy";
+import { MovieSliderDrama } from "../components/MovieSliders/MovieSliderDrama";
+import { MovieSliderFolklore } from "../components/MovieSliders/MovieSliderFolklore";
+import { MovieSliderHorror } from "../components/MovieSliders/MovieSliderHorror";
+import { MovieSliderReco } from "../components/MovieSliders/MovieSliderReco";
 import MovieVideo from "../components/MovieVideo";
 import RecentlyAdded from "../components/RecentlyAdded";
 
