@@ -11,6 +11,7 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
+// Define the Movie interface
 interface Movie {
   id: number;
   title: string;
@@ -30,6 +31,7 @@ interface MovieSliderRecoProps {
   userId: string; // Expecting userId as a string
 }
 
+// Fetch recommended movies based on userId
 async function fetchRecommendedMovies(userId: string) {
   const response = await fetch(`/api/recommendations?userId=${userId}`);
   if (!response.ok) {
@@ -43,7 +45,6 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
   const [watchList, setWatchList] = useState<{ [key: number]: boolean }>({});
   const [userRatings, setUserRatings] = useState<{ [key: number]: number }>({});
   const [averageRatings, setAverageRatings] = useState<{ [key: number]: number }>({});
-
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
@@ -62,32 +63,29 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
   }, [userId]);
 
   useEffect(() => {
-    movies.forEach(movie => {
-      fetchUserAndAverageRating(movie.id);
-      fetchWatchlistStatus(movie.id);
-    });
-  }, [movies]);
+    if (userId && movies.length > 0) {
+      // Fetch ratings and watchlist status for each movie
+      movies.forEach(async (movie: Movie) => {
+        try {
+          const userRatingResponse = await axios.get(`/api/movies/${movie.id}/user-rating`, { params: { userId } });
+          const avgRatingResponse = await axios.get(`/api/movies/${movie.id}/average-rating`);
+          const watchlistResponse = await axios.get(`/api/watchlist/${movie.id}`, { params: { userId } });
 
-  const fetchUserAndAverageRating = async (movieId: number) => {
-    try {
-      const userResponse = await axios.get(`/api/movies/${movieId}/user-rating`, { params: { userId } });
-      setUserRatings(prev => ({ ...prev, [movieId]: userResponse.data.rating || 0 }));
+          // Set user rating
+          setUserRatings(prev => ({ ...prev, [movie.id]: userRatingResponse.data.rating || 0 }));
 
-      const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
-      setAverageRatings(prev => ({ ...prev, [movieId]: avgResponse.data.averageRating || 0 }));
-    } catch (error) {
-      console.error("Error fetching ratings:", error);
+          // Set average rating
+          setAverageRatings(prev => ({ ...prev, [movie.id]: avgRatingResponse.data.averageRating || 0 }));
+
+          // Set watchlist status
+          setWatchList(prev => ({ ...prev, [movie.id]: watchlistResponse.data.inWatchlist }));
+
+        } catch (error) {
+          console.error("Error fetching data for movie:", movie.id, error);
+        }
+      });
     }
-  };
-
-  const fetchWatchlistStatus = async (movieId: number) => {
-    try {
-      const response = await axios.get(`/api/watchlist/${movieId}`, { params: { userId } });
-      setWatchList(prev => ({ ...prev, [movieId]: response.data.inWatchlist }));
-    } catch (error) {
-      console.error("Error fetching watchlist status:", error);
-    }
-  };
+  }, [movies, userId]);
 
   const handleToggleWatchlist = async (movieId: number) => {
     if (!userId) {
@@ -121,6 +119,7 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
     try {
       await axios.post(`/api/movies/${movieId}/user-rating`, { userId, rating: newRating });
 
+      // Update average rating after setting user's rating
       const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
       setAverageRatings(prev => ({ ...prev, [movieId]: avgResponse.data.averageRating || 0 }));
 
@@ -146,7 +145,7 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
           className="w-full max-w-4xl"
         >
           <CarouselContent className="flex space-x-4">
-            {movies.map(movie => (
+            {movies.map((movie: Movie) => (
               <CarouselItem key={movie.id} className="flex-none w-64 relative">
                 <Card>
                   <CardContent className="relative p-2">
@@ -175,7 +174,7 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
                         ))}
                       </div>
                       <p className="text-xs mt-1">
-                          Avg Rating: {typeof averageRatings[movie.id] === "number" ? averageRatings[movie.id].toFixed(2) : "N/A"}/5
+                        Avg Rating: {typeof averageRatings[movie.id] === "number" ? averageRatings[movie.id].toFixed(2) : "N/A"}/5
                       </p>
                     </div>
                   </CardContent>

@@ -6,8 +6,6 @@ import PlayVideoModal from "./PlayVideoModal";
 import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
-import { ToastContainer, toast } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
 
 interface MovieCardProps {
   movieId: number;
@@ -94,11 +92,8 @@ export function MovieCard({
         if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
           setAverageRating(avgResponse.data.averageRating); // Update the average rating
         }
-
-        toast.success("Your rating has been saved!");
       } catch (error) {
         console.error("Error saving user rating:", error);
-        toast.error("Failed to save your rating. Please try again.");
       } finally {
         setIsSavingRating(false);
       }
@@ -126,7 +121,6 @@ export function MovieCard({
         await axios.delete(`/api/watchlist/${watchListId}`, {
           data: { userId },
         });
-        toast.success("Removed from your watchlist.");
       } else {
         // Add to watchlist
         await axios.post("/api/watchlist", {
@@ -134,12 +128,10 @@ export function MovieCard({
           pathname: pathName,
           userId,
         });
-        toast.success("Added to your watchlist.");
       }
     } catch (error) {
       console.error("Error toggling watchlist:", error);
       setWatchList((prev) => !prev);
-      toast.error("Failed to update watchlist. Please try again.");
     } finally {
       setIsSavingWatchlist(false);
     }
@@ -148,12 +140,11 @@ export function MovieCard({
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
     if (isSavingRating) {
-      toast.info("Saving in progress. Please wait.");
       return;
     }
 
     if (!userId) {
-      toast.warning("Please log in to rate movies.");
+      alert("Please log in to rate movies.");
       return;
     }
 
@@ -171,19 +162,18 @@ export function MovieCard({
       if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
         setAverageRating(avgResponse.data.averageRating); // Update the average rating
       }
-
-      toast.success("Your rating has been saved!");
     } catch (error) {
       console.error("Error saving user rating:", error);
-      toast.error("Failed to save your rating. Please try again.");
     } finally {
       setIsSavingRating(false);
     }
   };
 
+  // Ensure averageRating is a valid number before calling toFixed
+  const safeAverageRating = typeof averageRating === "number" && !isNaN(averageRating) ? averageRating : NaN;
+
   return (
     <>
-      <ToastContainer />
       <button onClick={() => setOpen(true)} className="-mt-14">
         <PlayCircle className="h-20 w-20" />
       </button>
@@ -212,7 +202,7 @@ export function MovieCard({
         </div>
         <p className="line-clamp-1 text-sm text-gray-200 font-light">{overview}</p>
         <p className="font-normal text-sm mt-2">
-          Average Rating: {averageRating ? averageRating.toFixed(2) : "N/A"} / 5
+          Average Rating: {isNaN(safeAverageRating) ? "N/A" : safeAverageRating.toFixed(2)} / 5
         </p>
       </div>
 

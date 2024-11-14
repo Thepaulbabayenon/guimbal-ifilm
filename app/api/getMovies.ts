@@ -2,6 +2,23 @@ import { db } from "@/db/drizzle";
 import { movie, userInteractions, watchLists } from "@/db/schema";
 import { eq, and, desc, like, or } from "drizzle-orm";
 
+
+// Define the Movie type (you can adjust fields to match your database schema)
+interface Movie {
+  id: number;
+  title: string;
+  age: number;
+  duration: number;
+  imageString: string;
+  overview: string;
+  release: number;
+  videoSource: string;
+  category: string;
+  youtubeString: string;
+  rank: number;
+  userId: string;
+}
+
 /**
  * Fetch all movies from the database.
  */
@@ -205,6 +222,31 @@ export async function getComedyMovies() {
   return comedyMoviesData;
 }
 
+export async function getRecommendedMovies(userId: string): Promise<Movie[]> {
+  try {
+    const response = await fetch(`http://localhost:3000/api/recommendations?userId=${userId}`);
+    const data = await response.json();
+
+    return data.movies.map((movie: any) => ({
+      id: movie.id,
+      title: movie.title,
+      age: movie.age,
+      duration: movie.duration,
+      imageString: movie.imageString,
+      overview: movie.overview,
+      release: movie.release,
+      videoSource: movie.videoSource,
+      category: movie.category,
+      youtubeString: movie.youtubeString,
+      rank: movie.rank, // External rating
+    }));
+  } catch (error) {
+    console.error("Error fetching recommended movies:", error);
+    return [];
+  }
+}
+
+
 /**
  * Fetch drama movies.
  * This function returns all movies that belong to the drama category.
@@ -366,3 +408,4 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: "Failed to fetch recommendations" });
   }
 }
+

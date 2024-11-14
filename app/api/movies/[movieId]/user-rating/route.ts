@@ -3,6 +3,81 @@ import { userRatings, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+// GET request to fetch user's rating for a specific movie
+export async function GET(
+  req: Request,
+  { params }: { params: { movieId: string } }
+) {
+  console.log("Received GET request for movieId:", params.movieId);
+  console.log("Request method:", req.method);
+
+  try {
+    // Parse and validate movieId
+    const movieId = parseInt(params.movieId);
+    if (isNaN(movieId)) {
+      return NextResponse.json(
+        { error: "Invalid movie ID" },
+        { status: 400 }
+      );
+    }
+
+    // Get the userId from the query parameters
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("userId");
+    console.log("User ID:", userId);
+
+    // Ensure userId is provided
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if the user exists in the database
+    const userExists = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!userExists) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    // Fetch the user's rating for the specified movie
+    const userRating = await db.query.userRatings.findFirst({
+      where: and(
+        eq(userRatings.userId, userId),
+        eq(userRatings.movieId, movieId)
+      ),
+    });
+
+    if (!userRating) {
+      return NextResponse.json(
+        { error: "Rating not found for this movie" },
+        { status: 404 }
+      );
+    }
+
+    // Return the user's rating for the movie
+    return NextResponse.json({
+      message: "Rating fetched successfully",
+      rating: userRating.rating,
+    });
+  } catch (error) {
+    const errorMessage = (error as Error).message || "Unknown error";
+    console.error("Error fetching rating:", errorMessage);
+
+    return NextResponse.json(
+      { error: "Failed to fetch rating", details: errorMessage },
+      { status: 500 }
+    );
+  }
+}
+
+// POST request to save or update the user's rating for a specific movie
 export async function POST(
   req: Request,
   { params }: { params: { movieId: string } }
@@ -78,7 +153,7 @@ export async function POST(
       console.log("Inserted new rating for movieId:", movieId);
     }
 
-    // Optional: Fetch the updated rating data or average ratings for the movie
+    // Fetch the updated rating for the movie
     const updatedRating = await db.query.userRatings.findFirst({
       where: and(
         eq(userRatings.userId, userId),
