@@ -11,7 +11,6 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
-// Define the Movie interface
 interface Movie {
   id: number;
   title: string;
@@ -24,11 +23,10 @@ interface Movie {
   category: string;
   youtubeString: string;
   rank: number;
-  userId: string; // Expecting userId to be a string here
 }
 
 interface MovieSliderRecoProps {
-  userId: string; // Expecting userId as a string
+  userId: string;
 }
 
 // Fetch recommended movies based on userId
@@ -64,26 +62,26 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
 
   useEffect(() => {
     if (userId && movies.length > 0) {
-      // Fetch ratings and watchlist status for each movie
-      movies.forEach(async (movie: Movie) => {
-        try {
-          const userRatingResponse = await axios.get(`/api/movies/${movie.id}/user-rating`, { params: { userId } });
-          const avgRatingResponse = await axios.get(`/api/movies/${movie.id}/average-rating`);
-          const watchlistResponse = await axios.get(`/api/watchlist/${movie.id}`, { params: { userId } });
+      async function fetchDataForMovies() {
+        const moviePromises = movies.map(async (movie) => {
+          try {
+            const [userRatingResponse, avgRatingResponse, watchlistResponse] = await Promise.all([
+              axios.get(`/api/movies/${movie.id}/user-rating`, { params: { userId } }),
+              axios.get(`/api/movies/${movie.id}/average-rating`),
+              axios.get(`/api/watchlist/${movie.id}`, { params: { userId } })
+            ]);
 
-          // Set user rating
-          setUserRatings(prev => ({ ...prev, [movie.id]: userRatingResponse.data.rating || 0 }));
+            setUserRatings(prev => ({ ...prev, [movie.id]: userRatingResponse.data.rating || 0 }));
+            setAverageRatings(prev => ({ ...prev, [movie.id]: avgRatingResponse.data.averageRating || 0 }));
+            setWatchList(prev => ({ ...prev, [movie.id]: watchlistResponse.data.inWatchlist }));
+          } catch (error) {
+            console.error(`Error fetching data for movie ID ${movie.id}:`, error);
+          }
+        });
 
-          // Set average rating
-          setAverageRatings(prev => ({ ...prev, [movie.id]: avgRatingResponse.data.averageRating || 0 }));
-
-          // Set watchlist status
-          setWatchList(prev => ({ ...prev, [movie.id]: watchlistResponse.data.inWatchlist }));
-
-        } catch (error) {
-          console.error("Error fetching data for movie:", movie.id, error);
-        }
-      });
+        await Promise.all(moviePromises);
+      }
+      fetchDataForMovies();
     }
   }, [movies, userId]);
 
@@ -119,7 +117,6 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
     try {
       await axios.post(`/api/movies/${movieId}/user-rating`, { userId, rating: newRating });
 
-      // Update average rating after setting user's rating
       const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
       setAverageRatings(prev => ({ ...prev, [movieId]: avgResponse.data.averageRating || 0 }));
 
