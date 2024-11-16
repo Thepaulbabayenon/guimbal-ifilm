@@ -83,6 +83,19 @@ export function MovieSlider() {
     }
   };
 
+  async function getWatchListIdForMovie(movieId: number, userId: string): Promise<string | null> {
+    try {
+      const response = await axios.get(`/api/watchlist/${userId}/${movieId}`);
+      if (response.data && response.data.watchListId) {
+        return response.data.watchListId;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching watchListId for movie:", error);
+      return null;
+    }
+  }
+
   // Handle adding/removing from watchlist
   const handleToggleWatchlist = async (movieId: number) => {
     if (!userId) {
@@ -91,14 +104,27 @@ export function MovieSlider() {
     }
 
     const isInWatchlist = watchList[movieId];
+
     try {
       if (isInWatchlist) {
-        await axios.delete(`/api/watchlist/${movieId}`, { data: { userId } });
+        // Fetch the watchListId from the backend or state
+        const watchListId = await getWatchListIdForMovie(movieId, userId);
+
+        if (!watchListId) {
+          toast.error("Error: Watchlist entry not found.");
+          return;
+        }
+
+        // Send the UUID (watchListId) in the request body to delete it
+        await axios.delete(`/api/watchlist/${watchListId}`, {
+          data: { watchListId }
+        });
         toast.success("Removed from your watchlist.");
       } else {
         await axios.post("/api/watchlist", { movieId, userId });
         toast.success("Added to your watchlist.");
       }
+
       setWatchList(prev => ({ ...prev, [movieId]: !isInWatchlist }));
     } catch (error) {
       console.error("Error toggling watchlist:", error);
@@ -152,8 +178,8 @@ export function MovieSlider() {
                       alt={movie.title}
                       className="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
                     />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
-                        <button onClick={() => handlePlay(movie)} className="text-white text-3xl">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
+                      <button onClick={() => handlePlay(movie)} className="text-white text-3xl">
                         <FaPlay />
                       </button>
                       <button onClick={() => handleToggleWatchlist(movie.id)} className="text-white text-3xl">
@@ -172,7 +198,7 @@ export function MovieSlider() {
                         ))}
                       </div>
                       <p className="text-xs mt-1">
-                          Avg Rating: {typeof averageRatings[movie.id] === "number" ? averageRatings[movie.id].toFixed(2) : "N/A"}/5
+                        Avg Rating: {typeof averageRatings[movie.id] === "number" ? averageRatings[movie.id].toFixed(2) : "N/A"}/5
                       </p>
                     </div>
                   </CardContent>

@@ -29,11 +29,11 @@ interface MovieSliderRecoProps {
   userId: string;
 }
 
-// Fetch recommended movies based on userId
-async function fetchRecommendedMovies(userId: string) {
-  const response = await fetch(`/api/recommendations?userId=${userId}`);
+// Fetch popular movies from your API
+async function fetchPopularMovies() {
+  const response = await fetch('/api/movies/popular'); // Adjust this API endpoint accordingly
   if (!response.ok) {
-    throw new Error('Failed to fetch recommended movies');
+    throw new Error('Failed to fetch popular movies');
   }
   return await response.json();
 }
@@ -49,16 +49,15 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
   useEffect(() => {
     async function fetchMovies() {
       try {
-        const recommendedMovies = await fetchRecommendedMovies(userId);
-        setMovies(recommendedMovies);
+        const popularMovies = await fetchPopularMovies(); // Fetch popular movies
+        setMovies(popularMovies.movies); // Assuming `movies` is the key in the response
       } catch (error) {
-        console.error('Error fetching recommended movies:', error);
+        console.error('Error fetching popular movies:', error);
       }
     }
-    if (userId) {
-      fetchMovies();
-    }
-  }, [userId]);
+
+    fetchMovies();
+  }, []); // Empty dependency array so it fetches once on component mount
 
   useEffect(() => {
     if (userId && movies.length > 0) {
@@ -71,6 +70,12 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
               axios.get(`/api/watchlist/${movie.id}`, { params: { userId } })
             ]);
 
+            // Debug the API responses
+            console.log('User Rating Response:', userRatingResponse.data);  
+            console.log('Average Rating Response:', avgRatingResponse.data);  
+            console.log('Watchlist Response:', watchlistResponse.data);  
+
+            // Update state with fetched data
             setUserRatings(prev => ({ ...prev, [movie.id]: userRatingResponse.data.rating || 0 }));
             setAverageRatings(prev => ({ ...prev, [movie.id]: avgRatingResponse.data.averageRating || 0 }));
             setWatchList(prev => ({ ...prev, [movie.id]: watchlistResponse.data.inWatchlist }));
@@ -83,7 +88,13 @@ export function MovieSliderReco({ userId }: MovieSliderRecoProps) {
       }
       fetchDataForMovies();
     }
-  }, [movies, userId]);
+  }, [movies, userId]);  // Dependency array ensures this runs after movies and userId are set
+
+  // Log the state updates to ensure they're working as expected
+  useEffect(() => {
+    console.log('User Ratings:', userRatings);
+    console.log('Average Ratings:', averageRatings);
+  }, [userRatings, averageRatings]);
 
   const handleToggleWatchlist = async (movieId: number) => {
     if (!userId) {

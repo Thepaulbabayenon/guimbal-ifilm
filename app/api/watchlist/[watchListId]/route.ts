@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { db } from '@/db/drizzle'; // Assumes a centralized db connection setup for Drizzle ORM
 import { watchLists } from '@/db/schema'; // Import your watchlist schema
 import { eq, and } from 'drizzle-orm'; // Import the correct operators
+import { isValidUUID } from '@/app/utils/uuid'; // Import a helper function for UUID validation
 
 // Database function to remove a movie from the watchlist
 const removeMovieFromWatchlist = async (userId: string, watchListId: string) => {
@@ -25,28 +26,24 @@ const removeMovieFromWatchlist = async (userId: string, watchListId: string) => 
 export async function DELETE(request: NextRequest, { params }: { params: { watchListId: string } }) {
   const { watchListId } = params;
 
-  try {
-    if (!watchListId) {
-      return NextResponse.json({ error: "Missing watchListId" }, { status: 400 });
-    }
+  // Validate watchListId - it should be a valid UUID
+  if (!watchListId || !isValidUUID(watchListId)) {
+    return NextResponse.json({ error: "Invalid or missing watchListId" }, { status: 400 });
+  }
 
-    // Assuming userId is sent in the request body (adjust if needed)
-    const { userId } = await request.json();
+  // Parse the userId from the request body
+  const { userId } = await request.json();
 
-    if (!userId) {
-      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
-    }
+  // Check for missing `userId`
+  if (!userId) {
+    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+  }
 
-    // Remove the movie from the watchlist
-    const result = await removeMovieFromWatchlist(userId, watchListId);
-
-    if (result.success) {
-      return NextResponse.json({ message: "Movie removed from watchlist successfully" }, { status: 200 });
-    } else {
-      return NextResponse.json({ error: result.message || "Failed to remove from watchlist" }, { status: 400 });
-    }
-  } catch (error) {
-    console.error("Error in DELETE /api/watchlist/[watchListId]:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  // Call function to remove the movie
+  const result = await removeMovieFromWatchlist(userId, watchListId);
+  if (result.success) {
+    return NextResponse.json({ message: "Movie removed from watchlist successfully" }, { status: 200 });
+  } else {
+    return NextResponse.json({ error: result.message || "Failed to remove from watchlist" }, { status: 400 });
   }
 }

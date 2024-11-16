@@ -6,6 +6,7 @@ import { MovieSliderFolklore } from "../components/MovieSliders/MovieSliderFolkl
 import { MovieSliderHorror } from "../components/MovieSliders/MovieSliderHorror";
 import { MovieSliderReco } from "../components/MovieSliders/MovieSliderReco";
 import MovieVideo from "../components/MovieVideo";
+import RatingComponent from "../components/RatingComponent";
 import RecentlyAdded from "../components/RecentlyAdded";
 
 export default async function HomePage() {
@@ -34,7 +35,7 @@ export default async function HomePage() {
             
             <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
             <MovieSliderReco userId={userId.toString()} />
-
+            <RatingComponent movieId={123}/>
             <h1 className="text-3xl font-bold text-gray-400">SOME OF THE BEST</h1>
             <MovieGrid/>
         </div>
