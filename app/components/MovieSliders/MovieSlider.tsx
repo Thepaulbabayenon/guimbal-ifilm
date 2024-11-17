@@ -51,8 +51,9 @@ export function MovieSlider() {
     fetchMovies();
   }, []);
 
+  // Fetch user and average ratings, and watchlist status once movies are fetched and userId is available
   useEffect(() => {
-    if (userId) {
+    if (userId && movies.length > 0) {
       movies.forEach(movie => {
         fetchUserAndAverageRating(movie.id);
         fetchWatchlistStatus(movie.id);
@@ -83,7 +84,8 @@ export function MovieSlider() {
     }
   };
 
-  async function getWatchListIdForMovie(movieId: number, userId: string): Promise<string | null> {
+  // Helper function to fetch watchListId for a movie
+  const getWatchListIdForMovie = async (movieId: number, userId: string): Promise<string | null> => {
     try {
       const response = await axios.get(`/api/watchlist/${userId}/${movieId}`);
       if (response.data && response.data.watchListId) {
@@ -94,7 +96,7 @@ export function MovieSlider() {
       console.error("Error fetching watchListId for movie:", error);
       return null;
     }
-  }
+  };
 
   // Handle adding/removing from watchlist
   const handleToggleWatchlist = async (movieId: number) => {
@@ -107,7 +109,6 @@ export function MovieSlider() {
 
     try {
       if (isInWatchlist) {
-        // Fetch the watchListId from the backend or state
         const watchListId = await getWatchListIdForMovie(movieId, userId);
 
         if (!watchListId) {
@@ -115,8 +116,7 @@ export function MovieSlider() {
           return;
         }
 
-        // Send the UUID (watchListId) in the request body to delete it
-        await axios.delete(`/api/watchlist/${watchListId}`, {
+        await axios.delete(`/api/watchlist/delete`, {
           data: { watchListId }
         });
         toast.success("Removed from your watchlist.");
@@ -143,7 +143,6 @@ export function MovieSlider() {
     try {
       await axios.post(`/api/movies/${movieId}/user-rating`, { userId, rating: newRating });
 
-      // Update average rating
       const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
       setAverageRatings(prev => ({ ...prev, [movieId]: avgResponse.data.averageRating || 0 }));
 
@@ -164,7 +163,7 @@ export function MovieSlider() {
       <ToastContainer />
       <div className="flex justify-center">
         <Carousel
-          plugins={[Autoplay({ delay: 2000 })]}
+          plugins={[Autoplay({ delay: 4000 })]}
           opts={{ align: "start", loop: true }}
           className="w-full max-w-4xl"
         >

@@ -138,7 +138,7 @@ export function MovieSliderComedy() {
       <ToastContainer />
       <div className="flex justify-center">
         <Carousel
-          plugins={[Autoplay({ delay: 2000 })]}
+          plugins={[Autoplay({ delay: 4000 })]}
           opts={{ align: "start", loop: true }}
           className="w-full max-w-4xl"
         >

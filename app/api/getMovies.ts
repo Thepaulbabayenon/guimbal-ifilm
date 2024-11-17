@@ -1,6 +1,6 @@
 import { db } from "@/db/drizzle";
 import { movie, userInteractions, watchLists } from "@/db/schema";
-import { eq, and, desc, like, or } from "drizzle-orm";
+import { eq, and, desc, like, or, sql } from "drizzle-orm";
 
 
 // Define the Movie type (you can adjust fields to match your database schema)
@@ -275,6 +275,18 @@ export async function getDramaMovies() {
   return dramaMoviesData;
 }
 
+
+
+
+export async function fetchCategories() {
+  // Define the expected type for the rows
+  const categories = await db.execute<{ category: string }>(
+    sql`SELECT DISTINCT "category" FROM movie`
+  );
+
+  // Map the rows safely with TypeScript knowing the structure
+  return categories.rows.map((row) => row.category);
+}
 
 /**
  * Collaborative Filtering: Find similar users based on interactions and recommend movies.

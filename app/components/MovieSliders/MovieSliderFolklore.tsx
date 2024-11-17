@@ -39,15 +39,6 @@ export function MovieSliderFolklore() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
   useEffect(() => {
-    async function fetchMovies() {
-      try {
-        const moviesData = await getFolkloreMovies();
-        setMovies(moviesData);
-      } catch (error) {
-        console.error("Error fetching movies:", error);
-      }
-    }
-
     fetchMovies();
   }, []);
 
@@ -59,6 +50,15 @@ export function MovieSliderFolklore() {
       });
     }
   }, [userId, movies]);
+
+  const fetchMovies = async () => {
+    try {
+      const moviesData = await getFolkloreMovies();
+      setMovies(moviesData);
+    } catch (error) {
+      console.error("Error fetching movies:", error);
+    }
+  };
 
   // Fetch user rating and average rating
   const fetchUserAndAverageRating = async (movieId: number) => {
@@ -138,7 +138,7 @@ export function MovieSliderFolklore() {
       <ToastContainer />
       <div className="flex justify-center">
         <Carousel
-          plugins={[Autoplay({ delay: 2000 })]}
+          plugins={[Autoplay({ delay: 4000 })]}
           opts={{ align: "start", loop: true }}
           className="w-full max-w-4xl"
         >
@@ -152,8 +152,8 @@ export function MovieSliderFolklore() {
                       alt={movie.title}
                       className="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
                     />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
-                        <button onClick={() => handlePlay(movie)} className="text-white text-3xl">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
+                      <button onClick={() => handlePlay(movie)} className="text-white text-3xl">
                         <FaPlay />
                       </button>
                       <button onClick={() => handleToggleWatchlist(movie.id)} className="text-white text-3xl">
@@ -172,7 +172,7 @@ export function MovieSliderFolklore() {
                         ))}
                       </div>
                       <p className="text-xs mt-1">
-                          Avg Rating: {typeof averageRatings[movie.id] === "number" ? averageRatings[movie.id].toFixed(2) : "N/A"}/5
+                        Avg Rating: {typeof averageRatings[movie.id] === "number" ? averageRatings[movie.id].toFixed(2) : "N/A"}/5
                       </p>
                     </div>
                   </CardContent>

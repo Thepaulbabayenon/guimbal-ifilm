@@ -3,13 +3,10 @@ import Link from "next/link";
 import Image from "next/image";
 import Logo from "../../public/logo.svg";
 import { usePathname, useSelectedLayoutSegment } from "next/navigation";
-import { Bell, Menu, Search, X } from "lucide-react"; // Importing X icon for closing mobile menu
+import { Bell, Menu, X } from "lucide-react";
 import UserNav from "./UserNav";
-import { useEffect, useRef, useState } from "react";
-import axios from "axios";
-import debounce from "lodash.debounce";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { animatePlaceholder, onAnimationEnd, PLACEHOLDERS } from "./animatedPlaceholder";
+import { CategoryDropdown } from "./CategoryDropdown"; // Import CategoryDropdown
 
 interface LinkProps {
   name: string;
@@ -36,14 +33,11 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Track mobile menu visibility
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [movies, setMovies] = useState<any[]>([]); // Store fetched movies based on category
+  const [searchQuery, setSearchQuery] = useState(""); // Search input state
   const segment = useSelectedLayoutSegment();
   const pathName = usePathname();
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isProfilePage = segment === "user";
 
@@ -57,50 +51,36 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const performSearch = async (query: string) => {
-    if (!query) return setSearchResults([]);
-    setLoading(true);
-    try {
-      const response = await axios.get("/api/search", { params: { query } });
-      setSearchResults(response.data);
-    } catch (error) {
-      console.error("Error fetching search results:", error);
-    } finally {
-      setLoading(false);
+  const handleCategorySelect = async (category: string) => {
+    if (category === selectedCategory) {
+      setSelectedCategory(null);
+      setMovies([]);
+    } else {
+      setSelectedCategory(category);
+      const response = await fetch(`/api/movies?category=${category}`);
+      const data = await response.json();
+      setMovies(data.movies);
     }
   };
 
-  const debouncedSearch = debounce((query: string) => {
-    performSearch(query);
-  }, 300);
+  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    debouncedSearch(e.target.value);
+    if (e.target.value.trim() === "") {
+      setMovies([]);
+      return;
+    }
+    const response = await fetch(`/api/movies?query=${e.target.value}`);
+    const data = await response.json();
+    setMovies(data);
   };
 
-  useEffect(() => {
-    if (searchInputRef.current) {
-      animatePlaceholder(searchInputRef.current, PLACEHOLDERS[0], onAnimationEnd);
-    }
-  }, []);
-
-  const toggleNotifications = () => setIsNotificationsOpen(!isNotificationsOpen);
-
-  const toggleSearch = () => {
-    setIsSearchOpen((prev) => !prev);
-    if (!isSearchOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
+  const handleCloseSearch = () => {
+    setSelectedCategory(null);
+    setMovies([]);
+    setSearchQuery("");
   };
-
-  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev); // Toggle mobile menu
-
-  const notifications = [
-    { id: 1, message: "New films are coming", time: "2 minutes ago" },
-    { id: 2, message: "Watch Lagdos now", time: "10 minutes ago" },
-    { id: 3, message: "Your profile was viewed", time: "1 hour ago" },
-  ];
 
   if (isProfilePage) {
     return null;
@@ -108,6 +88,7 @@ export default function Navbar() {
 
   return (
     <>
+      {/* Mobile Menu Icon */}
       <div className="lg:hidden fixed top-5 right-5 z-50">
         <Menu
           onClick={toggleMobileMenu}
@@ -115,6 +96,7 @@ export default function Navbar() {
         />
       </div>
 
+      {/* Mobile Menu Content */}
       {isMobileMenuOpen && (
         <motion.div
           initial={{ opacity: 0, x: "-100%" }}
@@ -136,6 +118,7 @@ export default function Navbar() {
         </motion.div>
       )}
 
+      {/* Desktop Navbar */}
       <motion.div
         initial={{ opacity: 0, scaleY: 0 }}
         animate={{
@@ -148,6 +131,7 @@ export default function Navbar() {
         }`}
         style={{ backgroundColor: isScrolled ? "rgba(0, 0, 0, 0.8)" : "transparent" }}
       >
+        {/* Logo and Navigation Links */}
         <div className="flex items-center">
           <Link href="/home" className={`w-32 transition-transform duration-500 ${isScrolled ? "scale-90" : "scale-100"}`}>
             <Image src={Logo} alt="Logo" priority width={65} height={65} />
@@ -178,84 +162,58 @@ export default function Navbar() {
           </ul>
         </div>
 
-        <div className="flex items-center gap-x-8">
+        {/* Search, Category Dropdown, and Bell/User Nav aligned */}
+        <div className="flex items-center gap-x-6 ml-4">
+          <CategoryDropdown
+            categories={["Comedy", "Drama", "Folklore", "Horror"]}
+            onCategorySelect={handleCategorySelect}
+          />
           <div className="relative">
-            <Search onClick={toggleSearch} className="w-5 h-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125" />
-            {isSearchOpen && (
-              <div className="absolute z-10 mt-2 w-80 bg-gray-500 rounded-lg shadow-lg">
-                <div className="p-4 relative">
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Search..."
-                    aria-label="Search"
-                    className="w-full p-4 pl-12 border text-black border-gray-500 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-700 transition-all duration-300"
-                    value={searchQuery}
-                    onChange={handleSearchInputChange}
-                  />
-                  <Search className="absolute top-1/2 left-4 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery("")}
-                      className="absolute top-1/2 right-4 transform -translate-y-1/2 text-gray-500 hover:text-gray-900 transition-colors duration-300"
-                    >
-                      &times;
-                    </button>
-                  )}
-                </div>
-                {loading && <div className="flex justify-center py-2"><Loader2 /></div>}
-                {searchResults.length > 0 && (
-                  <ul className="mt-2 border-t border-gray-200 divide-y divide-gray-200">
-                    {searchResults.map((movie: { id: number; title: string }) => (
-                      <DropdownMenuItem key={movie.id} className="p-3 hover:bg-gray-700 transition-colors duration-200">
-                        {movie.title}
-                      </DropdownMenuItem>
-                    ))}
-                  </ul>
-                )}
-                {searchResults.length === 0 && searchQuery && (
-                  <p className="mt-4 text-white">No results found</p>
-                )}
-              </div>
-            )}
+            <input
+              type="text"
+              placeholder="Search movies..."
+              className="p-2 pl-10 pr-4 text-sm bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              value={searchQuery}
+              onChange={handleSearch}
+            />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-4.35-4.35M11 17a6 6 0 100-12 6 6 0 000 12z"
+              />
+            </svg>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Bell onClick={toggleNotifications} className="h-5 w-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64 bg-gray-800 text-white rounded-lg shadow-lg">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {isNotificationsOpen && notifications.map(notification => (
-                <DropdownMenuItem key={notification.id} className="p-3 hover:bg-gray-700 transition-colors duration-200">
-                  <div className="flex justify-between">
-                    <p>{notification.message}</p>
-                    <span className="text-sm text-gray-400">{notification.time}</span>
-                  </div>
+          {/* Notifications and UserNav */}
+          <div className="flex items-center gap-x-8">
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Bell className="h-5 w-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-64 bg-gray-800 text-white rounded-lg shadow-lg">
+                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="p-3 hover:bg-gray-700">
+                  <p>New films are coming</p>
                 </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <UserNav />
+                <DropdownMenuItem className="p-3 hover:bg-gray-700">
+                  <p>Watch Lagdos now</p>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <UserNav />
+          </div>
         </div>
       </motion.div>
-
-      <style jsx>{`
-        .navbar {
-          transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-          transform-origin: top;
-          z-index: 1000;
-        }
-        .scale-y-0 {
-          transform: scaleY(0);
-        }
-        .scale-y-100 {
-          transform: scaleY(1);
-        }
-      `}</style>
     </>
   );
 }
+
