@@ -7,8 +7,8 @@ import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
 
-interface MovieCardProps {
-  movieId: number;
+interface FilmCardProps {
+  filmId: number;
   overview: string;
   title: string;
   watchList: boolean;
@@ -20,8 +20,8 @@ interface MovieCardProps {
   initialRatings: number; // External ratings (initial ratings)
 }
 
-export function MovieCard({
-  movieId,
+export function FilmCard({
+  filmId,
   overview,
   title,
   watchList: initialWatchList,
@@ -31,7 +31,7 @@ export function MovieCard({
   age,
   time,
   initialRatings,
-}: MovieCardProps) {
+}: FilmCardProps) {
   const { user } = useUser();
   const userId = user?.id;
 
@@ -50,7 +50,7 @@ export function MovieCard({
     const fetchRatings = async () => {
       try {
         // Fetch user rating
-        const response = await axios.get(`/api/movies/${movieId}/user-rating`, {
+        const response = await axios.get(`/api/films/${filmId}/user-rating`, {
           params: { userId },
         });
 
@@ -58,8 +58,8 @@ export function MovieCard({
           setUserRating(response.data.rating); // Set the user's rating
         }
 
-        // Fetch average rating for the movie
-        const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
+        // Fetch average rating for the film
+        const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
         if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
           setAverageRating(avgResponse.data.averageRating); // Set the average rating
         } else {
@@ -72,7 +72,7 @@ export function MovieCard({
     };
 
     fetchRatings();
-  }, [movieId, initialRatings, userId]);
+  }, [filmId, initialRatings, userId]);
 
   // Save user rating to the database when userRating changes
   useEffect(() => {
@@ -82,13 +82,13 @@ export function MovieCard({
       try {
         setIsSavingRating(true);
         await axios.post(
-          `/api/movies/${movieId}/user-rating`,
+          `/api/films/${filmId}/user-rating`,
           { userId, rating: userRating },
           { headers: { "Content-Type": "application/json" } }
         );
 
         // Fetch the updated average rating after saving the user's rating
-        const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
+        const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
         if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
           setAverageRating(avgResponse.data.averageRating); // Update the average rating
         }
@@ -101,7 +101,7 @@ export function MovieCard({
 
     // Save the rating only if it has changed
     saveUserRating();
-  }, [userRating, movieId, userId]);
+  }, [userRating, filmId, userId]);
 
   // Handle watchlist toggle
   const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -124,7 +124,7 @@ export function MovieCard({
       } else {
         // Add to watchlist
         await axios.post("/api/watchlist", {
-          movieId,
+          filmId,
           pathname: pathName,
           userId,
         });
@@ -144,7 +144,7 @@ export function MovieCard({
     }
 
     if (!userId) {
-      alert("Please log in to rate movies.");
+      alert("Please log in to rate films.");
       return;
     }
 
@@ -153,12 +153,12 @@ export function MovieCard({
     try {
       setIsSavingRating(true);
       await axios.post(
-        `/api/movies/${movieId}/user-rating`,
+        `/api/films/${filmId}/user-rating`,
         { userId, rating: newRating },
         { headers: { "Content-Type": "application/json" } }
       );
 
-      const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
+      const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
       if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
         setAverageRating(avgResponse.data.averageRating); // Update the average rating
       }
@@ -208,7 +208,7 @@ export function MovieCard({
 
       <PlayVideoModal
         youtubeUrl={youtubeUrl}
-        key={movieId}
+        key={filmId}
         title={title}
         overview={overview}
         state={open}

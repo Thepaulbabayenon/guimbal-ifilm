@@ -1,21 +1,21 @@
 import { db } from "@/db/drizzle";
-import { movie } from "@/db/schema";
-import MovieButtons from "./MovieButtons";
+import { film } from "@/db/schema";
+import FilmButtons from "./FilmButtons";
 
-async function getAllMovies() {
-  const movies = await db.select().from(movie);
-  return movies;
+async function getAllFilms() {
+  const films = await db.select().from(film);
+  return films;
 }
 
-async function getRandomMovie() {
-  const movies = await getAllMovies();
-  const randomIndex = Math.floor(Math.random() * movies.length);
-  const randomMovie = movies[randomIndex];
-  return randomMovie;
+async function getRandomFilm() {
+  const films = await getAllFilms();
+  const randomIndex = Math.floor(Math.random() * films.length);
+  const randomFilm = films[randomIndex];
+  return randomFilm;
 }
 
-export default async function MovieVideo() {
-  const data = await getRandomMovie();
+export default async function FilmVideo() {
+  const data = await getRandomFilm();
   
   return (
     <div className="h-[55vh] lg:h-[60vh] w-full flex justify-start items-center">
@@ -34,7 +34,7 @@ export default async function MovieVideo() {
         </h1>
         <p className="text-white text-lg mt-5 line-clamp-3">{data?.overview}</p>
         <div className="flex gap-x-3 mt-4">
-          <MovieButtons
+          <FilmButtons
             age={data?.age as number}
             duration={data?.duration as number}
             id={data?.id as number}

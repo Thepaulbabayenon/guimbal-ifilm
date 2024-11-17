@@ -34,7 +34,7 @@ export default function Navbar() {
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Track mobile menu visibility
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [movies, setMovies] = useState<any[]>([]); // Store fetched movies based on category
+  const [films, setFilms] = useState<any[]>([]); // Store fetched films based on category
   const [searchQuery, setSearchQuery] = useState(""); // Search input state
   const segment = useSelectedLayoutSegment();
   const pathName = usePathname();
@@ -54,12 +54,12 @@ export default function Navbar() {
   const handleCategorySelect = async (category: string) => {
     if (category === selectedCategory) {
       setSelectedCategory(null);
-      setMovies([]);
+      setFilms([]);
     } else {
       setSelectedCategory(category);
-      const response = await fetch(`/api/movies?category=${category}`);
+      const response = await fetch(`/api/films?category=${category}`);
       const data = await response.json();
-      setMovies(data.movies);
+      setFilms(data.films);
     }
   };
 
@@ -68,17 +68,17 @@ export default function Navbar() {
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
     if (e.target.value.trim() === "") {
-      setMovies([]);
+      setFilms([]);
       return;
     }
-    const response = await fetch(`/api/movies?query=${e.target.value}`);
+    const response = await fetch(`/api/films?query=${e.target.value}`);
     const data = await response.json();
-    setMovies(data);
+    setFilms(data);
   };
 
   const handleCloseSearch = () => {
     setSelectedCategory(null);
-    setMovies([]);
+    setFilms([]);
     setSearchQuery("");
   };
 
@@ -171,7 +171,7 @@ export default function Navbar() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search movies..."
+              placeholder="Search films..."
               className="p-2 pl-10 pr-4 text-sm bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               value={searchQuery}
               onChange={handleSearch}

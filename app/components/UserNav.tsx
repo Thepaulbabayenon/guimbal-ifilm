@@ -74,6 +74,11 @@ const UserNav = () => {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <Link href="/home/user/recommended">
+              <DropdownMenuItem >
+                Recommended Films
+              </DropdownMenuItem>
+              </Link>
               <DropdownMenuItem onClick={() => signOut()}>
                 Sign out
               </DropdownMenuItem>

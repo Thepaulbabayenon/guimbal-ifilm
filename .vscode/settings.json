@@ -23,6 +23,7 @@
         "Reco",
         "sonner",
         "sslmode",
+        "stringifying",
         "Subquery",
         "svix",
         "tailwindcss",
@@ -30,6 +31,7 @@
         "trpc",
         "Uploadthing",
         "vaul",
-        "watchlist"
+        "watchlist",
+        "Watchlists"
     ]
 }

@@ -224,10 +224,10 @@ const TermsAndConditions: React.FC = () => {
               transition={{ delay: 1.6, duration: 0.5 }}
               className="text-xl font-semibold mb-2"
             >
-              Movies
+              Films
             </motion.h3>
             <p>
-              Our platform provides information about various movies, including
+              Our platform provides information about various films, including
               images, titles, overviews, and more. While we strive to ensure the
               accuracy of this information, we do not guarantee its completeness
               or accuracy.
@@ -242,7 +242,7 @@ const TermsAndConditions: React.FC = () => {
               Watchlists
             </motion.h3>
             <p>
-              You can create and manage watchlists on our platform. Movies added
+              You can create and manage watchlists on our platform. Films added
               to your watchlist may be subject to availability and other
               limitations.
             </p>

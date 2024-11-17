@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "authenticator" (
 	CONSTRAINT "authenticator_credentialID_unique" UNIQUE("credentialID")
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "movie" (
+CREATE TABLE IF NOT EXISTS "film" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"imageString" varchar NOT NULL,
 	"title" varchar NOT NULL,
@@ -48,19 +48,19 @@ CREATE TABLE IF NOT EXISTS "session" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "userInteractions" (
 	"userId" text NOT NULL,
-	"movieId" integer NOT NULL,
+	"filmId" integer NOT NULL,
 	"ratings" integer NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "userInteractions_userId_movieId_pk" PRIMARY KEY("userId","movieId")
+	CONSTRAINT "userInteractions_userId_filmId_pk" PRIMARY KEY("userId","filmId")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "userRatings" (
 	"id" serial NOT NULL,
 	"userId" text NOT NULL,
-	"movieId" integer NOT NULL,
+	"filmId" integer NOT NULL,
 	"rating" integer NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "userRatings_userId_movieId_pk" PRIMARY KEY("userId","movieId")
+	CONSTRAINT "userRatings_userId_filmId_pk" PRIMARY KEY("userId","filmId")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "user" (
@@ -83,15 +83,15 @@ CREATE TABLE IF NOT EXISTS "verificationToken" (
 CREATE TABLE IF NOT EXISTS "watchLists" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"userId" text NOT NULL,
-	"movieId" integer NOT NULL,
+	"filmId" integer NOT NULL,
 	"isFavorite" boolean DEFAULT false
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "watchedMovies" (
+CREATE TABLE IF NOT EXISTS "watchedFilms" (
 	"userId" text NOT NULL,
-	"movieId" integer NOT NULL,
+	"filmId" integer NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "watchedMovies_userId_movieId_pk" PRIMARY KEY("userId","movieId")
+	CONSTRAINT "watchedFilms_userId_filmId_pk" PRIMARY KEY("userId","filmId")
 );
 --> statement-breakpoint
 DO $$ BEGIN
@@ -119,7 +119,7 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "userInteractions" ADD CONSTRAINT "userInteractions_movieId_movie_id_fk" FOREIGN KEY ("movieId") REFERENCES "public"."movie"("id") ON DELETE cascade ON UPDATE no action;
+ ALTER TABLE "userInteractions" ADD CONSTRAINT "userInteractions_filmId_film_id_fk" FOREIGN KEY ("filmId") REFERENCES "public"."film"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -131,19 +131,19 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "userRatings" ADD CONSTRAINT "userRatings_movieId_movie_id_fk" FOREIGN KEY ("movieId") REFERENCES "public"."movie"("id") ON DELETE cascade ON UPDATE no action;
+ ALTER TABLE "userRatings" ADD CONSTRAINT "userRatings_filmId_film_id_fk" FOREIGN KEY ("filmId") REFERENCES "public"."film"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "watchedMovies" ADD CONSTRAINT "watchedMovies_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+ ALTER TABLE "watchedFilms" ADD CONSTRAINT "watchedFilms_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "watchedMovies" ADD CONSTRAINT "watchedMovies_movieId_movie_id_fk" FOREIGN KEY ("movieId") REFERENCES "public"."movie"("id") ON DELETE cascade ON UPDATE no action;
+ ALTER TABLE "watchedFilms" ADD CONSTRAINT "watchedFilms_filmId_film_id_fk" FOREIGN KEY ("filmId") REFERENCES "public"."film"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

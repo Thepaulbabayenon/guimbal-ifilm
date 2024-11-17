@@ -4,42 +4,42 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation"; // To get search params from the URL
-import { MovieCard } from "@/app/components/MovieCard"; // Import your MovieCard component
+import { FilmCard } from "@/app/components/FilmCard"; // Import your FilmCard component
 import PlayVideoModal from "@/app/components/PlayVideoModal";
 import axios from "axios";
 
 const SearchResults = () => {
   const searchParams = useSearchParams(); // Get search params from the URL
   const query = searchParams.get("query") || ""; // Default to empty string if no query
-  const [movies, setMovies] = useState<any[]>([]); // State to store fetched movies
+  const [films, setFilms] = useState<any[]>([]); // State to store fetched films
   const [error, setError] = useState<string | null>(null); // State to handle errors
-  const [selectedMovie, setSelectedMovie] = useState<any | null>(null); // Store selected movie for PlayVideoModal
+  const [selectedFilm, setSelectedFilm] = useState<any | null>(null); // Store selected film for PlayVideoModal
   const [isModalOpen, setIsModalOpen] = useState(false); // State to manage modal visibility
 
-  // Fetch movies based on the search query
+  // Fetch films based on the search query
   useEffect(() => {
-    const fetchMovies = async () => {
+    const fetchFilms = async () => {
       try {
-        const response = await axios.get(`/api/search-movies?query=${query}`);
+        const response = await axios.get(`/api/search-films?query=${query}`);
         if (response.data) {
-          setMovies(response.data);
+          setFilms(response.data);
         } else {
-          setMovies([]);
+          setFilms([]);
         }
       } catch (err) {
-        setError("Error fetching movies.");
+        setError("Error fetching films.");
         console.error(err);
       }
     };
 
     if (query) {
-      fetchMovies();
+      fetchFilms();
     }
   }, [query]);
 
-  // Handle movie card click to open the modal
-  const handleMovieClick = (movie: any) => {
-    setSelectedMovie(movie); // Store the clicked movie
+  // Handle film card click to open the modal
+  const handleFilmClick = (film: any) => {
+    setSelectedFilm(film); // Store the clicked film
     setIsModalOpen(true); // Open the modal
   };
 
@@ -50,24 +50,24 @@ const SearchResults = () => {
       {/* Display error message */}
       {error && <p className="text-red-500">{error}</p>}
 
-      {/* Display movies if available */}
-      {movies.length > 0 ? (
+      {/* Display films if available */}
+      {films.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {movies.map((movie: any) => (
-            <div key={movie.id} className="relative">
-              <MovieCard
-                movieId={movie.id}
-                overview={movie.overview}
-                title={movie.title}
-                watchList={movie.watchList}
-                youtubeUrl={movie.youtubeUrl}
-                year={movie.year}
-                age={movie.age}
-                time={movie.time}
-                initialRatings={movie.initialRatings}
+          {films.map((film: any) => (
+            <div key={film.id} className="relative">
+              <FilmCard
+                filmId={film.id}
+                overview={film.overview}
+                title={film.title}
+                watchList={film.watchList}
+                youtubeUrl={film.youtubeUrl}
+                year={film.year}
+                age={film.age}
+                time={film.time}
+                initialRatings={film.initialRatings}
               />
               <div
-                onClick={() => handleMovieClick(movie)}
+                onClick={() => handleFilmClick(film)}
                 className="absolute inset-0 bg-black opacity-50 flex justify-center items-center cursor-pointer"
               >
                 <span className="text-white">Play Video</span>
@@ -76,21 +76,21 @@ const SearchResults = () => {
           ))}
         </div>
       ) : (
-        <p>No movies found.</p>
+        <p>No films found.</p>
       )}
 
-      {/* Movie Video Modal */}
-      {selectedMovie && (
+      {/* Film Video Modal */}
+      {selectedFilm && (
         <PlayVideoModal
-          youtubeUrl={selectedMovie.youtubeUrl}
-          title={selectedMovie.title}
-          overview={selectedMovie.overview}
+          youtubeUrl={selectedFilm.youtubeUrl}
+          title={selectedFilm.title}
+          overview={selectedFilm.overview}
           state={isModalOpen}
           changeState={setIsModalOpen}
-          age={selectedMovie.age}
-          duration={selectedMovie.time}
-          release={selectedMovie.year}
-          ratings={selectedMovie.initialRatings}
+          age={selectedFilm.age}
+          duration={selectedFilm.time}
+          release={selectedFilm.year}
+          ratings={selectedFilm.initialRatings}
           setUserRating={() => {}}
         />
       )}

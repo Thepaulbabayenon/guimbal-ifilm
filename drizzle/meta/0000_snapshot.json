@@ -1,5 +1,5 @@
 {
-  "id": "140f882a-f5ea-4829-894e-64c4cfc5391f",
+  "id": "03b2c5db-54b1-4934-acb4-a2cdc4db82b3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -184,8 +184,8 @@
         }
       }
     },
-    "public.movie": {
-      "name": "movie",
+    "public.film": {
+      "name": "film",
       "schema": "",
       "columns": {
         "id": {
@@ -319,8 +319,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "movieId": {
-          "name": "movieId",
+        "filmId": {
+          "name": "filmId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -354,12 +354,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "userInteractions_movieId_movie_id_fk": {
-          "name": "userInteractions_movieId_movie_id_fk",
+        "userInteractions_filmId_film_id_fk": {
+          "name": "userInteractions_filmId_film_id_fk",
           "tableFrom": "userInteractions",
-          "tableTo": "movie",
+          "tableTo": "film",
           "columnsFrom": [
-            "movieId"
+            "filmId"
           ],
           "columnsTo": [
             "id"
@@ -369,11 +369,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "userInteractions_userId_movieId_pk": {
-          "name": "userInteractions_userId_movieId_pk",
+        "userInteractions_userId_filmId_pk": {
+          "name": "userInteractions_userId_filmId_pk",
           "columns": [
             "userId",
-            "movieId"
+            "filmId"
           ]
         }
       },
@@ -395,8 +395,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "movieId": {
-          "name": "movieId",
+        "filmId": {
+          "name": "filmId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -430,12 +430,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "userRatings_movieId_movie_id_fk": {
-          "name": "userRatings_movieId_movie_id_fk",
+        "userRatings_filmId_film_id_fk": {
+          "name": "userRatings_filmId_film_id_fk",
           "tableFrom": "userRatings",
-          "tableTo": "movie",
+          "tableTo": "film",
           "columnsFrom": [
-            "movieId"
+            "filmId"
           ],
           "columnsTo": [
             "id"
@@ -445,11 +445,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "userRatings_userId_movieId_pk": {
-          "name": "userRatings_userId_movieId_pk",
+        "userRatings_userId_filmId_pk": {
+          "name": "userRatings_userId_filmId_pk",
           "columns": [
             "userId",
-            "movieId"
+            "filmId"
           ]
         }
       },
@@ -562,8 +562,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "movieId": {
-          "name": "movieId",
+        "filmId": {
+          "name": "filmId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -581,8 +581,8 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "public.watchedMovies": {
-      "name": "watchedMovies",
+    "public.watchedFilms": {
+      "name": "watchedFilms",
       "schema": "",
       "columns": {
         "userId": {
@@ -591,8 +591,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "movieId": {
-          "name": "movieId",
+        "filmId": {
+          "name": "filmId",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -607,9 +607,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "watchedMovies_userId_user_id_fk": {
-          "name": "watchedMovies_userId_user_id_fk",
-          "tableFrom": "watchedMovies",
+        "watchedFilms_userId_user_id_fk": {
+          "name": "watchedFilms_userId_user_id_fk",
+          "tableFrom": "watchedFilms",
           "tableTo": "user",
           "columnsFrom": [
             "userId"
@@ -620,12 +620,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "watchedMovies_movieId_movie_id_fk": {
-          "name": "watchedMovies_movieId_movie_id_fk",
-          "tableFrom": "watchedMovies",
-          "tableTo": "movie",
+        "watchedFilms_filmId_film_id_fk": {
+          "name": "watchedFilms_filmId_film_id_fk",
+          "tableFrom": "watchedFilms",
+          "tableTo": "film",
           "columnsFrom": [
-            "movieId"
+            "filmId"
           ],
           "columnsTo": [
             "id"
@@ -635,11 +635,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "watchedMovies_userId_movieId_pk": {
-          "name": "watchedMovies_userId_movieId_pk",
+        "watchedFilms_userId_filmId_pk": {
+          "name": "watchedFilms_userId_filmId_pk",
           "columns": [
             "userId",
-            "movieId"
+            "filmId"
           ]
         }
       },

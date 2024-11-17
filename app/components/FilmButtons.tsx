@@ -15,7 +15,7 @@ interface iAppProps {
   duration: number;
 }
 
-export default function MovieButtons({
+export default function FilmButtons({
   age,
   duration,
   id,

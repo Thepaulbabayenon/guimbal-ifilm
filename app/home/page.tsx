@@ -1,11 +1,11 @@
-import { MovieGrid } from "../components/MovieGrid";
-import { MovieSlider } from "../components/MovieSliders/MovieSlider";
-import { MovieSliderComedy } from "../components/MovieSliders/MovieSliderComedy";
-import { MovieSliderDrama } from "../components/MovieSliders/MovieSliderDrama";
-import { MovieSliderFolklore } from "../components/MovieSliders/MovieSliderFolklore";
-import { MovieSliderHorror } from "../components/MovieSliders/MovieSliderHorror";
-import { MovieSliderReco } from "../components/MovieSliders/MovieSliderReco";
-import MovieVideo from "../components/MovieVideo";
+import { FilmGrid } from "../components/FilmGrid";
+import { FilmSlider } from "../components/FilmSliders/FilmSlider";
+import { FilmSliderComedy } from "../components/FilmSliders/FilmSliderComedy";
+import { FilmSliderDrama } from "../components/FilmSliders/FilmSliderDrama";
+import { FilmSliderFolklore } from "../components/FilmSliders/FilmSliderFolklore";
+import { FilmSliderHorror } from "../components/FilmSliders/FilmSliderHorror";
+import { FilmSliderReco } from "../components/FilmSliders/FilmSliderReco";
+import FilmVideo from "../components/FilmVideo";
 import RatingComponent from "../components/RatingComponent";
 import RecentlyAdded from "../components/RecentlyAdded";
 
@@ -15,29 +15,29 @@ export default async function HomePage() {
 
     return (
         <div className="p-5 lg:p-0">
-            <MovieVideo />
+            <FilmVideo />
             <h1 className="text-3xl font-bold text-gray-400">BEST FILMS</h1>
             <RecentlyAdded />
             <h1 className="text-3xl font-bold text-gray-400">POPULAR FILMS</h1>
-            <MovieSlider />
+            <FilmSlider />
 
             <h1 className="text-3xl font-bold text-gray-400">COMEDY</h1>
-            <MovieSliderComedy />
+            <FilmSliderComedy />
 
             <h1 className="text-3xl font-bold text-gray-400">DRAMA</h1>
-            <MovieSliderDrama />
+            <FilmSliderDrama />
 
             <h1 className="text-3xl font-bold text-gray-400">FOLKLORE</h1>
-            <MovieSliderFolklore />
+            <FilmSliderFolklore />
 
             <h1 className="text-3xl font-bold text-gray-400">HORROR</h1>
-            <MovieSliderHorror />
+            <FilmSliderHorror />
             
             <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
-            <MovieSliderReco userId={userId.toString()} />
-            <RatingComponent movieId={123}/>
+            <FilmSliderReco userId={userId.toString()} />
+            <RatingComponent filmId={123}/>
             <h1 className="text-3xl font-bold text-gray-400">SOME OF THE BEST</h1>
-            <MovieGrid/>
+            <FilmGrid/>
         </div>
     );
 }

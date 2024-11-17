@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getComedyMovies } from "@/app/api/getMovies"; // Ensure this API function exists
+import { getComedyFilms } from "@/app/api/getFilms"; // Ensure this API function exists
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import PlayVideoModal from "../PlayVideoModal";
@@ -13,7 +13,7 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
-interface Movie {
+interface Film {
   id: number;
   title: string;
   age: number;
@@ -27,79 +27,79 @@ interface Movie {
   rank: number; // External rating
 }
 
-export function MovieSliderComedy() {
+export function FilmSliderComedy() {
   const { user } = useUser();
   const userId = user?.id;
 
-  const [movies, setMovies] = useState<Movie[]>([]);
+  const [films, setFilms] = useState<Film[]>([]);
   const [watchList, setWatchList] = useState<{ [key: number]: boolean }>({});
   const [userRatings, setUserRatings] = useState<{ [key: number]: number }>({});
   const [averageRatings, setAverageRatings] = useState<{ [key: number]: number }>({});
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
 
   useEffect(() => {
-    async function fetchMovies() {
+    async function fetchFilms() {
       try {
-        const moviesData = await getComedyMovies();
-        setMovies(moviesData);
+        const filmsData = await getComedyFilms();
+        setFilms(filmsData);
       } catch (error) {
-        console.error("Error fetching movies:", error);
+        console.error("Error fetching films:", error);
       }
     }
 
-    fetchMovies();
+    fetchFilms();
   }, []);
 
   useEffect(() => {
     if (userId) {
-      movies.forEach(movie => {
-        fetchUserAndAverageRating(movie.id);
-        fetchWatchlistStatus(movie.id);
+      films.forEach(film => {
+        fetchUserAndAverageRating(film.id);
+        fetchWatchlistStatus(film.id);
       });
     }
-  }, [userId, movies]);
+  }, [userId, films]);
 
   // Fetch user rating and average rating
-  const fetchUserAndAverageRating = async (movieId: number) => {
+  const fetchUserAndAverageRating = async (filmId: number) => {
     try {
-      const userResponse = await axios.get(`/api/movies/${movieId}/user-rating`, { params: { userId } });
-      setUserRatings(prev => ({ ...prev, [movieId]: userResponse.data.rating || 0 }));
+      const userResponse = await axios.get(`/api/films/${filmId}/user-rating`, { params: { userId } });
+      setUserRatings(prev => ({ ...prev, [filmId]: userResponse.data.rating || 0 }));
 
-      const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
-      setAverageRatings(prev => ({ ...prev, [movieId]: avgResponse.data.averageRating || 0 }));
+      const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+      setAverageRatings(prev => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
     } catch (error) {
       console.error("Error fetching ratings:", error);
     }
   };
 
   // Fetch watchlist status
-  const fetchWatchlistStatus = async (movieId: number) => {
+  const fetchWatchlistStatus = async (filmId: number) => {
     try {
-      const response = await axios.get(`/api/watchlist/${movieId}`, { params: { userId } });
-      setWatchList(prev => ({ ...prev, [movieId]: response.data.inWatchlist }));
+      const response = await axios.get(`/api/watchlist/${filmId}`, { params: { userId } });
+      setWatchList(prev => ({ ...prev, [filmId]: response.data.inWatchlist }));
     } catch (error) {
       console.error("Error fetching watchlist status:", error);
     }
   };
 
   // Handle adding/removing from watchlist
-  const handleToggleWatchlist = async (movieId: number) => {
+  const handleToggleWatchlist = async (filmId: number) => {
     if (!userId) {
       toast.warn("Please log in to manage your watchlist.");
       return;
     }
 
-    const isInWatchlist = watchList[movieId];
+    const isInWatchlist = watchList[filmId];
     try {
       if (isInWatchlist) {
-        await axios.delete(`/api/watchlist/${movieId}`, { data: { userId } });
+        await axios.delete(`/api/watchlist/${filmId}`, { data: { userId } });
         toast.success("Removed from your watchlist.");
       } else {
-        await axios.post("/api/watchlist", { movieId, userId });
+        await axios.post("/api/watchlist", { filmId, userId });
         toast.success("Added to your watchlist.");
       }
-      setWatchList(prev => ({ ...prev, [movieId]: !isInWatchlist }));
+      setWatchList(prev => ({ ...prev, [filmId]: !isInWatchlist }));
     } catch (error) {
       console.error("Error toggling watchlist:", error);
       toast.error("Failed to update watchlist.");
@@ -107,19 +107,19 @@ export function MovieSliderComedy() {
   };
 
   // Handle rating click
-  const handleRatingClick = async (movieId: number, newRating: number) => {
+  const handleRatingClick = async (filmId: number, newRating: number) => {
     if (!userId) {
-      toast.warn("Please log in to rate movies.");
+      toast.warn("Please log in to rate films.");
       return;
     }
 
-    setUserRatings(prev => ({ ...prev, [movieId]: newRating }));
+    setUserRatings(prev => ({ ...prev, [filmId]: newRating }));
     try {
-      await axios.post(`/api/movies/${movieId}/user-rating`, { userId, rating: newRating });
+      await axios.post(`/api/films/${filmId}/user-rating`, { userId, rating: newRating });
 
       // Update average rating
-      const avgResponse = await axios.get(`/api/movies/${movieId}/average-rating`);
-      setAverageRatings(prev => ({ ...prev, [movieId]: avgResponse.data.averageRating || 0 }));
+      const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+      setAverageRatings(prev => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
 
       toast.success("Your rating has been saved!");
     } catch (error) {
@@ -128,8 +128,8 @@ export function MovieSliderComedy() {
     }
   };
 
-  const handlePlay = (movie: Movie) => {
-    setSelectedMovie(movie);
+  const handlePlay = (film: Film) => {
+    setSelectedFilm(film);
     setModalOpen(true);
   };
 
@@ -143,36 +143,36 @@ export function MovieSliderComedy() {
           className="w-full max-w-4xl"
         >
           <CarouselContent className="flex space-x-4">
-            {movies.map(movie => (
-              <CarouselItem key={movie.id} className="flex-none w-64 relative">
+            {films.map(film => (
+              <CarouselItem key={film.id} className="flex-none w-64 relative">
                 <Card>
                   <CardContent className="relative p-2">
                     <img
-                      src={movie.imageString}
-                      alt={movie.title}
+                      src={film.imageString}
+                      alt={film.title}
                       className="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
                     />
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
-                        <button onClick={() => handlePlay(movie)} className="text-white text-3xl">
+                        <button onClick={() => handlePlay(film)} className="text-white text-3xl">
                         <FaPlay />
                       </button>
-                      <button onClick={() => handleToggleWatchlist(movie.id)} className="text-white text-3xl">
-                        <FaHeart className={watchList[movie.id] ? "text-red-500" : ""} />
+                      <button onClick={() => handleToggleWatchlist(film.id)} className="text-white text-3xl">
+                        <FaHeart className={watchList[film.id] ? "text-red-500" : ""} />
                       </button>
                     </div>
                     <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-2 text-center">
-                      <span className="text-sm font-semibold">{movie.title}</span>
+                      <span className="text-sm font-semibold">{film.title}</span>
                       <div className="flex items-center justify-center mt-2">
                         {[1, 2, 3, 4, 5].map(star => (
                           <Star
                             key={star}
-                            className={`w-4 h-4 cursor-pointer ${userRatings[movie.id] >= star ? "text-yellow-400" : "text-gray-400"}`}
-                            onClick={() => handleRatingClick(movie.id, star)}
+                            className={`w-4 h-4 cursor-pointer ${userRatings[film.id] >= star ? "text-yellow-400" : "text-gray-400"}`}
+                            onClick={() => handleRatingClick(film.id, star)}
                           />
                         ))}
                       </div>
                       <p className="text-xs mt-1">
-                          Avg Rating: {typeof averageRatings[movie.id] === "number" ? averageRatings[movie.id].toFixed(2) : "N/A"}/5
+                          Avg Rating: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(2) : "N/A"}/5
                       </p>
                     </div>
                   </CardContent>
@@ -185,18 +185,18 @@ export function MovieSliderComedy() {
         </Carousel>
       </div>
 
-      {selectedMovie && (
+      {selectedFilm && (
         <PlayVideoModal
           changeState={setModalOpen}
-          overview={selectedMovie.overview}
+          overview={selectedFilm.overview}
           state={modalOpen}
-          title={selectedMovie.title}
-          youtubeUrl={selectedMovie.youtubeString}
-          age={selectedMovie.age}
-          duration={selectedMovie.duration}
-          release={selectedMovie.release}
-          ratings={userRatings[selectedMovie.id]}
-          setUserRating={(rating: number) => handleRatingClick(selectedMovie.id, rating)}
+          title={selectedFilm.title}
+          youtubeUrl={selectedFilm.youtubeString}
+          age={selectedFilm.age}
+          duration={selectedFilm.duration}
+          release={selectedFilm.release}
+          ratings={userRatings[selectedFilm.id]}
+          setUserRating={(rating: number) => handleRatingClick(selectedFilm.id, rating)}
         />
       )}
     </div>

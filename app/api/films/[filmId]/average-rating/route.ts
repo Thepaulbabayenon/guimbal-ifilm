@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { movieId: string } }
+  { params }: { params: { filmId: string } }
 ) {
   try {
     const result = await db
@@ -13,7 +13,7 @@ export async function GET(
         averageRating: avg(userRatings.rating),
       })
       .from(userRatings)
-      .where(eq(userRatings.movieId, parseInt(params.movieId)));
+      .where(eq(userRatings.filmId, parseInt(params.filmId)));
 
     const averageRating = result[0]?.averageRating || 0;
 

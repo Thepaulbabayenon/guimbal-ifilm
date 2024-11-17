@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { db } from '@/db/drizzle';
-import { movie, watchLists } from '@/db/schema'; // Make sure to import the watchLists schema
+import { film, watchLists } from '@/db/schema'; // Make sure to import the watchLists schema
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { eq, desc } from 'drizzle-orm';
@@ -9,7 +9,7 @@ import { sql } from 'drizzle-orm/sql';
 
 const app = new Hono();
 
-// GET route to fetch movies
+// GET route to fetch films
 app.get(
   '/',
   zValidator('query', z.object({
@@ -26,22 +26,22 @@ app.get(
 
       const data = await db
         .select({
-          id: movie.id,
-          imageString: movie.imageString,
-          title: movie.title,
-          age: movie.age,
-          duration: movie.duration,
-          overview: movie.overview,
-          release: movie.release,
-          videoSource: movie.videoSource,
-          category: movie.category,
-          youtubeString: movie.youtubeString,
-          createdAt: movie.createdAt,
-          rank: movie.rank,
+          id: film.id,
+          imageString: film.imageString,
+          title: film.title,
+          age: film.age,
+          duration: film.duration,
+          overview: film.overview,
+          release: film.release,
+          videoSource: film.videoSource,
+          category: film.category,
+          youtubeString: film.youtubeString,
+          createdAt: film.createdAt,
+          rank: film.rank,
         })
-        .from(movie)
-        .where(id ? eq(movie.id, Number(id)) : undefined) 
-        .orderBy(desc(movie.createdAt));
+        .from(film)
+        .where(id ? eq(film.id, Number(id)) : undefined) 
+        .orderBy(desc(film.createdAt));
 
       return c.json({ data });
     } catch (error) {
@@ -51,7 +51,7 @@ app.get(
   }
 );
 
-// DELETE route to delete a movie
+// DELETE route to delete a film
 app.delete(
   '/:id',
   zValidator('param', z.object({
@@ -66,19 +66,19 @@ app.delete(
         return c.json({ error: 'Unauthorized' }, 401);
       }
 
-      const movieToDelete = db.$with('movie_to_delete').as(
-        db.select({ id: movie.id }).from(movie)
-          .where(eq(movie.id, Number(id))) 
+      const filmToDelete = db.$with('film_to_delete').as(
+        db.select({ id: film.id }).from(film)
+          .where(eq(film.id, Number(id))) 
       );
 
       const [data] = await db
-        .with(movieToDelete)
-        .delete(movie)
+        .with(filmToDelete)
+        .delete(film)
         .where(
-          eq(movie.id, sql`(select id from movie_to_delete)`) 
+          eq(film.id, sql`(select id from film_to_delete)`) 
         )
         .returning({
-          id: movie.id,
+          id: film.id,
         });
 
       if (!data) {
@@ -98,13 +98,13 @@ app.post(
   '/watchlist/add',
   zValidator('json', z.object({
     userId: z.string().uuid(), // Validate userId is a UUID
-    movieId: z.number().int().positive(), // Validate movieId is a positive integer
+    filmId: z.number().int().positive(), // Validate filmId is a positive integer
     isFavorite: z.boolean().optional().default(false), // Optional boolean, default to false
   })),
   async (c) => {
     try {
       const user = currentUser();
-      const { userId, movieId, isFavorite } = c.req.valid('json');
+      const { userId, filmId, isFavorite } = c.req.valid('json');
 
       if (!user) {
         return c.json({ error: 'Unauthorized' }, 401);
@@ -114,7 +114,7 @@ app.post(
       const newWatchlistEntry = await db.insert(watchLists).values({
         id: crypto.randomUUID(), // Generate a new UUID for the watchlist entry
         userId, // User ID from request
-        movieId, // Movie ID from request
+        filmId, // Film ID from request
         isFavorite, // Favorite status from request
       });
 

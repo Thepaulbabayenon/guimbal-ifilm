@@ -1,5 +1,5 @@
 import { db } from "@/db/drizzle";
-import { users, watchLists, movie, userInteractions } from "@/db/schema";
+import { users, watchLists, film, userInteractions } from "@/db/schema";
 import { desc, eq, and, like } from "drizzle-orm";
 
 export async function getUserData(userEmail: string) {
@@ -31,46 +31,46 @@ export async function getUserData(userEmail: string) {
 
   const watchlistData = await db
     .select({
-      title: movie.title,
-      age: movie.age,
-      duration: movie.duration,
-      imageString: movie.imageString,
-      overview: movie.overview,
-      release: movie.release,
-      id: movie.id,
-      youtubeString: movie.youtubeString,
+      title: film.title,
+      age: film.age,
+      duration: film.duration,
+      imageString: film.imageString,
+      overview: film.overview,
+      release: film.release,
+      id: film.id,
+      youtubeString: film.youtubeString,
       watchListId: watchLists.id,
     })
-    .from(movie)
-    .leftJoin(watchLists, eq(movie.id, watchLists.movieId))
+    .from(film)
+    .leftJoin(watchLists, eq(film.id, watchLists.filmId))
     .where(eq(watchLists.userId, userId));
 
   const top10Data = await db
     .select({
-      title: movie.title,
-      age: movie.age,
-      duration: movie.duration,
-      imageString: movie.imageString,
-      overview: movie.overview,
-      release: movie.release,
-      id: movie.id,
+      title: film.title,
+      age: film.age,
+      duration: film.duration,
+      imageString: film.imageString,
+      overview: film.overview,
+      release: film.release,
+      id: film.id,
     })
-    .from(movie)
-    .orderBy(desc(movie.release))
+    .from(film)
+    .orderBy(desc(film.release))
     .limit(10);
 
   const favoritesData = await db
     .select({
-      title: movie.title,
-      age: movie.age,
-      duration: movie.duration,
-      imageString: movie.imageString,
-      overview: movie.overview,
-      release: movie.release,
-      id: movie.id,
+      title: film.title,
+      age: film.age,
+      duration: film.duration,
+      imageString: film.imageString,
+      overview: film.overview,
+      release: film.release,
+      id: film.id,
     })
-    .from(movie)
-    .leftJoin(userInteractions, eq(movie.id, userInteractions.movieId))
+    .from(film)
+    .leftJoin(userInteractions, eq(film.id, userInteractions.filmId))
     .where(
       and(
         eq(userInteractions.userId, userId),
@@ -102,5 +102,3 @@ export async function getUsersByName(userName: string) {
 
   return usersData;
 }
-
-

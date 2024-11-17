@@ -1,12 +1,13 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { MovieCard } from "@/app/components/MovieCard"; // Ensure correct path
+import { FilmCard } from "@/app/components/FilmCard"; // Ensure correct path
 import PlayVideoModal from "../PlayVideoModal";
 
 export default function SearchResultsPage() {
   const [query, setQuery] = useState<string>(""); // Search query
-  const [movies, setMovies] = useState<any[]>([]); // Store movie results
+  const [films, setFilms] = useState<any[]>([]); // Store film results
   const [loading, setLoading] = useState<boolean>(false); // Loading state
   const [error, setError] = useState<string | null>(null); // Error state
   const [pagination, setPagination] = useState({
@@ -26,28 +27,28 @@ export default function SearchResultsPage() {
     return () => clearTimeout(timer); // Clean up previous timer
   }, [query]);
 
-  // Fetch movies based on the debounced query
+  // Fetch films based on the debounced query
   useEffect(() => {
     if (debouncedQuery.trim()) {
-      fetchMovies(debouncedQuery, pagination.currentPage);
+      fetchFilms(debouncedQuery, pagination.currentPage);
     }
   }, [debouncedQuery, pagination.currentPage]);
 
-  const fetchMovies = async (searchQuery: string, page: number) => {
+  const fetchFilms = async (searchQuery: string, page: number) => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/movies/search", {
+      const response = await axios.get("/api/films/search", {
         params: {
           query: searchQuery,
           page: page,
         },
       });
-      setMovies(response.data.movies);
+      setFilms(response.data.films);
       setPagination(response.data.pagination);
       setError(null); // Clear any previous errors
     } catch (err) {
-      setError("Failed to fetch movies.");
-      setMovies([]);
+      setError("Failed to fetch films.");
+      setFilms([]);
     } finally {
       setLoading(false);
     }
@@ -72,7 +73,7 @@ export default function SearchResultsPage() {
           type="text"
           value={query}
           onChange={handleSearchChange}
-          placeholder="Search for a movie..."
+          placeholder="Search for a film..."
           className="p-2 border rounded w-full"
         />
         <button
@@ -87,18 +88,18 @@ export default function SearchResultsPage() {
       {error && <p className="text-red-500">{error}</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {movies.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movieId={movie.id}
-            title={movie.title}
-            overview={movie.overview}
-            watchList={movie.watchList}
-            youtubeUrl={movie.youtubeUrl}
-            year={movie.year}
-            age={movie.age}
-            time={movie.duration}
-            initialRatings={movie.ratings}
+        {films.map((film) => (
+          <FilmCard
+            key={film.id}
+            filmId={film.id}
+            title={film.title}
+            overview={film.overview}
+            watchList={film.watchList}
+            youtubeUrl={film.youtubeUrl}
+            year={film.year}
+            age={film.age}
+            time={film.duration}
+            initialRatings={film.ratings}
           />
         ))}
       </div>

@@ -1,11 +1,10 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { db } from '@/db/drizzle'; // Assumes a centralized db connection setup for Drizzle ORM
-import { watchLists } from '@/db/schema'; // Import your watchlist schema
-import { eq, and } from 'drizzle-orm'; // Import the correct operators
-import { isValidUUID } from '@/app/utils/uuid'; // Import a helper function for UUID validation
+import { NextResponse } from "next/server";
+import { db } from "@/db/drizzle";
+import { watchLists } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { isValidUUID } from "@/app/utils/uuid";
 
-// Database function to remove a movie from the watchlist
+// Helper function to remove movie from the watchlist
 const removeMovieFromWatchlist = async (userId: string, watchListId: string) => {
   try {
     const deletedWatchlistEntry = await db
@@ -17,13 +16,13 @@ const removeMovieFromWatchlist = async (userId: string, watchListId: string) => 
       ? { success: true }
       : { success: false, message: "Watchlist entry not found" };
   } catch (error) {
-    console.error('Error deleting watchlist entry:', error);
+    console.error("Error deleting watchlist entry:", error);
     return { success: false, message: (error as Error).message };
   }
 };
 
-// DELETE endpoint for removing a movie from the watchlist
-export async function DELETE(request: NextRequest, { params }: { params: { watchListId: string } }) {
+// DELETE request for removing a movie from the watchlist
+export async function DELETE(request: Request, { params }: { params: { watchListId: string } }) {
   const { watchListId } = params;
 
   // Validate watchListId - it should be a valid UUID

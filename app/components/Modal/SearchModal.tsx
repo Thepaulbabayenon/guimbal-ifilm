@@ -40,7 +40,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isVisible, onClose }) => {
   };
 
   return (
-    <Modal title="Search Movies" visible={isVisible} onCancel={onClose} footer={null}>
+    <Modal title="Search Films" visible={isVisible} onCancel={onClose} footer={null}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Input
           id="title"

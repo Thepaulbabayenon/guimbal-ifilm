@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useUpdateContext } from '@/hooks/updateContext';
 
-const RatingComponent = ({ movieId }: { movieId: number }) => {
+const RatingComponent = ({ filmId }: { filmId: number }) => {
   const { triggerUpdate } = useUpdateContext();
   const [rating, setRating] = useState<number | null>(null); // Store user's rating
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchRating = async () => {
     try {
-      const response = await fetch(`/api/ratings/${movieId}`, {
+      const response = await fetch(`/api/ratings/${filmId}`, {
         headers: { userId: 'user-id-placeholder' }, // Replace with actual user ID from auth/session
       });
       const data = await response.json();
@@ -28,7 +28,7 @@ const RatingComponent = ({ movieId }: { movieId: number }) => {
 
   const handleRating = async (newRating: number) => {
     try {
-      await fetch(`/api/ratings/${movieId}`, {
+      await fetch(`/api/ratings/${filmId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ const RatingComponent = ({ movieId }: { movieId: number }) => {
 
   useEffect(() => {
     fetchRating();
-  }, [movieId]);
+  }, [filmId]);
 
   if (loading) return <div>Loading...</div>;
 

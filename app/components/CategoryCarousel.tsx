@@ -1,4 +1,5 @@
 "use client";
+
 import * as React from "react";
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,16 +12,17 @@ import {
 } from "@/components/ui/carousel";
 import { CategoryDropdown } from "./CategoryDropdown";
 
-// Helper function to fetch movies based on category
-async function fetchMoviesByCategory(category: string) {
-  const response = await fetch(`/api/movies?category=${category}`);
+// Helper function to fetch  based on category
+async function fetchFilmsByCategory(category: string) {
+  const response = await fetch(`/api/films?category=${category}`);
   const data = await response.json();
-  return data.movies || [];
+  console.log("API Response:", data); // Log API response
+  return data.films || [];
 }
 
 export function CategoryCarousel() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [movies, setMovies] = useState<any[]>([]); // Store the fetched movies
+  const [films, setFilms] = useState<any[]>([]); // Store the fetched films
   const [isLoading, setIsLoading] = useState<boolean>(false); // Loading state
   const carouselRef = useRef<HTMLDivElement>(null); // Reference for controlling carousel
 
@@ -32,28 +34,29 @@ export function CategoryCarousel() {
     setIsLoading(true); // Show loading indicator
 
     try {
-      // Fetch movies based on the selected category
-      const fetchedMovies = await fetchMoviesByCategory(category);
-      console.log("Fetched Movies:", fetchedMovies); // Debug: log fetched movies
-      setMovies(fetchedMovies);
+      // Fetch films based on the selected category
+      const fetchedFilms = await fetchFilmsByCategory(category);
+      console.log("Fetched Films:", fetchedFilms); // Debug: log fetched films
+      setFilms(fetchedFilms);
     } catch (error) {
-      console.error("Error fetching movies:", error);
+      console.error("Error fetching films:", error);
+      setFilms([]); // Set empty array on error
     } finally {
-      setIsLoading(false); // Hide loading indicator after fetching movies
+      setIsLoading(false); // Hide loading indicator after fetching films
     }
   };
 
   // Debug logs
   console.log("Selected Category:", selectedCategory);
-  console.log("Movies:", movies);
+  console.log("Films:", films);
   console.log("Is Loading:", isLoading);
 
   useEffect(() => {
-    // Reset carousel position when movies are updated
+    // Reset carousel position when films are updated
     if (carouselRef.current) {
       carouselRef.current.scrollLeft = 0;
     }
-  }, [movies]);
+  }, [films]);
 
   return (
     <div className="relative"> {/* Positioning container */}
@@ -65,27 +68,25 @@ export function CategoryCarousel() {
         />
       </div>
 
-      {/* Display loading indicator while fetching movies */}
+      {/* Display loading indicator while fetching films */}
       {isLoading && <div className="mt-4 text-center text-gray-500">Loading...</div>}
 
-      {/* Carousel to display the movies */}
-      {selectedCategory && !isLoading && movies.length > 0 && (
+      {/* Carousel to display the films */}
+      {!isLoading && films.length > 0 && (
         <div className="overflow-hidden">
           <Carousel
-            opts={{
-              align: "start",
-            }}
+            opts={{ align: "start" }}
             className="w-full max-w-sm"
             ref={carouselRef} // Attach ref to control carousel position
           >
             <CarouselContent>
-              {movies.map((movie, index) => (
-                <CarouselItem key={movie.id} className="md:basis-1/2 lg:basis-1/3">
+              {films.map((film) => (
+                <CarouselItem key={film.id} className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-1">
                     <Card>
                       <CardContent className="flex aspect-square items-center justify-center p-6">
-                        {/* Display movie details such as title */}
-                        <span className="text-3xl font-semibold">{movie.title}</span>
+                        {/* Display film details such as title */}
+                        <span className="text-3xl font-semibold">{film.title}</span>
                       </CardContent>
                     </Card>
                   </div>
@@ -98,10 +99,10 @@ export function CategoryCarousel() {
         </div>
       )}
 
-      {/* Display a message when no movies are found */}
-      {selectedCategory && !isLoading && movies.length === 0 && (
+      {/* Display a message when no films are found */}
+      {selectedCategory && !isLoading && films.length === 0 && (
         <div className="mt-4 text-center text-gray-500">
-          No movies found in this category.
+          No films found in this category.
         </div>
       )}
     </div>

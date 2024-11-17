@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { db } from "@/db/drizzle"; // Your Drizzle connection
-import { movie } from "@/db/schema"; // Assuming movie is your schema
+import { film } from "@/db/schema"; // Assuming film is your schema
 import { sql } from "drizzle-orm"; // Import Drizzle SQL utilities
 
 // Utility function to sanitize query input
@@ -34,32 +34,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   console.log("Pagination:", pageNumber, pageSize);
 
   try {
-    // Fetch movies with a case-insensitive title match using Drizzle's relational query builder
-    const results = await db.query.movie.findMany({
-      where: (movie, { ilike }) => ilike(movie.title, `${sanitizedQuery}%`),
+    // Fetch films with a case-insensitive title match using Drizzle's relational query builder
+    const results = await db.query.film.findMany({
+      where: (film, { ilike }) => ilike(film.title, `${sanitizedQuery}%`),
       limit: pageSize,
       offset: (pageNumber - 1) * pageSize,
     });
 
-    console.log("Movies found:", results); // Log results for debugging
+    console.log("films found:", results); // Log results for debugging
 
-    // If no movies are found
+    // If no films are found
     if (results.length === 0) {
-      return res.status(404).json({ message: "No movies found matching your search." });
+      return res.status(404).json({ message: "No films found matching your search." });
     }
 
-    // Count the total number of matching movies
-    const countResults = await db.query.movie.findMany({
-      where: (movie, { ilike }) => ilike(movie.title, `${sanitizedQuery}%`),
+    // Count the total number of matching films
+    const countResults = await db.query.film.findMany({
+      where: (film, { ilike }) => ilike(film.title, `${sanitizedQuery}%`),
       limit: 0, // No need to fetch data, just count rows
     });
     
     const totalResults = countResults.length;
     console.log("Total results count:", totalResults);
 
-    // Respond with movies and pagination metadata
+    // Respond with films and pagination metadata
     res.status(200).json({
-      movies: results,
+      films: results,
       pagination: {
         currentPage: pageNumber,
         totalResults: totalResults,
@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error) {
-    console.error("Error fetching movies:", error);
+    console.error("Error fetching films:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 }

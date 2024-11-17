@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 interface AddToWatchlistData {
-  movieId: number;
+  filmId: number;
   pathname: string;
 }
 
@@ -13,7 +13,7 @@ interface DeleteFromWatchlistData {
 
 interface UserRatingData {
   userId: string;  // Assuming user ID is a string
-  movieId: number;
+  filmId: number;
   rating: number;  // User's rating
 }
 
@@ -33,7 +33,7 @@ export const addToWatchlist = async (data: AddToWatchlistData) => {
   }
 };
 
-// Function to delete a movie from the watchlist
+// Function to delete a film from the watchlist
 export const deleteFromWatchlist = async (data: DeleteFromWatchlistData) => {
   try {
     const response = await axios.post('/api/watchlist/delete', data, {
@@ -45,11 +45,11 @@ export const deleteFromWatchlist = async (data: DeleteFromWatchlistData) => {
   }
 };
 
-// Function to save/update a user's rating for a movie
+// Function to save/update a user's rating for a film
 export const saveUserRating = async (data: UserRatingData) => {
   try {
     const response = await axios.post(
-      `/api/movies/${data.movieId}/user-rating`,
+      `/api/films/${data.filmId}/user-rating`,
       {
         userId: data.userId,
         rating: data.rating,
@@ -64,10 +64,10 @@ export const saveUserRating = async (data: UserRatingData) => {
   }
 };
 
-// Function to fetch the average rating of a movie
-export const fetchAverageRating = async (movieId: number) => {
+// Function to fetch the average rating of a film
+export const fetchAverageRating = async (filmId: number) => {
   try {
-    const response = await axios.get(`/api/movies/${movieId}/average-rating`);
+    const response = await axios.get(`/api/films/${filmId}/average-rating`);
     return response.data as AverageRatingResponse; // Ensure we return the correct type
   } catch (error) {
     throw error;

@@ -15,7 +15,6 @@ import {
 import { relations } from 'drizzle-orm';
 import z from 'zod';
 
-
 export interface UserJSON {
   id: string;
   email_addresses: { email_address: string }[]; // Assuming email_addresses is an array of objects
@@ -105,8 +104,8 @@ export const authenticators = pgTable(
   })
 );
 
-// Movie Table
-export const movie = pgTable('movie', {
+// Film Table
+export const film = pgTable('film', {
   id: serial('id').primaryKey(),
   imageString: varchar('imageString').notNull(),
   title: varchar('title').notNull(),
@@ -128,33 +127,33 @@ export const userInteractions = pgTable(
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    movieId: integer('movieId')
+    filmId: integer('filmId')
       .notNull()
-      .references(() => movie.id, { onDelete: 'cascade' }),
+      .references(() => film.id, { onDelete: 'cascade' }),
     ratings: integer('ratings').notNull(),
     timestamp: timestamp('timestamp').defaultNow().notNull(),
   },
   (userInteractions) => ({
     primaryKey: primaryKey({
-      columns: [userInteractions.userId, userInteractions.movieId],
+      columns: [userInteractions.userId, userInteractions.filmId],
     }),
   })
 );
 
-export const watchedMovies = pgTable(
-  'watchedMovies',
+export const watchedFilms = pgTable(
+  'watchedFilms',
   {
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    movieId: integer('movieId')
+    filmId: integer('filmId')
       .notNull()
-      .references(() => movie.id, { onDelete: 'cascade' }),
+      .references(() => film.id, { onDelete: 'cascade' }),
     timestamp: timestamp('timestamp').defaultNow().notNull(),
   },
-  (watchedMovies) => ({
+  (watchedFilms) => ({
     primaryKey: primaryKey({
-      columns: [watchedMovies.userId, watchedMovies.movieId],
+      columns: [watchedFilms.userId, watchedFilms.filmId],
     }),
   })
 );
@@ -163,12 +162,11 @@ export const watchedMovies = pgTable(
 export const watchLists = pgTable('watchLists', {
   id: uuid('id').primaryKey(), // No default value
   userId: text('userId').notNull(),
-  movieId: integer('movieId').notNull(),
+  filmId: integer('filmId').notNull(),
   isFavorite: boolean('isFavorite').default(false),
   // ... other fields
 });
 
-// UserRatings Table (New)
 // UserRatings Table (New)
 export const userRatings = pgTable(
   'userRatings',
@@ -177,25 +175,22 @@ export const userRatings = pgTable(
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    movieId: integer('movieId')
+    filmId: integer('filmId')
       .notNull()
-      .references(() => movie.id, { onDelete: 'cascade' }),
+      .references(() => film.id, { onDelete: 'cascade' }),
     rating: integer('rating').notNull(),
     timestamp: timestamp('timestamp').defaultNow().notNull(),
   },
   (userRatings) => ({
-    // Composite primary key on 'userId' and 'movieId'
+    // Composite primary key on 'userId' and 'filmId'
     primaryKey: primaryKey({
-      columns: [userRatings.userId, userRatings.movieId],
+      columns: [userRatings.userId, userRatings.filmId],
     }),
   })
 );
 
-
-
-
-// Zod Schema for Inserting Movies
-export const insertMovieSchema = z.object({
+// Zod Schema for Inserting Films
+export const insertFilmSchema = z.object({
   imageString: z.string().min(1),
   title: z.string().min(1),
   age: z.number().int().positive(),
@@ -231,7 +226,7 @@ export const userRelations = relations(users, ({ many }) => ({
   userRatings: many(userRatings), // New relation
 }));
 
-export const movieRelations = relations(movie, ({ many }) => ({
+export const filmRelations = relations(film, ({ many }) => ({
   watchLists: many(watchLists),
   userRatings: many(userRatings), // New relation
 }));
@@ -241,16 +236,16 @@ export const userInteractionRelations = relations(userInteractions, ({ one }) =>
     fields: [userInteractions.userId],
     references: [users.id],
   }),
-  movie: one(movie, {
-    fields: [userInteractions.movieId],
-    references: [movie.id],
+  film: one(film, {
+    fields: [userInteractions.filmId],
+    references: [film.id],
   }),
 }));
 
 export const watchListRelations = relations(watchLists, ({ one }) => ({
-  movie: one(movie, {
-    fields: [watchLists.movieId],
-    references: [movie.id],
+  film: one(film, {
+    fields: [watchLists.filmId],
+    references: [film.id],
   }),
   user: one(users, {
     fields: [watchLists.userId],
@@ -270,8 +265,8 @@ export const userRatingsRelations = relations(userRatings, ({ one }) => ({
     fields: [userRatings.userId],
     references: [users.id],
   }),
-  movie: one(movie, {
-    fields: [userRatings.movieId],
-    references: [movie.id],
+  film: one(film, {
+    fields: [userRatings.filmId],
+    references: [film.id],
   }),
 }));
