@@ -5,7 +5,7 @@ import { sql } from 'drizzle-orm';
 export async function fetchCategories() {
   // Fetch distinct categories from the database
   const categories = await db.execute<{ category: string }>(
-    sql`SELECT DISTINCT "category" FROM movie`
+    sql`SELECT DISTINCT "category" FROM film`
   );
   return categories.rows.map((row) => row.category); // Return an array of categories
 }

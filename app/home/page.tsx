@@ -1,17 +1,23 @@
 import { FilmGrid } from "../components/FilmGrid";
-import { FilmSlider } from "../components/FilmSliders/FilmSlider";
-import { FilmSliderComedy } from "../components/FilmSliders/FilmSliderComedy";
-import { FilmSliderDrama } from "../components/FilmSliders/FilmSliderDrama";
-import { FilmSliderFolklore } from "../components/FilmSliders/FilmSliderFolklore";
-import { FilmSliderHorror } from "../components/FilmSliders/FilmSliderHorror";
-import { FilmSliderReco } from "../components/FilmSliders/FilmSliderReco";
+import { FilmSlider } from "../components/FilmSlider";
+import { FilmSliderComedy } from "../components/FilmSliderComedy";
+import { FilmSliderDrama } from "../components/FilmSliderDrama";
+import { FilmSliderFolklore } from "../components/FilmSliderFolklore";
+import { FilmSliderHorror } from "../components/FilmSliderHorror";
+import { FilmSliderReco } from "../components/FilmSliderReco";
 import FilmVideo from "../components/FilmVideo";
 import RatingComponent from "../components/RatingComponent";
 import RecentlyAdded from "../components/RecentlyAdded";
+import { auth, currentUser } from "@clerk/nextjs/server";
+
 
 export default async function HomePage() {
     // Assume we have the userId from somewhere (like session, context, or hardcoded for now)
-    const userId = 1; // Replace with the actual way of getting userId dynamically
+    const { userId } = await auth()
+    
+    if (!userId) {
+        throw new Error("User not logged in");
+    }
 
     return (
         <div className="p-5 lg:p-0">

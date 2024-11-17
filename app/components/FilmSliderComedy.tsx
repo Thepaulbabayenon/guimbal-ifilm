@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getDramaFilms } from "@/app/api/getFilms"; // Ensure this API function exists
+import { getComedyFilms } from "@/app/api/getFilms"; // Ensure this API function exists
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "../PlayVideoModal";
+import PlayVideoModal from "./PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
 import { useUser } from "@clerk/nextjs";
 import { Star } from "lucide-react";
@@ -27,7 +27,7 @@ interface Film {
   rank: number; // External rating
 }
 
-export function FilmSliderDrama() {
+export function FilmSliderComedy() {
   const { user } = useUser();
   const userId = user?.id;
 
@@ -41,7 +41,7 @@ export function FilmSliderDrama() {
   useEffect(() => {
     async function fetchFilms() {
       try {
-        const filmsData = await getDramaFilms();
+        const filmsData = await getComedyFilms();
         setFilms(filmsData);
       } catch (error) {
         console.error("Error fetching films:", error);
@@ -60,6 +60,7 @@ export function FilmSliderDrama() {
     }
   }, [userId, films]);
 
+  // Fetch user rating and average rating
   const fetchUserAndAverageRating = async (filmId: number) => {
     try {
       const userResponse = await axios.get(`/api/films/${filmId}/user-rating`, { params: { userId } });
@@ -72,6 +73,7 @@ export function FilmSliderDrama() {
     }
   };
 
+  // Fetch watchlist status
   const fetchWatchlistStatus = async (filmId: number) => {
     try {
       const response = await axios.get(`/api/watchlist/${filmId}`, { params: { userId } });
@@ -81,6 +83,7 @@ export function FilmSliderDrama() {
     }
   };
 
+  // Handle adding/removing from watchlist
   const handleToggleWatchlist = async (filmId: number) => {
     if (!userId) {
       toast.warn("Please log in to manage your watchlist.");
@@ -103,6 +106,7 @@ export function FilmSliderDrama() {
     }
   };
 
+  // Handle rating click
   const handleRatingClick = async (filmId: number, newRating: number) => {
     if (!userId) {
       toast.warn("Please log in to rate films.");
@@ -113,6 +117,7 @@ export function FilmSliderDrama() {
     try {
       await axios.post(`/api/films/${filmId}/user-rating`, { userId, rating: newRating });
 
+      // Update average rating
       const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
       setAverageRatings(prev => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
 
@@ -147,8 +152,8 @@ export function FilmSliderDrama() {
                       alt={film.title}
                       className="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
                     />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
-                      <button onClick={() => handlePlay(film)} className="text-white text-3xl">
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
+                        <button onClick={() => handlePlay(film)} className="text-white text-3xl">
                         <FaPlay />
                       </button>
                       <button onClick={() => handleToggleWatchlist(film.id)} className="text-white text-3xl">
@@ -167,7 +172,7 @@ export function FilmSliderDrama() {
                         ))}
                       </div>
                       <p className="text-xs mt-1">
-                        Avg Rating: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(2) : "N/A"}/5
+                          Avg Rating: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(2) : "N/A"}/5
                       </p>
                     </div>
                   </CardContent>

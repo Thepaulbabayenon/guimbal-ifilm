@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getComedyFilms } from "@/app/api/getFilms"; // Ensure this API function exists
+import { getHorrorFilms } from "@/app/api/getFilms"; // Ensure this API function exists
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "../PlayVideoModal";
+import PlayVideoModal from "./PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
 import { useUser } from "@clerk/nextjs";
 import { Star } from "lucide-react";
@@ -27,7 +27,7 @@ interface Film {
   rank: number; // External rating
 }
 
-export function FilmSliderComedy() {
+export function FilmSliderHorror() {
   const { user } = useUser();
   const userId = user?.id;
 
@@ -41,7 +41,7 @@ export function FilmSliderComedy() {
   useEffect(() => {
     async function fetchFilms() {
       try {
-        const filmsData = await getComedyFilms();
+        const filmsData = await getHorrorFilms();
         setFilms(filmsData);
       } catch (error) {
         console.error("Error fetching films:", error);
@@ -152,8 +152,8 @@ export function FilmSliderComedy() {
                       alt={film.title}
                       className="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
                     />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
-                        <button onClick={() => handlePlay(film)} className="text-white text-3xl">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
+                      <button onClick={() => handlePlay(film)} className="text-white text-3xl">
                         <FaPlay />
                       </button>
                       <button onClick={() => handleToggleWatchlist(film.id)} className="text-white text-3xl">
@@ -172,7 +172,7 @@ export function FilmSliderComedy() {
                         ))}
                       </div>
                       <p className="text-xs mt-1">
-                          Avg Rating: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(2) : "N/A"}/5
+                        Avg Rating: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(2) : "N/A"}/5
                       </p>
                     </div>
                   </CardContent>

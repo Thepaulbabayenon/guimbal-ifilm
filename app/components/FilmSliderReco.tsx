@@ -9,7 +9,7 @@ import {
   CarouselPrevious,
   CarouselNext,
 } from "@/components/ui/carousel";
-import PlayVideoModal from "../PlayVideoModal";
+import PlayVideoModal from "./PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
 import { Star } from "lucide-react";
 import { FaHeart, FaPlay } from "react-icons/fa";

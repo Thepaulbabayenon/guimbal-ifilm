@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getFolkloreFilms } from "@/app/api/getFilms"; // Ensure this API function exists
+import { getDramaFilms } from "@/app/api/getFilms"; // Ensure this API function exists
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "../PlayVideoModal";
+import PlayVideoModal from "./PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
 import { useUser } from "@clerk/nextjs";
 import { Star } from "lucide-react";
@@ -27,7 +27,7 @@ interface Film {
   rank: number; // External rating
 }
 
-export function FilmSliderFolklore() {
+export function FilmSliderDrama() {
   const { user } = useUser();
   const userId = user?.id;
 
@@ -39,6 +39,15 @@ export function FilmSliderFolklore() {
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
 
   useEffect(() => {
+    async function fetchFilms() {
+      try {
+        const filmsData = await getDramaFilms();
+        setFilms(filmsData);
+      } catch (error) {
+        console.error("Error fetching films:", error);
+      }
+    }
+
     fetchFilms();
   }, []);
 
@@ -51,16 +60,6 @@ export function FilmSliderFolklore() {
     }
   }, [userId, films]);
 
-  const fetchFilms = async () => {
-    try {
-      const filmsData = await getFolkloreFilms();
-      setFilms(filmsData);
-    } catch (error) {
-      console.error("Error fetching films:", error);
-    }
-  };
-
-  // Fetch user rating and average rating
   const fetchUserAndAverageRating = async (filmId: number) => {
     try {
       const userResponse = await axios.get(`/api/films/${filmId}/user-rating`, { params: { userId } });
@@ -73,7 +72,6 @@ export function FilmSliderFolklore() {
     }
   };
 
-  // Fetch watchlist status
   const fetchWatchlistStatus = async (filmId: number) => {
     try {
       const response = await axios.get(`/api/watchlist/${filmId}`, { params: { userId } });
@@ -83,7 +81,6 @@ export function FilmSliderFolklore() {
     }
   };
 
-  // Handle adding/removing from watchlist
   const handleToggleWatchlist = async (filmId: number) => {
     if (!userId) {
       toast.warn("Please log in to manage your watchlist.");
@@ -106,7 +103,6 @@ export function FilmSliderFolklore() {
     }
   };
 
-  // Handle rating click
   const handleRatingClick = async (filmId: number, newRating: number) => {
     if (!userId) {
       toast.warn("Please log in to rate films.");
@@ -117,7 +113,6 @@ export function FilmSliderFolklore() {
     try {
       await axios.post(`/api/films/${filmId}/user-rating`, { userId, rating: newRating });
 
-      // Update average rating
       const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
       setAverageRatings(prev => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
 

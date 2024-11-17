@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { getAllFilms } from "@/app/api/getFilms"; // Ensure this API function exists
+import { getFolkloreFilms } from "@/app/api/getFilms"; // Ensure this API function exists
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "../PlayVideoModal";
+import PlayVideoModal from "./PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
 import { useUser } from "@clerk/nextjs";
 import { Star } from "lucide-react";
@@ -27,7 +27,7 @@ interface Film {
   rank: number; // External rating
 }
 
-export function FilmSlider() {
+export function FilmSliderFolklore() {
   const { user } = useUser();
   const userId = user?.id;
 
@@ -39,27 +39,26 @@ export function FilmSlider() {
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
 
   useEffect(() => {
-    async function fetchFilms() {
-      try {
-        const filmsData = await getAllFilms();
-        setFilms(filmsData);
-      } catch (error) {
-        console.error("Error fetching films:", error);
-      }
-    }
-
     fetchFilms();
   }, []);
 
-  // Fetch user and average ratings, and watchlist status once films are fetched and userId is available
   useEffect(() => {
-    if (userId && films.length > 0) {
+    if (userId) {
       films.forEach(film => {
         fetchUserAndAverageRating(film.id);
         fetchWatchlistStatus(film.id);
       });
     }
   }, [userId, films]);
+
+  const fetchFilms = async () => {
+    try {
+      const filmsData = await getFolkloreFilms();
+      setFilms(filmsData);
+    } catch (error) {
+      console.error("Error fetching films:", error);
+    }
+  };
 
   // Fetch user rating and average rating
   const fetchUserAndAverageRating = async (filmId: number) => {
@@ -84,20 +83,6 @@ export function FilmSlider() {
     }
   };
 
-  // Helper function to fetch watchListId for a film
-  const getWatchListIdForFilm = async (filmId: number, userId: string): Promise<string | null> => {
-    try {
-      const response = await axios.get(`/api/watchlist/${userId}/${filmId}`);
-      if (response.data && response.data.watchListId) {
-        return response.data.watchListId;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching watchListId for film:", error);
-      return null;
-    }
-  };
-
   // Handle adding/removing from watchlist
   const handleToggleWatchlist = async (filmId: number) => {
     if (!userId) {
@@ -106,25 +91,14 @@ export function FilmSlider() {
     }
 
     const isInWatchlist = watchList[filmId];
-
     try {
       if (isInWatchlist) {
-        const watchListId = await getWatchListIdForFilm(filmId, userId);
-
-        if (!watchListId) {
-          toast.error("Error: Watchlist entry not found.");
-          return;
-        }
-
-        await axios.delete(`/api/watchlist/delete`, {
-          data: { watchListId }
-        });
+        await axios.delete(`/api/watchlist/${filmId}`, { data: { userId } });
         toast.success("Removed from your watchlist.");
       } else {
         await axios.post("/api/watchlist", { filmId, userId });
         toast.success("Added to your watchlist.");
       }
-
       setWatchList(prev => ({ ...prev, [filmId]: !isInWatchlist }));
     } catch (error) {
       console.error("Error toggling watchlist:", error);
@@ -143,6 +117,7 @@ export function FilmSlider() {
     try {
       await axios.post(`/api/films/${filmId}/user-rating`, { userId, rating: newRating });
 
+      // Update average rating
       const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
       setAverageRatings(prev => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
 
