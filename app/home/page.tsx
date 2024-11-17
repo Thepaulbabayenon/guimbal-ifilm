@@ -41,7 +41,6 @@ export default async function HomePage() {
             
             <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
             <FilmSliderReco userId={userId.toString()} />
-            <RatingComponent filmId={123}/>
             <h1 className="text-3xl font-bold text-gray-400">SOME OF THE BEST</h1>
             <FilmGrid/>
         </div>
