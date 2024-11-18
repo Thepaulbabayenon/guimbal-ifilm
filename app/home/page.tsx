@@ -6,7 +6,6 @@ import { FilmSliderFolklore } from "../components/FilmSliderFolklore";
 import { FilmSliderHorror } from "../components/FilmSliderHorror";
 import { FilmSliderReco } from "../components/FilmSliderReco";
 import FilmVideo from "../components/FilmVideo";
-import RatingComponent from "../components/RatingComponent";
 import RecentlyAdded from "../components/RecentlyAdded";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
@@ -27,16 +26,16 @@ export default async function HomePage() {
             <h1 className="text-3xl font-bold text-gray-400">POPULAR FILMS</h1>
             <FilmSlider />
 
-            <h1 className="text-3xl font-bold text-gray-400">COMEDY</h1>
+            <h1 className="text-3xl font-bold text-gray-400">COMEDY FILMS</h1>
             <FilmSliderComedy />
 
-            <h1 className="text-3xl font-bold text-gray-400">DRAMA</h1>
+            <h1 className="text-3xl font-bold text-gray-400">DRAMA FILMS</h1>
             <FilmSliderDrama />
 
-            <h1 className="text-3xl font-bold text-gray-400">FOLKLORE</h1>
+            <h1 className="text-3xl font-bold text-gray-400">FOLKLORE FILMS</h1>
             <FilmSliderFolklore />
 
-            <h1 className="text-3xl font-bold text-gray-400">HORROR</h1>
+            <h1 className="text-3xl font-bold text-gray-400">HORROR FILMS</h1>
             <FilmSliderHorror />
             
             <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>

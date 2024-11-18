@@ -1,17 +1,16 @@
 'use client'
-
 import { useEffect, useState } from "react";
-import { getAllFilms } from "@/app/api/getFilms"; // Ensure this API function exists
+import { getAllFilms } from "@/app/api/getFilms";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import PlayVideoModal from "./PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
 import { useUser } from "@clerk/nextjs";
 import { Star } from "lucide-react";
-import { FaHeart, FaPlay } from 'react-icons/fa';
+import { FaHeart, FaPlay } from "react-icons/fa";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
+import "react-toastify/dist/ReactToastify.css";
 
 interface Film {
   id: number;
@@ -51,54 +50,36 @@ export function FilmSlider() {
     fetchFilms();
   }, []);
 
-  // Fetch user and average ratings, and watchlist status once films are fetched and userId is available
   useEffect(() => {
     if (userId && films.length > 0) {
-      films.forEach(film => {
+      films.forEach((film) => {
         fetchUserAndAverageRating(film.id);
         fetchWatchlistStatus(film.id);
       });
     }
   }, [userId, films]);
 
-  // Fetch user rating and average rating
   const fetchUserAndAverageRating = async (filmId: number) => {
     try {
       const userResponse = await axios.get(`/api/films/${filmId}/user-rating`, { params: { userId } });
-      setUserRatings(prev => ({ ...prev, [filmId]: userResponse.data.rating || 0 }));
+      setUserRatings((prev) => ({ ...prev, [filmId]: userResponse.data.rating || 0 }));
 
       const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
-      setAverageRatings(prev => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
+      setAverageRatings((prev) => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
     } catch (error) {
       console.error("Error fetching ratings:", error);
     }
   };
 
-  // Fetch watchlist status
   const fetchWatchlistStatus = async (filmId: number) => {
     try {
       const response = await axios.get(`/api/watchlist/${filmId}`, { params: { userId } });
-      setWatchList(prev => ({ ...prev, [filmId]: response.data.inWatchlist }));
+      setWatchList((prev) => ({ ...prev, [filmId]: response.data.inWatchlist }));
     } catch (error) {
       console.error("Error fetching watchlist status:", error);
     }
   };
 
-  // Helper function to fetch watchListId for a film
-  const getWatchListIdForFilm = async (filmId: number, userId: string): Promise<string | null> => {
-    try {
-      const response = await axios.get(`/api/watchlist/${userId}/${filmId}`);
-      if (response.data && response.data.watchListId) {
-        return response.data.watchListId;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching watchListId for film:", error);
-      return null;
-    }
-  };
-
-  // Handle adding/removing from watchlist
   const handleToggleWatchlist = async (filmId: number) => {
     if (!userId) {
       toast.warn("Please log in to manage your watchlist.");
@@ -109,42 +90,32 @@ export function FilmSlider() {
 
     try {
       if (isInWatchlist) {
-        const watchListId = await getWatchListIdForFilm(filmId, userId);
-
-        if (!watchListId) {
-          toast.error("Error: Watchlist entry not found.");
-          return;
-        }
-
-        await axios.delete(`/api/watchlist/delete`, {
-          data: { watchListId }
-        });
+        await axios.delete(`/api/watchlist`, { data: { filmId, userId } });
         toast.success("Removed from your watchlist.");
       } else {
         await axios.post("/api/watchlist", { filmId, userId });
         toast.success("Added to your watchlist.");
       }
 
-      setWatchList(prev => ({ ...prev, [filmId]: !isInWatchlist }));
+      setWatchList((prev) => ({ ...prev, [filmId]: !isInWatchlist }));
     } catch (error) {
       console.error("Error toggling watchlist:", error);
       toast.error("Failed to update watchlist.");
     }
   };
 
-  // Handle rating click
   const handleRatingClick = async (filmId: number, newRating: number) => {
     if (!userId) {
       toast.warn("Please log in to rate films.");
       return;
     }
 
-    setUserRatings(prev => ({ ...prev, [filmId]: newRating }));
+    setUserRatings((prev) => ({ ...prev, [filmId]: newRating }));
     try {
       await axios.post(`/api/films/${filmId}/user-rating`, { userId, rating: newRating });
 
       const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
-      setAverageRatings(prev => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
+      setAverageRatings((prev) => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
 
       toast.success("Your rating has been saved!");
     } catch (error) {
@@ -159,45 +130,45 @@ export function FilmSlider() {
   };
 
   return (
-    <div className="recently-added-container mb-20">
+    <div className="recently-added-container mb-10 w-full">
       <ToastContainer />
-      <div className="flex justify-center">
+      <div className="flex justify-center w-full">
         <Carousel
           plugins={[Autoplay({ delay: 4000 })]}
           opts={{ align: "start", loop: true }}
-          className="w-full max-w-4xl"
+          className="w-full"
         >
-          <CarouselContent className="flex space-x-4">
-            {films.map(film => (
-              <CarouselItem key={film.id} className="flex-none w-64 relative">
+          <CarouselContent className="flex space-x-2">
+            {films.map((film) => (
+              <CarouselItem key={film.id} className="flex-none w-52 md:w-56 relative">
                 <Card>
                   <CardContent className="relative p-2">
                     <img
                       src={film.imageString}
                       alt={film.title}
-                      className="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
+                      className="object-cover w-full h-60 rounded-lg transition-transform duration-300 hover:scale-105"
                     />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
-                      <button onClick={() => handlePlay(film)} className="text-white text-3xl">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-2">
+                      <button onClick={() => handlePlay(film)} className="text-white text-xl">
                         <FaPlay />
                       </button>
-                      <button onClick={() => handleToggleWatchlist(film.id)} className="text-white text-3xl">
+                      <button onClick={() => handleToggleWatchlist(film.id)} className="text-white text-xl">
                         <FaHeart className={watchList[film.id] ? "text-red-500" : ""} />
                       </button>
                     </div>
-                    <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-2 text-center">
-                      <span className="text-sm font-semibold">{film.title}</span>
-                      <div className="flex items-center justify-center mt-2">
-                        {[1, 2, 3, 4, 5].map(star => (
+                    <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-1 text-center">
+                      <span className="text-xs font-semibold">{film.title}</span>
+                      <div className="flex items-center justify-center mt-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
-                            className={`w-4 h-4 cursor-pointer ${userRatings[film.id] >= star ? "text-yellow-400" : "text-gray-400"}`}
+                            className={`w-3 h-3 cursor-pointer ${userRatings[film.id] >= star ? "text-yellow-400" : "text-gray-400"}`}
                             onClick={() => handleRatingClick(film.id, star)}
                           />
                         ))}
                       </div>
                       <p className="text-xs mt-1">
-                        Avg Rating: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(2) : "N/A"}/5
+                        Avg: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(1) : "N/A"}/5
                       </p>
                     </div>
                   </CardContent>
@@ -205,8 +176,8 @@ export function FilmSlider() {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
+          <CarouselPrevious className="left-0"/>
+          <CarouselNext className="right-0"/>
         </Carousel>
       </div>
 

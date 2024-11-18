@@ -135,11 +135,11 @@ export function FilmSliderDrama() {
         <Carousel
           plugins={[Autoplay({ delay: 4000 })]}
           opts={{ align: "start", loop: true }}
-          className="w-full max-w-4xl"
+          className="w-full"
         >
-          <CarouselContent className="flex space-x-4">
+          <CarouselContent className="flex space-x-2">
             {films.map(film => (
-              <CarouselItem key={film.id} className="flex-none w-64 relative">
+              <CarouselItem key={film.id} className="flex-none w-52 md:w-56 relative">
                 <Card>
                   <CardContent className="relative p-2">
                     <img
@@ -175,8 +175,8 @@ export function FilmSliderDrama() {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
+          <CarouselPrevious className="left-0"/>
+          <CarouselNext className="right-0"/>
         </Carousel>
       </div>
 
