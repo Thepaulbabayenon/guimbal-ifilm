@@ -30,7 +30,8 @@ yarn-error.log*
 .env
 
 .drizzle.ts
-.db
+#not include the db folder when the app is complete.
+#db/
 
 # vercel
 .vercel
