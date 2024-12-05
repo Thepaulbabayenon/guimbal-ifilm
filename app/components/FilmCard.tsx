@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
 
-interface FilmCardProps {
+interface FilmCardProps {   
   filmId: number;
   overview: string;
   title: string;
