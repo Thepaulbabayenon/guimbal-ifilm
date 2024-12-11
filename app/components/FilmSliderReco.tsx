@@ -159,6 +159,21 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
     setModalOpen(true);
   };
 
+  const markAsWatched = async (filmId: number) => {
+    if (!userId) {
+      console.error("User ID is not available.");
+      return;
+    }
+
+    try {
+      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
+      toast.success("Marked as watched!");
+    } catch (error) {
+      console.error("Error marking film as watched:", error);
+      toast.error("Failed to mark as watched.");
+    }
+  };
+
   return (
     <div className="recently-added-container mb-20">
       <ToastContainer />
@@ -238,6 +253,8 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
           release={selectedFilm.release}
           ratings={userRatings[selectedFilm.id]}
           setUserRating={(rating: number) => handleRatingClick(selectedFilm.id, rating)}
+          markAsWatched={() => markAsWatched(selectedFilm.id)}
+          category={selectedFilm.category}
         />
       )}
     </div>

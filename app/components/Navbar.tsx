@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CategoryDropdown } from "./CategoryDropdown"; // Import CategoryDropdown
+import { CategoryDropdown } from "./CategoryDropdown";
 
 interface LinkProps {
   name: string;
@@ -31,10 +31,8 @@ const links: LinkProps[] = [
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Track mobile menu visibility
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile menu state
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [films, setFilms] = useState<any[]>([]); // Store fetched films based on category
   const [searchQuery, setSearchQuery] = useState(""); // Search input state
   const segment = useSelectedLayoutSegment();
   const pathName = usePathname();
@@ -44,41 +42,19 @@ export default function Navbar() {
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
-      setIsNavbarVisible(window.scrollY <= 50);
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const handleCategorySelect = async (category: string) => {
-    if (category === selectedCategory) {
-      setSelectedCategory(null);
-      setFilms([]);
-    } else {
-      setSelectedCategory(category);
-      const response = await fetch(`/api/films?category=${category}`);
-      const data = await response.json();
-      setFilms(data.films);
-    }
-  };
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    if (e.target.value.trim() === "") {
-      setFilms([]);
-      return;
-    }
-    const response = await fetch(`/api/films?query=${e.target.value}`);
-    const data = await response.json();
-    setFilms(data);
   };
 
   const handleCloseSearch = () => {
     setSelectedCategory(null);
-    setFilms([]);
     setSearchQuery("");
   };
 
@@ -102,19 +78,33 @@ export default function Navbar() {
           initial={{ opacity: 0, x: "-100%" }}
           animate={{ opacity: 1, x: "0%" }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-40 bg-black bg-opacity-80 flex flex-col items-center justify-center lg:hidden"
+          className="fixed inset-0 z-40 bg-black bg-opacity-90 flex flex-col items-center justify-center lg:hidden"
         >
           <X
             onClick={toggleMobileMenu}
             className="absolute top-5 right-5 w-8 h-8 text-white cursor-pointer"
           />
-          <ul className="flex flex-col items-center gap-y-6 text-white text-xl">
+          <ul className="flex flex-col items-center gap-y-6 text-white text-lg">
             {links.map((link, idx) => (
               <li key={idx} onClick={toggleMobileMenu}>
                 <Link href={link.href}>{link.name}</Link>
               </li>
             ))}
           </ul>
+
+          {/* Add UserNav and Search in Mobile Menu */}
+          <div className="mt-6 flex flex-col items-center w-full px-8">
+            <input
+              type="text"
+              placeholder="Search films..."
+              className="w-full p-2 pl-4 pr-4 text-sm bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              value={searchQuery}
+              onChange={handleSearch}
+            />
+            <div className="mt-6">
+              <UserNav />
+            </div>
+          </div>
         </motion.div>
       )}
 
@@ -122,18 +112,17 @@ export default function Navbar() {
       <motion.div
         initial={{ opacity: 0, scaleY: 0 }}
         animate={{
-          opacity: isNavbarVisible ? 1 : 0,
-          scaleY: isNavbarVisible ? 1 : 0,
+          opacity: 1,
+          scaleY: 1,
         }}
         transition={{ duration: 0.3 }}
         className={`navbar fixed top-0 left-0 right-0 w-full max-w-7xl mx-auto items-center justify-between px-5 sm:px-6 py-5 lg:px-8 flex ${
-          isNavbarVisible ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0 pointer-events-none"
+          isScrolled ? "bg-black bg-opacity-80" : "bg-transparent"
         }`}
-        style={{ backgroundColor: isScrolled ? "rgba(0, 0, 0, 0.8)" : "transparent" }}
       >
         {/* Logo and Navigation Links */}
         <div className="flex items-center">
-          <Link href="/home" className={`w-32 transition-transform duration-500 ${isScrolled ? "scale-90" : "scale-100"}`}>
+          <Link href="/home" className="w-32">
             <Image src={Logo} alt="Logo" priority width={65} height={65} />
           </Link>
           <ul className="lg:flex gap-x-5 ml-14 hidden">
@@ -162,58 +151,34 @@ export default function Navbar() {
           </ul>
         </div>
 
-        {/* Search, Category Dropdown, and Bell/User Nav aligned */}
-        <div className="flex items-center gap-x-6 ml-4">
+        {/* Search, Bell Icon, and UserNav */}
+        <div className="hidden lg:flex items-center gap-x-8">
           <CategoryDropdown
             categories={["Comedy", "Drama", "Folklore", "Horror"]}
-            onCategorySelect={handleCategorySelect}
+            onCategorySelect={setSelectedCategory}
           />
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search films..."
-              className="p-2 pl-10 pr-4 text-sm bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              value={searchQuery}
-              onChange={handleSearch}
-            />
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-4.35-4.35M11 17a6 6 0 100-12 6 6 0 000 12z"
-              />
-            </svg>
-          </div>
-
-          {/* Notifications and UserNav */}
-          <div className="flex items-center gap-x-8">
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Bell className="h-5 w-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 bg-gray-800 text-white rounded-lg shadow-lg">
-                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="p-3 hover:bg-gray-700">
-                  <p>New films are coming</p>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="p-3 hover:bg-gray-700">
-                  <p>Watch Lagdos now</p>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <UserNav />
-          </div>
+          <input
+            type="text"
+            placeholder="Search films..."
+            className="p-2 pl-10 pr-4 text-sm bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            value={searchQuery}
+            onChange={handleSearch}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Bell className="h-5 w-5 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-125" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64 bg-gray-800 text-white rounded-lg shadow-lg">
+              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="p-3 hover:bg-gray-700">
+                <p>New films are coming</p>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <UserNav />
         </div>
       </motion.div>
     </>
   );
 }
-

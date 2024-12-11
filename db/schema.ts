@@ -12,7 +12,7 @@ import {
   boolean,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import z from 'zod';
 
 export interface UserJSON {
@@ -117,7 +117,7 @@ export const film = pgTable('film', {
   category: varchar('category').notNull(),
   youtubeString: varchar('youtubeString').notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
-  rank: integer('rank').notNull(),
+  rank: integer('rank').default(sql`0`).notNull(),  // Default rank
 });
 
 // UserInteractions Table (Existing)
@@ -166,6 +166,21 @@ export const watchLists = pgTable('watchLists', {
   isFavorite: boolean('isFavorite').default(false),
   // ... other fields
 });
+
+// Recommendations Table (New)
+export const filmRecommendations = pgTable('filmRecommendations', {
+  userId: text('userId')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),  // User receiving the recommendation
+  filmId: integer('filmId')
+    .notNull()
+    .references(() => film.id, { onDelete: 'cascade' }),  // Film being recommended
+  recommendedBy: text('recommendedBy')
+    .notNull() // User who recommended the film
+    .references(() => users.id, { onDelete: 'cascade' }),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),  // When the recommendation was made
+});
+
 
 // UserRatings Table (New)
 export const userRatings = pgTable(

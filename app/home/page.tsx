@@ -7,15 +7,26 @@ import { FilmSliderHorror } from "../components/FilmSliderHorror";
 import { FilmSliderReco } from "../components/FilmSliderReco";
 import FilmVideo from "../components/FilmVideo";
 import RecentlyAdded from "../components/RecentlyAdded";
-import { auth, currentUser } from "@clerk/nextjs/server";
-
+import { auth } from "@clerk/nextjs/server";
 
 export default async function HomePage() {
-    // Assume we have the userId from somewhere (like session, context, or hardcoded for now)
-    const { userId } = await auth()
-    
+    const { userId } = await auth();
+
     if (!userId) {
-        throw new Error("User not logged in");
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-gray-900 text-white">
+                <div className="text-center p-8 border border-red-600 rounded-lg shadow-lg">
+                    <h1 className="text-4xl font-bold mb-4">Access Denied</h1>
+                    <p className="text-xl mb-6">You must be logged in to view this page.</p>
+                    <a
+                        href="/sign-in"
+                        className="inline-block px-6 py-3 text-lg font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200"
+                    >
+                        Login Now
+                    </a>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -37,11 +48,12 @@ export default async function HomePage() {
 
             <h1 className="text-3xl font-bold text-gray-400">HORROR FILMS</h1>
             <FilmSliderHorror />
-            
+
             <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
             <FilmSliderReco userId={userId.toString()} />
+
             <h1 className="text-3xl font-bold text-gray-400">SOME OF THE BEST</h1>
-            <FilmGrid/>
+            <FilmGrid />
         </div>
     );
 }

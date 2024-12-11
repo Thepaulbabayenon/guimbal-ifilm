@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { getAllFilms } from "../api/getFilms"; // Ensure this API function exists
 import { Card, CardContent } from "@/components/ui/card";
 import PlayVideoModal from "./PlayVideoModal";
-import { FaHeart, FaPlay } from 'react-icons/fa';
+import { FaHeart, FaPlay } from "react-icons/fa";
+import { useUser } from "@clerk/nextjs";
+import axios from "axios";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export function FilmGrid() {
   interface Film {
@@ -21,9 +25,13 @@ export function FilmGrid() {
     rank: number;
   }
 
+  const { user } = useUser();
+  const userId = user?.id;
+
   const [films, setFilms] = useState<Film[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
+  const [watchList, setWatchList] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     async function fetchFilms() {
@@ -38,17 +46,70 @@ export function FilmGrid() {
     fetchFilms();
   }, []);
 
+  useEffect(() => {
+    if (userId && films.length > 0) {
+      films.forEach((film) => {
+        fetchWatchlistStatus(film.id);
+      });
+    }
+  }, [userId, films]);
+
+  const fetchWatchlistStatus = async (filmId: number) => {
+    try {
+      const response = await axios.get(`/api/watchlist/${filmId}`, { params: { userId } });
+      setWatchList((prev) => ({ ...prev, [filmId]: response.data.inWatchlist }));
+    } catch (error) {
+      console.error("Error fetching watchlist status:", error);
+    }
+  };
+
+  const handleToggleWatchlist = async (filmId: number) => {
+    if (!userId) {
+      toast.warn("Please log in to manage your watchlist.");
+      return;
+    }
+
+    const isInWatchlist = watchList[filmId];
+
+    try {
+      if (isInWatchlist) {
+        await axios.delete(`/api/watchlist`, { data: { filmId, userId } });
+        toast.success("Removed from your watchlist.");
+      } else {
+        await axios.post("/api/watchlist", { filmId, userId });
+        toast.success("Added to your watchlist.");
+      }
+
+      setWatchList((prev) => ({ ...prev, [filmId]: !isInWatchlist }));
+    } catch (error) {
+      console.error("Error toggling watchlist:", error);
+      toast.error("Failed to update watchlist.");
+    }
+  };
+
   const handlePlay = (film: Film) => {
     setSelectedFilm(film);
     setModalOpen(true);
   };
 
-  const handleHeart = (filmId: number) => {
-    console.log(`Heart film with ID: ${filmId}`);
+  const markAsWatched = async (filmId: number) => {
+    if (!userId) {
+      console.error("User ID is not available.");
+      return;
+    }
+
+    try {
+      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
+      toast.success("Marked as watched!");
+    } catch (error) {
+      console.error("Error marking film as watched:", error);
+      toast.error("Failed to mark as watched.");
+    }
   };
 
   return (
     <div className="film-grid-container grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-2">
+      <ToastContainer />
       {films.map((film) => (
         <div key={film.id} className="relative p-1">
           <Card className="h-40 w-full">
@@ -67,8 +128,10 @@ export function FilmGrid() {
                     <FaPlay />
                   </button>
                   <button
-                    onClick={() => handleHeart(film.id)}
-                    className="text-white text-lg hover:text-red-500 transition-transform transform hover:scale-110"
+                    onClick={() => handleToggleWatchlist(film.id)}
+                    className={`text-white text-lg hover:scale-110 transition-transform transform ${
+                      watchList[film.id] ? "text-red-500" : "hover:text-red-500"
+                    }`}
                   >
                     <FaHeart />
                   </button>
@@ -94,6 +157,8 @@ export function FilmGrid() {
           release={selectedFilm.release}
           ratings={selectedFilm.rank}
           setUserRating={() => {}} // Implement this function if needed
+          markAsWatched={() => markAsWatched(selectedFilm.id)} // Pass markAsWatched here
+          category={selectedFilm.category}
         />
       )}
     </div>

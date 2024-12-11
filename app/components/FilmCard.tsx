@@ -18,6 +18,7 @@ interface FilmCardProps {
   age: number;
   time: number; // Duration in minutes
   initialRatings: number; // External ratings (initial ratings)
+  category: string; // Add category here to pass to PlayVideoModal
 }
 
 export function FilmCard({
@@ -31,6 +32,7 @@ export function FilmCard({
   age,
   time,
   initialRatings,
+  category,  // Add category here to destructure it
 }: FilmCardProps) {
   const { user } = useUser();
   const userId = user?.id;
@@ -42,6 +44,26 @@ export function FilmCard({
   const [isSavingWatchlist, setIsSavingWatchlist] = useState(false); // State to track if we're saving watchlist
   const [isSavingRating, setIsSavingRating] = useState(false); // State to track if we're saving rating
   const pathName = usePathname();
+
+  // Function to mark a film as watched
+  const markAsWatched = async (userId: string, filmId: number) => {
+    try {
+      if (!userId) {
+        console.error("User ID is not available.");
+        return;
+      }
+  
+      // Send both userId and filmId in the request body
+      await axios.post(
+        `/api/films/${filmId}/watchedFilms`,
+        { userId, filmId }, // Include filmId here as well
+        { headers: { "Content-Type": "application/json" } }
+      );
+      console.log(`Film ${filmId} marked as watched for user ${userId}`);
+    } catch (error) {
+      console.error("Error marking film as watched:", error);
+    }
+  };
 
   // Fetch user rating and average rating from the backend when the component mounts
   useEffect(() => {
@@ -218,6 +240,10 @@ export function FilmCard({
         release={year}
         ratings={userRating}
         setUserRating={setUserRating}
+        userId={userId || ""}
+        filmId={filmId}
+        markAsWatched={markAsWatched}
+        category={category}  // Add category here
       />
     </>
   );
