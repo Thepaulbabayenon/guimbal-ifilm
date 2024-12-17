@@ -186,7 +186,7 @@ export const filmRecommendations = pgTable('filmRecommendations', {
 export const userRatings = pgTable(
   'userRatings',
   {
-    id: serial('id'), // This is now just a regular column, not a primary key
+    id: serial('id'), // Regular column, not a primary key
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -197,7 +197,6 @@ export const userRatings = pgTable(
     timestamp: timestamp('timestamp').defaultNow().notNull(),
   },
   (userRatings) => ({
-    // Composite primary key on 'userId' and 'filmId'
     primaryKey: primaryKey({
       columns: [userRatings.userId, userRatings.filmId],
     }),
