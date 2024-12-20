@@ -31,40 +31,42 @@ const links: LinkProps[] = [
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile menu state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState(""); // Search input state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showNavbar, setShowNavbar] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
   const segment = useSelectedLayoutSegment();
   const pathName = usePathname();
-
   const isProfilePage = segment === "user";
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
+      if (window.scrollY > lastScrollY) {
+        setShowNavbar(false); // Hide navbar on scroll down
+      } else {
+        setShowNavbar(true); // Show navbar on scroll up
+      }
+      setLastScrollY(window.scrollY);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
-
-  const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const handleCloseSearch = () => {
-    setSelectedCategory(null);
-    setSearchQuery("");
-  };
+  }, [lastScrollY]);
 
   if (isProfilePage) {
     return null;
   }
 
+  const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
   return (
     <>
-      {/* Mobile Menu Icon */}
       <div className="lg:hidden fixed top-5 right-5 z-50">
         <Menu
           onClick={toggleMobileMenu}
@@ -72,7 +74,6 @@ export default function Navbar() {
         />
       </div>
 
-      {/* Mobile Menu Content */}
       {isMobileMenuOpen && (
         <motion.div
           initial={{ opacity: 0, x: "-100%" }}
@@ -91,8 +92,6 @@ export default function Navbar() {
               </li>
             ))}
           </ul>
-
-          {/* Add UserNav and Search in Mobile Menu */}
           <div className="mt-6 flex flex-col items-center w-full px-8">
             <input
               type="text"
@@ -108,31 +107,19 @@ export default function Navbar() {
         </motion.div>
       )}
 
-      {/* Desktop Navbar */}
       <motion.div
-        initial={{ opacity: 0, scaleY: 0 }}
-        animate={{
-          opacity: 1,
-          scaleY: 1,
-        }}
+        initial={{ opacity: 0, y: -100 }}
+        animate={{ opacity: showNavbar ? 1 : 0, y: showNavbar ? 0 : -100 }}
         transition={{ duration: 0.3 }}
-        className={`navbar fixed top-0 left-0 right-0 w-full max-w-7xl mx-auto items-center justify-between px-5 sm:px-6 py-5 lg:px-8 flex ${
-          isScrolled ? "bg-black bg-opacity-80" : "bg-transparent"
-        }`}
+        className={`navbar fixed top-0 left-0 right-0 w-full max-w-7xl mx-auto px-5 sm:px-6 py-5 lg:px-8 flex items-center justify-between transition-all duration-300 ${isScrolled ? "bg-black bg-opacity-80" : "bg-transparent"}`}
       >
-        {/* Logo and Navigation Links */}
         <div className="flex items-center">
           <Link href="/home" className="w-32">
             <Image src={Logo} alt="Logo" priority width={65} height={65} />
           </Link>
           <ul className="lg:flex gap-x-5 ml-14 hidden">
             {links.map((link, idx) => (
-              <motion.li
-                key={idx}
-                className="relative group"
-                whileHover={{ scale: 1.1, x: "5px" }}
-                whileTap={{ scale: 0.95 }}
-              >
+              <motion.li key={idx} className="relative group" whileHover={{ scale: 1.1, x: "5px" }} whileTap={{ scale: 0.95 }}>
                 <Link
                   href={link.href}
                   className={`${
@@ -150,8 +137,6 @@ export default function Navbar() {
             ))}
           </ul>
         </div>
-
-        {/* Search, Bell Icon, and UserNav */}
         <div className="hidden lg:flex items-center gap-x-8">
           <CategoryDropdown
             categories={["Comedy", "Drama", "Folklore", "Horror"]}

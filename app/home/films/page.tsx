@@ -50,7 +50,6 @@ export default async function Watchlist() {
                       height={800}
                       className="absolute w-full h-full -z-10 rounded-lg object-cover"
                     />
-
                     {film && (
                       <FilmCard
                         key={film?.id}
@@ -63,6 +62,7 @@ export default async function Watchlist() {
                         youtubeUrl={film?.youtubeString as string}
                         initialRatings={0}
                         watchList={false}
+                        category={film?.category || "Uncategorized"} // Add this line
                       />
                     )}
                   </div>
