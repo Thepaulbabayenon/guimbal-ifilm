@@ -217,6 +217,23 @@ export const insertFilmSchema = z.object({
   rank: z.number().int().positive(),
 });
 
+// Comments Table (New)
+export const comments = pgTable(
+  'comments',
+  {
+    id: serial('id').primaryKey(),  // Unique comment ID
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),  // Reference to the user
+    filmId: integer('filmId')
+      .notNull()
+      .references(() => film.id, { onDelete: 'cascade' }),  // Reference to the film
+    content: text('content').notNull(),  // The comment's content
+    createdAt: timestamp('createdAt').defaultNow().notNull(),  // Timestamp for when the comment was made
+  }
+);
+
+
 // Relations Definitions
 export const accountRelations = relations(accounts, ({ one }) => ({
   user: one(users, {
@@ -284,3 +301,16 @@ export const userRatingsRelations = relations(userRatings, ({ one }) => ({
     references: [film.id],
   }),
 }));
+
+// Comments Relations
+export const commentsRelations = relations(comments, ({ one }) => ({
+  user: one(users, {
+    fields: [comments.userId],
+    references: [users.id],
+  }),
+  film: one(film, {
+    fields: [comments.filmId],
+    references: [film.id],
+  }),
+}));
+

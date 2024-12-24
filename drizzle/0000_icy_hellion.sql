@@ -25,6 +25,14 @@ CREATE TABLE IF NOT EXISTS "authenticator" (
 	CONSTRAINT "authenticator_credentialID_unique" UNIQUE("credentialID")
 );
 --> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "comments" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"userId" text NOT NULL,
+	"filmId" integer NOT NULL,
+	"content" text NOT NULL,
+	"createdAt" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "film" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"imageString" varchar NOT NULL,
@@ -37,7 +45,14 @@ CREATE TABLE IF NOT EXISTS "film" (
 	"category" varchar NOT NULL,
 	"youtubeString" varchar NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
-	"rank" integer NOT NULL
+	"rank" integer DEFAULT 0 NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "filmRecommendations" (
+	"userId" text NOT NULL,
+	"filmId" integer NOT NULL,
+	"recommendedBy" text NOT NULL,
+	"timestamp" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "session" (
@@ -102,6 +117,36 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "authenticator" ADD CONSTRAINT "authenticator_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "comments" ADD CONSTRAINT "comments_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "comments" ADD CONSTRAINT "comments_filmId_film_id_fk" FOREIGN KEY ("filmId") REFERENCES "public"."film"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "filmRecommendations" ADD CONSTRAINT "filmRecommendations_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "filmRecommendations" ADD CONSTRAINT "filmRecommendations_filmId_film_id_fk" FOREIGN KEY ("filmId") REFERENCES "public"."film"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "filmRecommendations" ADD CONSTRAINT "filmRecommendations_recommendedBy_user_id_fk" FOREIGN KEY ("recommendedBy") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -7,10 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FaStar } from "react-icons/fa";
-import Link from "next/link";
-import { db } from "@/db/drizzle"; // Adjust the import according to your project structure
-import { film } from "@/db/schema"; // Adjust the import according to your project structure
-import { eq } from "drizzle-orm"; // Correctly import the eq function
+import { db } from "@/db/drizzle"; 
+import { film, comments } from "@/db/schema"; 
+import { eq, sql } from "drizzle-orm";
 
 interface PlayVideoModalProps {
   title: string;
@@ -22,12 +23,12 @@ interface PlayVideoModalProps {
   age: number;
   duration: number;
   ratings: number;
-  category: string; // Assuming category is a string now
+  category: string; 
   setUserRating: (rating: number) => void;
-  userId?: string; // Optional User ID
-  filmId?: number; // Optional Film ID
-  markAsWatched?: (userId: string, filmId: number) => void; // Optional function
-  watchTimerDuration?: number; // Optional watch timer duration in milliseconds
+  userId?: string; 
+  filmId?: number; 
+  markAsWatched?: (userId: string, filmId: number) => void;
+  watchTimerDuration?: number; 
 }
 
 export default function PlayVideoModal({
@@ -40,18 +41,20 @@ export default function PlayVideoModal({
   duration,
   release,
   ratings,
-  category, // Using category instead of genre
+  category, 
   setUserRating,
   userId,
   filmId,
   markAsWatched,
-  watchTimerDuration = 30000, // Default timer of 30 seconds
+  watchTimerDuration = 30000, 
 }: PlayVideoModalProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoverRating, setHoverRating] = useState<number>(0);
-  const [hasWatched, setHasWatched] = useState(false); // Track if the film is marked as watched
-  const [loading, setLoading] = useState(true); // Loading state for iframe
-  const [similarMovies, setSimilarMovies] = useState<any[]>([]); // State for similar movies
+  const [hasWatched, setHasWatched] = useState(false);
+  const [loading, setLoading] = useState(true); 
+  const [similarMovies, setSimilarMovies] = useState<any[]>([]);
+  const [commentsList, setCommentsList] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -71,14 +74,45 @@ export default function PlayVideoModal({
     setUserRating(rating);
   };
 
+  // Add comment and forward to database
+  const handleAddComment = async () => {
+    if (newComment.trim() && userId && filmId) {
+      const commentData = {
+        userId,
+        filmId,
+        content: newComment.trim(),
+      };
+
+      await db.insert(comments).values(commentData);
+      setCommentsList((prev) => [
+        ...prev,
+        { user: "You", content: newComment.trim() },
+      ]);
+      setNewComment("");
+    }
+  };
+
+  // Fetch comments from the database
+  const fetchComments = async () => {
+    if (filmId) {
+      const fetchedComments = await db
+        .select()
+        .from(comments)
+        .where(eq(comments.filmId, filmId))
+        .orderBy(sql`${comments.createdAt} DESC`);  // Corrected usage
+      setCommentsList(fetchedComments);
+    }
+  };
+  
+  
+
   useEffect(() => {
-    // Fetch similar movies based on the current movie's category
     const fetchSimilarMovies = async () => {
       const similarMovies = await db
         .select()
         .from(film)
-        .where(eq(film.category, category)) // Correct usage of eq with two arguments
-        .limit(5);  // Limit the results to 5
+        .where(eq(film.category, category))
+        .limit(5);
       setSimilarMovies(similarMovies);
     };
 
@@ -86,14 +120,17 @@ export default function PlayVideoModal({
       fetchSimilarMovies();
     }
 
+    if (state && filmId) {
+      fetchComments();
+    }
+
     if (state && !hasWatched && userId && filmId && markAsWatched) {
       timerRef.current = setTimeout(() => {
         markAsWatched(userId, filmId);
-        setHasWatched(true); // Mark as watched locally
+        setHasWatched(true); 
       }, watchTimerDuration);
     }
 
-    // Cleanup timer on close or unmount
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -103,7 +140,6 @@ export default function PlayVideoModal({
 
   const handleIframeLoad = () => {
     setLoading(false);
-    // Automatically go to fullscreen once the iframe has loaded
     if (iframeRef.current) {
       iframeRef.current.requestFullscreen();
       setIsFullscreen(true);
@@ -157,11 +193,6 @@ export default function PlayVideoModal({
               />
             ))}
           </div>
-          {ratings > 0 && (
-            <p className="mt-2 text-sm text-gray-600">
-              You rated this movie: {ratings} out of 5 stars
-            </p>
-          )}
         </div>
 
         <button
@@ -172,22 +203,29 @@ export default function PlayVideoModal({
         </button>
 
         <div className="mt-8">
-          <h3 className="text-lg font-semibold">You may also like:</h3>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            {similarMovies.map((movie) => (
-              <Link
-                href={`/films/${movie.id}`} // Adjust URL based on your routing
-                key={movie.id}
-                className="block p-2 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                <img
-                  src={movie.imageString}
-                  alt={movie.title}
-                  className="w-full h-32 object-cover rounded-md"
-                />
-                <h4 className="text-sm font-medium mt-2">{movie.title}</h4>
-                <p className="text-xs text-gray-500 mt-1">{movie.overview}</p>
-              </Link>
+          <h3 className="text-lg font-semibold">Comments</h3>
+          <div className="mt-4">
+            <input
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment"
+              className="w-full border border-gray-300 rounded-md p-2 text-black"
+            />
+            <button
+              onClick={handleAddComment}
+              className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md"
+            >
+              Post
+            </button>
+          </div>
+
+          <div className="mt-4">
+            {commentsList.map((comment, index) => (
+              <div key={index} className="border-b border-gray-200 py-2">
+                <p className="text-sm font-semibold">{comment.user}</p>
+                <p className="text-sm text-gray-600">{comment.content}</p>
+              </div>
             ))}
           </div>
         </div>
