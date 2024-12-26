@@ -215,7 +215,7 @@ export function FilmSliderHorror() {
           markAsWatched={() => markAsWatched(selectedFilm.id)}
           category={selectedFilm.category}
         />
-      )}
+      )}z
     </div>
   );
 }
