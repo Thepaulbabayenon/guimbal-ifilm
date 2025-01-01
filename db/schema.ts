@@ -117,6 +117,28 @@ export const film = pgTable('film', {
   category: varchar('category').notNull(),
   youtubeString: varchar('youtubeString').notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
+  producer: varchar('producer').notNull(),
+  director: varchar('director').notNull(),
+  coDirector: varchar('coDirector').notNull(),
+  studio: varchar('studio').notNull(),
+  rank: integer('rank').default(sql`0`).notNull(),  // Default rank
+});
+export const movie = pgTable('movie', {
+  id: serial('id').primaryKey(),
+  imageString: varchar('imageString').notNull(),
+  title: varchar('title').notNull(),
+  age: integer('age').notNull(),
+  duration: doublePrecision('duration').notNull(),
+  overview: text('overview').notNull(),
+  release: integer('release').notNull(),
+  videoSource: varchar('videoSource').notNull(),
+  category: varchar('category').notNull(),
+  youtubeString: varchar('youtubeString').notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+  producer: varchar('producer').notNull(),
+  director: varchar('director').notNull(),
+  coDirector: varchar('coDirector').notNull(),
+  studio: varchar('studio').notNull(),
   rank: integer('rank').default(sql`0`).notNull(),  // Default rank
 });
 
@@ -140,6 +162,7 @@ export const userInteractions = pgTable(
   })
 );
 
+// WatchedFilms Table (Updated)
 export const watchedFilms = pgTable(
   'watchedFilms',
   {
@@ -149,7 +172,8 @@ export const watchedFilms = pgTable(
     filmId: integer('filmId')
       .notNull()
       .references(() => film.id, { onDelete: 'cascade' }),
-    timestamp: timestamp('timestamp').defaultNow().notNull(),
+    timestamp: timestamp('timestamp').defaultNow().notNull(),  // Time when the film was marked as watched
+    currentTimestamp: doublePrecision('currentTimestamp').default(0),  // Last played timestamp (in seconds or milliseconds)
   },
   (watchedFilms) => ({
     primaryKey: primaryKey({
@@ -157,6 +181,8 @@ export const watchedFilms = pgTable(
     }),
   })
 );
+
+
 
 // WatchLists Table
 export const watchLists = pgTable('watchLists', {
@@ -180,6 +206,7 @@ export const filmRecommendations = pgTable('filmRecommendations', {
     .references(() => users.id, { onDelete: 'cascade' }),
   timestamp: timestamp('timestamp').defaultNow().notNull(),  // When the recommendation was made
 });
+
 
 
 // UserRatings Table (New)

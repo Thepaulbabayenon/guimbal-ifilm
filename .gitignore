@@ -15,6 +15,7 @@
 
 # production
 /build
+/ml
 
 # misc
 .DS_Store
@@ -29,9 +30,6 @@ yarn-error.log*
 .env*.local
 .env
 
-.drizzle.ts
-#not include the db folder when the app is complete.
-#db/
 
 # vercel
 .vercel

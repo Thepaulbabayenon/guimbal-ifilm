@@ -22,6 +22,7 @@ async function getData(userId: string) {
       age: film.age,
       release: film.release,
       duration: film.duration,
+      category: film.category,
       // Aggregation to calculate average rating using avg()
       averageRating: avg(userRatings.rating).as('averageRating'), // Using avg() to calculate the average
     })
@@ -73,6 +74,7 @@ export default async function RecentlyAdded() {
                   age={film.age}
                   time={film.duration}
                   year={film.release}
+                  category={film.category}
                   initialRatings={Number(film.averageRating) || 0} // Ensure that averageRating is always a number
                 />
               </div>

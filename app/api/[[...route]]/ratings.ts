@@ -14,7 +14,7 @@ ratingsApp.get('/', clerkMiddleware(), async (c) => {
   if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
 
   const data = await db
-    .select({ id: userRatings.id, movieId: userRatings.movieId, rating: userRatings.rating })
+    .select({ id: userRatings.id, filmId: userRatings.filmId, rating: userRatings.rating })
     .from(userRatings)
     .where(eq(userRatings.userId, auth.userId));
 
@@ -27,9 +27,9 @@ ratingsApp.get('/:id', zValidator('param', z.object({ id: z.string() })), clerkM
   if (!id || !auth?.userId) return c.json({ error: 'Unauthorized or Missing id' }, 400);
 
   const data = await db
-    .select({ id: userRatings.id, movieId: userRatings.movieId, rating: userRatings.rating })
+    .select({ id: userRatings.id, filmId: userRatings.filmId, rating: userRatings.rating })
     .from(userRatings)
-    .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.movieId, parseInt(id, 10))));
+    .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.filmId, parseInt(id, 10))));
 
   if (!data) return c.json({ error: 'Not found' }, 404);
 
@@ -37,7 +37,7 @@ ratingsApp.get('/:id', zValidator('param', z.object({ id: z.string() })), clerkM
 });
 
 ratingsApp.post('/', clerkMiddleware(), zValidator('json', z.object({
-  movieId: z.string(),
+  filmId: z.string(),
   rating: z.number().min(1).max(5),
 })), async (c) => {
   const auth = getAuth(c);
@@ -47,8 +47,8 @@ ratingsApp.post('/', clerkMiddleware(), zValidator('json', z.object({
 
   const result = await db
     .insert(userRatings)
-    .values({ userId: auth.userId, movieId: parseInt(values.movieId, 10), rating: values.rating })
-    .onConflictDoUpdate({ target: [userRatings.movieId, userRatings.userId], set: { rating: values.rating } })
+    .values({ userId: auth.userId, filmId: parseInt(values.filmId, 10), rating: values.rating })
+    .onConflictDoUpdate({ target: [userRatings.filmId, userRatings.userId], set: { rating: values.rating } })
     .returning();
 
   return c.json({ data: result });
@@ -61,7 +61,7 @@ ratingsApp.delete('/:id', clerkMiddleware(), zValidator('param', z.object({ id: 
 
   const data = await db
     .delete(userRatings)
-    .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.movieId, parseInt(id, 10))))
+    .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.filmId, parseInt(id, 10))))
     .returning();
 
   if (!data) return c.json({ error: 'Not found' }, 404);
@@ -79,7 +79,7 @@ ratingsApp.patch('/:id', clerkMiddleware(), zValidator('param', z.object({ id: z
   const data = await db
     .update(userRatings)
     .set({ rating: values.rating })
-    .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.movieId, parseInt(id, 10))))
+    .where(and(eq(userRatings.userId, auth.userId), eq(userRatings.filmId, parseInt(id, 10))))
     .returning();
 
   if (!data) return c.json({ error: 'Not found' }, 404);

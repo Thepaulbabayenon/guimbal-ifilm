@@ -32,6 +32,7 @@ export function FilmSliderFolklore() {
   const userId = user?.id;
 
   const [films, setFilms] = useState<Film[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [watchList, setWatchList] = useState<{ [key: number]: boolean }>({});
   const [userRatings, setUserRatings] = useState<{ [key: number]: number }>({});
   const [averageRatings, setAverageRatings] = useState<{ [key: number]: number }>({});
@@ -51,12 +52,24 @@ export function FilmSliderFolklore() {
     }
   }, [userId, films]);
 
+  // Fetch films from API
   const fetchFilms = async () => {
     try {
       const filmsData = await getFolkloreFilms();
       setFilms(filmsData);
+      setIsLoading(false);
     } catch (error) {
       console.error("Error fetching films:", error);
+    }
+  };
+
+  // Fetch watchlist status
+  const fetchWatchlistStatus = async (filmId: number) => {
+    try {
+      const response = await axios.get(`/api/watchlist/${filmId}`, { params: { userId } });
+      setWatchList(prev => ({ ...prev, [filmId]: response.data.inWatchlist }));
+    } catch (error) {
+      console.error("Error fetching watchlist status:", error);
     }
   };
 
@@ -70,16 +83,6 @@ export function FilmSliderFolklore() {
       setAverageRatings(prev => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
     } catch (error) {
       console.error("Error fetching ratings:", error);
-    }
-  };
-
-  // Fetch watchlist status
-  const fetchWatchlistStatus = async (filmId: number) => {
-    try {
-      const response = await axios.get(`/api/watchlist/${filmId}`, { params: { userId } });
-      setWatchList(prev => ({ ...prev, [filmId]: response.data.inWatchlist }));
-    } catch (error) {
-      console.error("Error fetching watchlist status:", error);
     }
   };
 
@@ -149,73 +152,88 @@ export function FilmSliderFolklore() {
   };
 
   return (
-    <div className="recently-added-container mb-20">
-      <ToastContainer />
-      <div className="flex justify-center">
-        <Carousel
-          plugins={[Autoplay({ delay: 4000 })]}
-          opts={{ align: "start", loop: true }}
-          className="w-full"
-        >
-          <CarouselContent className="flex space-x-2">
-            {films.map(film => (
-              <CarouselItem key={film.id} className="flex-none w-52 md:w-56 relative">
-                <Card>
-                  <CardContent className="relative p-2">
-                    <img
-                      src={film.imageString}
-                      alt={film.title}
-                      className="object-cover w-full h-full transition-transform duration-300 hover:scale-110"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-4">
-                      <button onClick={() => handlePlay(film)} className="text-white text-3xl">
-                        <FaPlay />
-                      </button>
-                      <button onClick={() => handleToggleWatchlist(film.id)} className="text-white text-3xl">
-                        <FaHeart className={watchList[film.id] ? "text-red-500" : ""} />
-                      </button>
-                    </div>
-                    <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-2 text-center">
-                      <span className="text-sm font-semibold">{film.title}</span>
-                      <div className="flex items-center justify-center mt-2">
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 cursor-pointer ${userRatings[film.id] >= star ? "text-yellow-400" : "text-gray-400"}`}
-                            onClick={() => handleRatingClick(film.id, star)}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-xs mt-1">
-                        Avg Rating: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(2) : "N/A"}/5
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </CarouselItem>
+      <div className="recently-added-container mb-10 w-full">
+        <ToastContainer />
+        {isLoading ? (
+        <div className="flex justify-center items-center w-full">
+          <div className="flex space-x-2">
+            {[...Array(6)].map((_, index) => (
+              <div
+                key={index}
+                className="w-52 md:w-50 h-60 bg-gray-700 rounded-lg animate-pulse"
+              />
             ))}
-          </CarouselContent>
-          <CarouselPrevious className="left-0"/>
-          <CarouselNext className="right-0"/>
-        </Carousel>
+          </div>
+        </div>
+        ) : (
+          <div className="flex justify-center w-full">
+            <Carousel
+              plugins={[Autoplay({ delay: 4000 })]}
+              opts={{ align: "start", loop: true }}
+              className="w-full"
+            >
+              <CarouselContent className="flex space-x-2">
+                {films.map((film) => (
+                  <CarouselItem key={film.id} className="flex-none w-52 md:w-56 relative">
+                    <Card>
+                      <CardContent className="relative p-2">
+                        <img
+                          src={film.imageString}
+                          alt={film.title}
+                          className="object-cover w-full h-60 rounded-lg transition-transform duration-300 hover:scale-105"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-2">
+                          <button onClick={() => handlePlay(film)} className="text-white text-xl">
+                            <FaPlay />
+                          </button>
+                          <button onClick={() => handleToggleWatchlist(film.id)} className="text-white text-xl">
+                            <FaHeart className={watchList[film.id] ? "text-red-500" : ""} />
+                          </button>
+                        </div>
+                        <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-1 text-center">
+                          <span className="text-xs font-semibold">{film.title}</span>
+                          <div className="flex items-center justify-center mt-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-3 h-3 cursor-pointer ${
+                                  userRatings[film.id] >= star ? "text-yellow-400" : "text-gray-400"
+                                }`}
+                                onClick={() => handleRatingClick(film.id, star)}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-xs mt-1">
+                            Avg: {typeof averageRatings[film.id] === "number" ? averageRatings[film.id].toFixed(1) : "N/A"}/5
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="left-0" />
+              <CarouselNext className="right-0" />
+            </Carousel>
+          </div>
+        )}
+  
+        {selectedFilm && (
+          <PlayVideoModal
+            changeState={setModalOpen}
+            overview={selectedFilm.overview}
+            state={modalOpen}
+            title={selectedFilm.title}
+            youtubeUrl={selectedFilm.youtubeString}
+            age={selectedFilm.age}
+            duration={selectedFilm.duration}
+            release={selectedFilm.release}
+            ratings={userRatings[selectedFilm.id]}
+            setUserRating={(rating: number) => handleRatingClick(selectedFilm.id, rating)}
+            markAsWatched={() => markAsWatched(selectedFilm.id)} // Pass the function here
+            category={selectedFilm.category}
+          />
+        )}
       </div>
-
-      {selectedFilm && (
-        <PlayVideoModal
-          changeState={setModalOpen}
-          overview={selectedFilm.overview}
-          state={modalOpen}
-          title={selectedFilm.title}
-          youtubeUrl={selectedFilm.youtubeString}
-          age={selectedFilm.age}
-          duration={selectedFilm.duration}
-          release={selectedFilm.release}
-          ratings={userRatings[selectedFilm.id]}
-          setUserRating={(rating: number) => handleRatingClick(selectedFilm.id, rating)}
-          markAsWatched={() => markAsWatched(selectedFilm.id)}
-          category={selectedFilm.category}
-        />
-      )}
-    </div>
-  );
+    );
 }

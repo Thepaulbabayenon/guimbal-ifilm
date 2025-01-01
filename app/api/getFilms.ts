@@ -193,6 +193,17 @@ export async function getFolkloreFilms() {
   return folkloreFilmsData;
 }
 
+export async function getFilmsByCategory(category: string) {
+  try {
+    const response = await fetch(`/api/films?category=${category}`);
+    const data = await response.json();
+    return data.films || []; // Ensure we return an empty array if no films are found
+  } catch (error) {
+    console.error("Error fetching films by category:", error);
+    return [];
+  }
+}
+
 /**
  * Fetch comedy films.
  * This function returns all films that belong to the comedy category.

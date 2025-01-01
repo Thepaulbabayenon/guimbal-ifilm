@@ -52,11 +52,54 @@ export default function PlayVideoModal({
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
   const [loading, setLoading] = useState(true); 
-  const [similarMovies, setSimilarMovies] = useState<any[]>([]);
-  const [commentsList, setCommentsList] = useState<any[]>([]);
-  const [newComment, setNewComment] = useState("");
+  const [similarMovies, setSimilarMovies] = useState<any[]>([]); 
+  const [commentsList, setCommentsList] = useState<any[]>([]); 
+  const [newComment, setNewComment] = useState(""); 
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [modalWidth, setModalWidth] = useState(425); // Set initial width of the modal
+  const [modalHeight, setModalHeight] = useState(600); // Set initial height of the modal
+
+  // Resizing logic
+  const isResizing = useRef(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+
+  const onMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+  };
+
+  const onMouseMoveResize = (e: MouseEvent) => {
+    if (!isResizing.current || !dialogRef.current) return;
+    const dx = e.clientX - startX.current;
+    const dy = e.clientY - startY.current;
+    setModalWidth((prevWidth) => Math.max(prevWidth + dx, 300)); // Prevent shrinking too small
+    setModalHeight((prevHeight) => Math.max(prevHeight + dy, 300)); // Prevent shrinking too small
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+  };
+
+  const onMouseUpResize = () => {
+    isResizing.current = false;
+  };
+
+  useEffect(() => {
+    if (isResizing.current) {
+      document.addEventListener("mousemove", onMouseMoveResize);
+      document.addEventListener("mouseup", onMouseUpResize);
+    } else {
+      document.removeEventListener("mousemove", onMouseMoveResize);
+      document.removeEventListener("mouseup", onMouseUpResize);
+    }
+    return () => {
+      document.removeEventListener("mousemove", onMouseMoveResize);
+      document.removeEventListener("mouseup", onMouseUpResize);
+    };
+  }, []);
 
   const toggleFullscreen = () => {
     if (!isFullscreen && iframeRef.current) {
@@ -74,7 +117,6 @@ export default function PlayVideoModal({
     setUserRating(rating);
   };
 
-  // Add comment and forward to database
   const handleAddComment = async () => {
     if (newComment.trim() && userId && filmId) {
       const commentData = {
@@ -92,19 +134,16 @@ export default function PlayVideoModal({
     }
   };
 
-  // Fetch comments from the database
   const fetchComments = async () => {
     if (filmId) {
       const fetchedComments = await db
         .select()
         .from(comments)
         .where(eq(comments.filmId, filmId))
-        .orderBy(sql`${comments.createdAt} DESC`);  // Corrected usage
+        .orderBy(sql`${comments.createdAt} DESC`);
       setCommentsList(fetchedComments);
     }
   };
-  
-  
 
   useEffect(() => {
     const fetchSimilarMovies = async () => {
@@ -148,7 +187,11 @@ export default function PlayVideoModal({
 
   return (
     <Dialog open={state} onOpenChange={() => changeState(!state)}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent 
+        ref={dialogRef} 
+        className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto p-4"
+        style={{ width: `${modalWidth}px`, height: `${modalHeight}px` }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="line-clamp-3">{overview}</DialogDescription>
@@ -229,7 +272,13 @@ export default function PlayVideoModal({
             ))}
           </div>
         </div>
+
+        <div
+          className="absolute bottom-2 right-2 w-4 h-4 bg-gray-600 cursor-se-resize"
+          onMouseDown={onMouseDownResize}
+        />
       </DialogContent>
     </Dialog>
   );
 }
+

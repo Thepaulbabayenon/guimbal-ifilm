@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useEffect, useState } from "react";
 import { getAllFilms } from "../api/getFilms"; // Ensure this API function exists
@@ -9,6 +9,7 @@ import { useUser } from "@clerk/nextjs";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { ClipLoader } from "react-spinners"; // For the loading spinner
 
 export function FilmGrid() {
   interface Film {
@@ -32,14 +33,17 @@ export function FilmGrid() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
   const [watchList, setWatchList] = useState<{ [key: number]: boolean }>({});
+  const [loading, setLoading] = useState(true); // Track loading state
 
   useEffect(() => {
     async function fetchFilms() {
       try {
         const filmsData = await getAllFilms();
         setFilms(filmsData);
+        setLoading(false); // Set loading to false after films are fetched
       } catch (error) {
         console.error("Error fetching films:", error);
+        setLoading(false); // Ensure loading state is stopped even if an error occurs
       }
     }
 
@@ -110,40 +114,47 @@ export function FilmGrid() {
   return (
     <div className="film-grid-container grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-2">
       <ToastContainer />
-      {films.map((film) => (
-        <div key={film.id} className="relative p-1">
-          <Card className="h-40 w-full">
-            <CardContent className="relative flex items-center justify-center p-1 h-full">
-              <img
-                src={film.imageString}
-                alt={film.title}
-                className="object-cover w-full h-full transition-transform duration-200 hover:scale-105"
-              />
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 hover:opacity-100">
-                <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center gap-3">
-                  <button
-                    onClick={() => handlePlay(film)}
-                    className="text-white text-lg hover:text-gray-300 transition-transform transform hover:scale-110"
-                  >
-                    <FaPlay />
-                  </button>
-                  <button
-                    onClick={() => handleToggleWatchlist(film.id)}
-                    className={`text-white text-lg hover:scale-110 transition-transform transform ${
-                      watchList[film.id] ? "text-red-500" : "hover:text-red-500"
-                    }`}
-                  >
-                    <FaHeart />
-                  </button>
-                </div>
-              </div>
-              <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-70 text-white p-1 text-center text-xs font-semibold">
-                {film.title}
-              </div>
-            </CardContent>
-          </Card>
+      
+      {loading ? (
+        <div className="col-span-full flex justify-center items-center">
+          <ClipLoader color="#FF4500" size={50} /> {/* Loading spinner */}
         </div>
-      ))}
+      ) : (
+        films.map((film) => (
+          <div key={film.id} className="relative p-1">
+            <Card className="h-40 w-full">
+              <CardContent className="relative flex items-center justify-center p-1 h-full">
+                <img
+                  src={film.imageString}
+                  alt={film.title}
+                  className="object-cover w-full h-full transition-transform duration-200 hover:scale-105"
+                />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 hover:opacity-100">
+                  <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handlePlay(film)}
+                      className="text-white text-lg hover:text-gray-300 transition-transform transform hover:scale-110"
+                    >
+                      <FaPlay />
+                    </button>
+                    <button
+                      onClick={() => handleToggleWatchlist(film.id)}
+                      className={`text-white text-lg hover:scale-110 transition-transform transform ${
+                        watchList[film.id] ? "text-red-500" : "hover:text-red-500"
+                      }`}
+                    >
+                      <FaHeart />
+                    </button>
+                  </div>
+                </div>
+                <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-70 text-white p-1 text-center text-xs font-semibold">
+                  {film.title}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ))
+      )}
 
       {selectedFilm && (
         <PlayVideoModal
