@@ -19,7 +19,7 @@ interface FilmCardProps {
   time: number;
   initialRatings: number;
   category: string;
-  onClick: () => void; // Add onClick prop to FilmCardProps
+  onClick: () => void; // onClick event handler must be a client-side function
 }
 
 export function FilmCard({
@@ -175,16 +175,19 @@ export function FilmCard({
 
   return (
     <>
-      <button onClick={onClick} className="-mt-14"> {/* Use the onClick prop here */}
+      {/* Client-side button for Play */}
+      <button onClick={onClick} className="-mt-14"> {/* This should be client-side */}
         <PlayCircle className="h-20 w-20" />
       </button>
 
+      {/* Watchlist Button */}
       <div className="right-5 top-5 absolute z-10">
         <Button variant="outline" size="icon" onClick={handleToggleWatchlist} disabled={isSavingWatchlist || loading}>
           <Heart className={`w-4 h-4 ${watchList ? "text-red-500" : ""}`} />
         </Button>
       </div>
 
+      {/* Film Details */}
       <div className="p-5 absolute bottom-0 left-0">
         {loading ? (
           // Skeleton loader for the film card content
@@ -228,6 +231,7 @@ export function FilmCard({
         )}
       </div>
 
+      {/* PlayVideoModal */}
       <PlayVideoModal
         youtubeUrl={youtubeUrl}
         key={filmId}
