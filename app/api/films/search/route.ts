@@ -1,30 +1,43 @@
-import { db } from '@/db/drizzle'; // Your db instance import
-import { film } from '@/db/schema'; // Your schema import
+import { db } from '@/db/drizzle'; // Database instance
+import { film } from '@/db/schema'; // Schema definition
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm'; // Import the sql expression helper
+import { sql } from 'drizzle-orm'; // SQL helper
+
+// Force this route to be dynamic
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url); // Get search parameters
-    const query = searchParams.get('query')?.toLowerCase().trim() || ''; // Handle empty or missing query
+    const { searchParams } = new URL(req.url); // Extract query parameters
+    const query = searchParams.get('query')?.toLowerCase().trim(); // Sanitize and normalize query
 
+    // Return an empty list if no query is provided
     if (!query) {
-      return NextResponse.json([]); // Return empty list if no query provided
+      return NextResponse.json({ message: 'No query provided', films: [] });
     }
 
-    // Construct the SQL query with an OR condition using ILIKE
+    // Use parameterized SQL query for better security
+    const queryPattern = `%${query}%`;
     const films = await db
       .select()
       .from(film)
       .where(
-        sql`(${film.title} ILIKE ${'%' + query + '%'} OR ${film.overview} ILIKE ${'%' + query + '%'})`
+        sql`(${film.title} ILIKE ${queryPattern} OR ${film.overview} ILIKE ${queryPattern})`
       )
       .limit(10)
       .execute();
 
-    return NextResponse.json(films); // Return the films found
+    // Return films or a message if no results are found
+    if (films.length === 0) {
+      return NextResponse.json({ message: 'No films found', films: [] });
+    }
+
+    return NextResponse.json({ films });
   } catch (error) {
-    console.error('Error during search:', error); // Log error for debugging
-    return NextResponse.json({ error: 'Failed to fetch films' }, { status: 500 });
+    console.error('Error during search:', error);
+    return NextResponse.json(
+      { error: 'An error occurred while fetching films. Please try again later.' },
+      { status: 500 }
+    );
   }
 }
