@@ -1,4 +1,3 @@
-'use client';
 import { FilmCard } from "@/app/components/FilmCard";
 import { db } from "@/db/drizzle";
 import { currentUser } from "@clerk/nextjs/server";

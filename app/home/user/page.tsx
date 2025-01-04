@@ -1,4 +1,3 @@
-'use client';
 import { auth } from "@clerk/nextjs/server";
 import { getUserData } from "@/app/api/getUser"; // Adjust the import path as needed
 import Image from "next/image";
