@@ -1,4 +1,3 @@
-
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";
@@ -11,20 +10,21 @@ export default async function HomeLayout({
 }: {
   children: ReactNode;
 }) {
+  const user = await currentUser();
 
-  if (!currentUser) {
+  if (!user) {
     return redirect("/sign-in");
   }
 
   return (
-    <>
-    <CategoryProvider>
-     <Navbar/>
-      <main className="w-full max-w-10xl mx-auto sm:px-6 lg:px-8">
+    <div className="flex flex-col min-h-screen">
+      <CategoryProvider>
+        <Navbar />
+      </CategoryProvider>
+      <main className="flex-grow w-full max-w-10xl mx-auto sm:px-6 lg:px-8">
         {children}
       </main>
       <Footer />
-      </CategoryProvider>
-    </>
+    </div>
   );
 }

@@ -15,6 +15,7 @@ interface Film {
   age: number;
   time: number; // Duration in minutes
   initialRatings: number;
+  category: string; // Add category here to pass to PlayVideoModal
 }
 
 async function fetchRecommendedFilms(userId: string) {
@@ -63,6 +64,7 @@ const RecommendedPage = () => {
           age={film.age}
           time={film.time}
           initialRatings={film.initialRatings}
+          category={film.category}
         />
       ))}
     </div>
