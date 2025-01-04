@@ -234,7 +234,7 @@ export async function getComedyFilms() {
 
 export async function getRecommendedFilms(userId: string): Promise<Film[]> {
   try {
-    const response = await fetch(`http://localhost:3000/api/recommendations?userId=${userId}`);
+    const response = await fetch(`https://guimbal-ifilm.vercel.app/api/recommendations?userId=${userId}`);
     const data = await response.json();
 
     return data.films.map((film: any) => ({
