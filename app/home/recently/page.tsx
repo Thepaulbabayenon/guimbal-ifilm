@@ -1,3 +1,4 @@
+'use client';
 import { FilmCard } from "@/app/components/FilmCard";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db/drizzle";
@@ -98,7 +99,6 @@ export default async function Recently() {
                     initialRatings={0}
                     watchList={false}
                     category={film.category || "Uncategorized"}
-                    onClick={() => {}}
                   />
                 </div>
               </div>

@@ -65,7 +65,6 @@ const SearchResults = () => {
                 age={film.age}
                 time={film.time}
                 initialRatings={film.initialRatings}
-                onClick={() => {}}
                 category={film.category}
               />
               <div

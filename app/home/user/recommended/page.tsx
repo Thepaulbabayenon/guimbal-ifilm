@@ -65,7 +65,6 @@ const RecommendedPage = () => {
           time={film.time}
           initialRatings={film.initialRatings}
           category={film.category}
-          onClick={() => {}}
         />
       ))}
     </div>

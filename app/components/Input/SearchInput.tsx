@@ -102,7 +102,6 @@ export default function SearchResultsPage() {
            time={film.duration}
            initialRatings={film.ratings}
            category={film.category}
-           onClick={() => setSelectedFilm(film)} // Set the selected film on click
          />
         ))}
       </div>

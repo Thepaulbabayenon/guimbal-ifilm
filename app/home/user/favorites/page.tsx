@@ -1,3 +1,4 @@
+'use client';
 import { FilmCard } from "@/app/components/FilmCard";
 import { db } from "@/db/drizzle";
 import { currentUser } from "@clerk/nextjs/server";
@@ -104,7 +105,6 @@ export default async function Favorites() {
                       initialRatings={0}
                       watchList={false}
                       category={film.category || "Unknown"}
-                      onClick={() => {}}
                     />
                   </div>
                 </div>

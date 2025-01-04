@@ -19,7 +19,6 @@ interface FilmCardProps {
   time: number;
   initialRatings: number;
   category: string;
-  onClick: () => void; // onClick event handler must be a client-side function
 }
 
 export function FilmCard({
@@ -34,7 +33,6 @@ export function FilmCard({
   time,
   initialRatings,
   category,
-  onClick, // Destructure onClick from props
 }: FilmCardProps) {
   const { user } = useUser();
   const userId = user?.id;
@@ -175,8 +173,8 @@ export function FilmCard({
 
   return (
     <>
-      {/* Client-side button for Play */}
-      <button onClick={onClick} className="-mt-14"> {/* This should be client-side */}
+      {/* Removed onClick from the button */}
+      <button className="-mt-14">
         <PlayCircle className="h-20 w-20" />
       </button>
 

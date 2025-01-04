@@ -1,3 +1,4 @@
+'use client';
 import { FilmCard } from "@/app/components/FilmCard";
 import { getAllFilms } from "@/app/api/getFilms"; // Importing the new function
 import { useUser } from "@clerk/nextjs"; // Import Clerk's hook
@@ -63,7 +64,6 @@ export default async function Watchlist() {
                         initialRatings={0}
                         watchList={false}
                         category={film?.category || "Uncategorized"} // Add this line
-                        onClick={() => {}}
                       />
                     )}
                   </div>

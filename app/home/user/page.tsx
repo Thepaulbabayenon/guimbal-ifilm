@@ -1,3 +1,4 @@
+'use client';
 import { auth } from "@clerk/nextjs/server";
 import { getUserData } from "@/app/api/getUser"; // Adjust the import path as needed
 import Image from "next/image";
@@ -76,7 +77,6 @@ export default async function Profile() {
           youtubeUrl={film.youtubeString || film.imageString || ""}
           initialRatings={0}
           category={film.category || "Unknown"}
-          onClick={() => console.log(`Clicked on ${film.title}`)}
         />
       ));
 
