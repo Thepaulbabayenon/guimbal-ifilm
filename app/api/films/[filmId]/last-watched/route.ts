@@ -1,32 +1,46 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { LastWatchedTime } from "../../../../../types/film"; // Assuming this is in types
+// app/api/films/[filmId]/last-watched/route.ts
+import { NextResponse } from 'next/server';
+import { LastWatchedTime } from '@/types/film'; // Ensure the correct path to your types
 
 // Mock functions to simulate saving and retrieving last watched time
 const saveLastWatchedTime = async (userId: string, filmId: number, time: number): Promise<void> => {
-  // Save to database or persistent storage
   console.log(`Saving last watched time for user ${userId} on film ${filmId}: ${time}s`);
 };
 
 const getLastWatchedTime = async (userId: string, filmId: number): Promise<number> => {
-  // Simulate fetching from database or persistent storage
   console.log(`Fetching last watched time for user ${userId} on film ${filmId}`);
-  return 120;  // Returning a mock value of 120 seconds
+  return 120; // Returning a mock value of 120 seconds
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { userId } = req.query;
-  const { filmId } = req.query;
+// Handle GET requests
+export async function GET(req: Request, { params }: { params: { filmId: string } }) {
+  const { filmId } = params;
+  const userId = req.headers.get('userId'); // Retrieve userId from headers or other means
 
-  if (req.method === "POST") {
-    const { time } = req.body;
-    await saveLastWatchedTime(userId as string, Number(filmId), time);
-    return res.status(200).json({ message: "Last watched time saved" });
+  if (!userId) {
+    return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
   }
 
-  if (req.method === "GET") {
-    const lastWatchedTime = await getLastWatchedTime(userId as string, Number(filmId));
-    return res.status(200).json({ lastWatchedTime });
+  const lastWatchedTime = await getLastWatchedTime(userId, Number(filmId));
+  return NextResponse.json({ lastWatchedTime });
+}
+
+// Handle POST requests
+export async function POST(req: Request, { params }: { params: { filmId: string } }) {
+  const { filmId } = params;
+  const userId = req.headers.get('userId'); // Retrieve userId from headers or other means
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
   }
 
-  res.status(405).json({ error: "Method Not Allowed" });
+  const body = await req.json();
+  const { time } = body;
+
+  if (typeof time !== 'number') {
+    return NextResponse.json({ error: 'Invalid time value' }, { status: 400 });
+  }
+
+  await saveLastWatchedTime(userId, Number(filmId), time);
+  return NextResponse.json({ message: 'Last watched time saved' });
 }
