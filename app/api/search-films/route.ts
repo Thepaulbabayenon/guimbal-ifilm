@@ -1,64 +1,54 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import { NextRequest, NextResponse } from "next/server"; // Use NextRequest and NextResponse for the new API structure
 import { db } from "@/db/drizzle"; // Your Drizzle connection
 import { film } from "@/db/schema"; // Assuming film is your schema
 import { sql } from "drizzle-orm"; // Import Drizzle SQL utilities
 
 // Utility function to sanitize query input
-const sanitizeQuery = (query: string) => {
-  return query.trim().replace(/[^\w\s]/gi, ''); // Remove special characters, keeping alphanumeric and spaces
+const sanitizeQuery = (query: string): string => {
+  return query.trim().replace(/[^\w\s]/gi, ""); // Remove special characters, keeping alphanumeric and spaces
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ message: "Method not allowed" });
-  }
+// Define film data type
+interface Film {
+  id: number;
+  title: string;
+  release: number;
+  // Add other fields that your film schema contains
+}
 
-  const { query, page = 1, limit = 10 } = req.query;
+// Define the GET function directly for Next.js API route
+export async function GET(req: NextRequest) {
+  const { searchParams } = req.nextUrl;
+  const query = searchParams.get("query");
+  const page = searchParams.get("page") || "1";
+  const limit = searchParams.get("limit") || "10";
 
-  // Log the incoming query parameter to debug
-  console.log("Request parameters: ", req.query);
-
-  // Validate query parameter
   if (!query || typeof query !== "string" || query.trim().length === 0) {
-    console.error("Invalid query:", query); // Log the error if invalid query is received
-    return res.status(400).json({ message: "Query parameter cannot be empty or invalid." });
+    return NextResponse.json({ message: "Query parameter cannot be empty or invalid." }, { status: 400 });
   }
 
-  const sanitizedQuery = sanitizeQuery(query as string);
-  console.log("Sanitized query:", sanitizedQuery); // Log the sanitized query to check its value
+  const sanitizedQuery = sanitizeQuery(query);
 
-  // Basic validation for pagination parameters (optional)
   const pageNumber = Math.max(Number(page), 1);
   const pageSize = Math.min(Math.max(Number(limit), 1), 50); // Max limit of 50 to prevent overload
-
-  console.log("Pagination:", pageNumber, pageSize);
 
   try {
     // Fetch films with a case-insensitive title match using Drizzle's relational query builder
     const results = await db.query.film.findMany({
-      where: (film, { ilike }) => ilike(film.title, `${sanitizedQuery}%`),
+      where: (film: any, { ilike }: { ilike: Function }) =>
+        ilike(film.title, `%${sanitizedQuery}%`),
       limit: pageSize,
       offset: (pageNumber - 1) * pageSize,
     });
 
-    console.log("films found:", results); // Log results for debugging
+    // Use raw SQL to count the total number of matching rows
+    const totalResultsQuery = await db.execute(
+      sql`SELECT COUNT(*) AS total FROM film WHERE LOWER(title) LIKE ${`%${sanitizedQuery.toLowerCase()}%`}`
+    );
 
-    // If no films are found
-    if (results.length === 0) {
-      return res.status(404).json({ message: "No films found matching your search." });
-    }
+    const totalResults = Number(totalResultsQuery.rows[0]?.total || 0);
 
-    // Count the total number of matching films
-    const countResults = await db.query.film.findMany({
-      where: (film, { ilike }) => ilike(film.title, `${sanitizedQuery}%`),
-      limit: 0, // No need to fetch data, just count rows
-    });
-    
-    const totalResults = countResults.length;
-    console.log("Total results count:", totalResults);
-
-    // Respond with films and pagination metadata
-    res.status(200).json({
+    return NextResponse.json({
       films: results,
       pagination: {
         currentPage: pageNumber,
@@ -68,6 +58,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error) {
     console.error("Error fetching films:", error);
-    res.status(500).json({ message: "Internal server error." });
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 }

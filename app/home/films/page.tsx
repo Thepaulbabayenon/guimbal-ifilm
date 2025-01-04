@@ -63,6 +63,7 @@ export default async function Watchlist() {
                         initialRatings={0}
                         watchList={false}
                         category={film?.category || "Uncategorized"} // Add this line
+                        onClick={() => {}}
                       />
                     )}
                   </div>

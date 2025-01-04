@@ -80,6 +80,7 @@ export default async function CategoryFilms() {
                         initialRatings={0}
                         watchList={false}
                         category={film?.category || "Uncategorized"}
+                        onClick={() => {}}
                       />
                     )}
                   </div>

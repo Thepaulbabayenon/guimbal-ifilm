@@ -76,6 +76,7 @@ export default async function RecentlyAdded() {
                   year={film.release}
                   category={film.category}
                   initialRatings={Number(film.averageRating) || 0} // Ensure that averageRating is always a number
+                  onClick={() => {}}
                 />
               </div>
             </div>

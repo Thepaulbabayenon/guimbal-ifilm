@@ -40,6 +40,7 @@ export async function getUserData(userEmail: string) {
       id: film.id,
       youtubeString: film.youtubeString,
       watchListId: watchLists.id,
+      category: film.category
     })
     .from(film)
     .leftJoin(watchLists, eq(film.id, watchLists.filmId))
@@ -54,6 +55,7 @@ export async function getUserData(userEmail: string) {
       overview: film.overview,
       release: film.release,
       id: film.id,
+      category: film.category
     })
     .from(film)
     .orderBy(desc(film.release))
@@ -68,6 +70,7 @@ export async function getUserData(userEmail: string) {
       overview: film.overview,
       release: film.release,
       id: film.id,
+      category: film.category
     })
     .from(film)
     .leftJoin(userInteractions, eq(film.id, userInteractions.filmId))

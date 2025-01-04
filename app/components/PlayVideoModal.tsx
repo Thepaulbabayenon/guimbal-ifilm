@@ -187,8 +187,8 @@ export default function PlayVideoModal({
 
   return (
     <Dialog open={state} onOpenChange={() => changeState(!state)}>
-      <DialogContent 
-        ref={dialogRef} 
+      <DialogContent
+        ref={dialogRef}
         className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto p-4"
         style={{ width: `${modalWidth}px`, height: `${modalHeight}px` }}
       >
@@ -281,4 +281,3 @@ export default function PlayVideoModal({
     </Dialog>
   );
 }
-

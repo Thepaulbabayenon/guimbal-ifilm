@@ -68,6 +68,8 @@ export default async function Profile() {
                     year={film.release}
                     youtubeUrl={film.youtubeString}
                     initialRatings={0} // Use initialRatings instead of ratings
+                    category={film.category || 'unknown'} // Add category, default to 'unknown' if missing
+                    onClick={() => console.log(`Clicked on ${film.title}`)} // Add onClick function
                   />
                 ))}
               </div>
@@ -91,6 +93,8 @@ export default async function Profile() {
                     year={film.release}
                     youtubeUrl={film.imageString} // Assuming imageString is the correct property
                     initialRatings={0} // Use initialRatings instead of ratings
+                    category={film.category || 'unknown'} // Add category, default to 'unknown' if missing
+                    onClick={() => console.log(`Clicked on ${film.title}`)} // Add onClick function
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-70 transition-opacity duration-300 flex items-center justify-center text-center text-white p-4">
                     <p className="text-lg font-semibold">{film.title}</p>
@@ -120,6 +124,8 @@ export default async function Profile() {
                     year={film.release}
                     youtubeUrl={film.imageString} // Assuming imageString is the correct property
                     initialRatings={0} // Use initialRatings instead of ratings
+                    category={film.category || 'unknown'} // Add category, default to 'unknown' if missing
+                    onClick={() => console.log(`Clicked on ${film.title}`)} // Add onClick function
                   />
                 ))}
               </div>

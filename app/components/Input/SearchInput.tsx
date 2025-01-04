@@ -8,6 +8,7 @@ import PlayVideoModal from "../PlayVideoModal";
 export default function SearchResultsPage() {
   const [query, setQuery] = useState<string>(""); // Search query
   const [films, setFilms] = useState<any[]>([]); // Store film results
+  const [selectedFilm, setSelectedFilm] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(false); // Loading state
   const [error, setError] = useState<string | null>(null); // Error state
   const [pagination, setPagination] = useState({
@@ -89,18 +90,20 @@ export default function SearchResultsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {films.map((film) => (
-          <FilmCard
-            key={film.id}
-            filmId={film.id}
-            title={film.title}
-            overview={film.overview}
-            watchList={film.watchList}
-            youtubeUrl={film.youtubeUrl}
-            year={film.year}
-            age={film.age}
-            time={film.duration}
-            initialRatings={film.ratings}
-          />
+           <FilmCard
+           key={film.id}
+           filmId={film.id}
+           title={film.title}
+           overview={film.overview}
+           watchList={film.watchList}
+           youtubeUrl={film.youtubeUrl}
+           year={film.year}
+           age={film.age}
+           time={film.duration}
+           initialRatings={film.ratings}
+           category={film.category}
+           onClick={() => setSelectedFilm(film)} // Set the selected film on click
+         />
         ))}
       </div>
 
@@ -127,17 +130,18 @@ export default function SearchResultsPage() {
       )}
 
       <PlayVideoModal
-        youtubeUrl=""
+        youtubeUrl={selectedFilm?.youtubeUrl || ""}
         key={pagination.currentPage}
-        title=""
-        overview=""
+        title={selectedFilm?.title || ""}
+        overview={selectedFilm?.overview || ""}
         state={open}
         changeState={setOpen}
-        age={0}
-        duration={0}
-        release={0}
-        ratings={0}
+        age={selectedFilm?.age || 0}
+        duration={selectedFilm?.duration || 0}
+        release={selectedFilm?.release || 0}
+        ratings={selectedFilm?.ratings || 0}
         setUserRating={() => {}}
+        category={selectedFilm?.category || ""} // Pass category here
       />
     </div>
   );

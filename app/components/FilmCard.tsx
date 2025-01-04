@@ -19,6 +19,7 @@ interface FilmCardProps {
   time: number;
   initialRatings: number;
   category: string;
+  onClick: () => void; // Add onClick prop to FilmCardProps
 }
 
 export function FilmCard({
@@ -33,6 +34,7 @@ export function FilmCard({
   time,
   initialRatings,
   category,
+  onClick, // Destructure onClick from props
 }: FilmCardProps) {
   const { user } = useUser();
   const userId = user?.id;
@@ -173,7 +175,7 @@ export function FilmCard({
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="-mt-14">
+      <button onClick={onClick} className="-mt-14"> {/* Use the onClick prop here */}
         <PlayCircle className="h-20 w-20" />
       </button>
 

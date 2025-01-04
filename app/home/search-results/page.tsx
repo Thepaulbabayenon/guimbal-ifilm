@@ -65,6 +65,8 @@ const SearchResults = () => {
                 age={film.age}
                 time={film.time}
                 initialRatings={film.initialRatings}
+                onClick={() => {}}
+                category={film.category}
               />
               <div
                 onClick={() => handleFilmClick(film)}
@@ -92,6 +94,7 @@ const SearchResults = () => {
           release={selectedFilm.year}
           ratings={selectedFilm.initialRatings}
           setUserRating={() => {}}
+          category={selectedFilm.category}
         />
       )}
     </div>

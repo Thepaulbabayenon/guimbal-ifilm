@@ -119,6 +119,7 @@ export default async function Favorites() {
                           initialRatings={0}
                           watchList={false}
                           category={film?.category || "Unknown"} // Pass category with fallback
+                          onClick={() => {}}
                         />
                       )}
                     </div>

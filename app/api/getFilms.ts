@@ -275,7 +275,7 @@ export async function getDramaFilms() {
       videoSource: film.videoSource,
       category: film.category,
       youtubeString: film.youtubeString,
-      rank: film.rank,
+      rank: film.rank
     })
     .from(film)
     .where(eq(film.category, 'Drama')) // Filter by category "Drama"
