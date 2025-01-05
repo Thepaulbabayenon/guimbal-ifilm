@@ -174,7 +174,7 @@ export function FilmCard({
   return (
     <>
       {/* Removed onClick from the button */}
-      <button className="-mt-14">
+      <button onClick={() => setOpen(true)} className="-mt-14">
         <PlayCircle className="h-20 w-20" />
       </button>
 
