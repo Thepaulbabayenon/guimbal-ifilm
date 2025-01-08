@@ -1,103 +1,62 @@
-// app/search-results/page.tsx
+'use client';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-"use client";
+const SearchResultsPage: React.FC = () => {
+  const searchParams = useSearchParams();
+  const query = searchParams.get('query') || ''; // Get the query from the URL
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation"; // To get search params from the URL
-import { FilmCard } from "@/app/components/FilmCard"; // Import your FilmCard component
-import PlayVideoModal from "@/app/components/PlayVideoModal";
-import axios from "axios";
-
-const SearchResults = () => {
-  const searchParams = useSearchParams(); // Get search params from the URL
-  const query = searchParams.get("query") || ""; // Default to empty string if no query
-  const [films, setFilms] = useState<any[]>([]); // State to store fetched films
-  const [error, setError] = useState<string | null>(null); // State to handle errors
-  const [selectedFilm, setSelectedFilm] = useState<any | null>(null); // Store selected film for PlayVideoModal
-  const [isModalOpen, setIsModalOpen] = useState(false); // State to manage modal visibility
-
-  // Fetch films based on the search query
   useEffect(() => {
-    const fetchFilms = async () => {
+    if (!query) return;
+
+    const fetchResults = async () => {
+      setLoading(true);
       try {
-        const response = await axios.get(`/api/search-films?query=${query}`);
-        if (response.data) {
-          setFilms(response.data);
-        } else {
-          setFilms([]);
-        }
-      } catch (err) {
-        setError("Error fetching films.");
-        console.error(err);
+        const response = await fetch(`/api/films/search?query=${query}`);
+        const data = await response.json();
+        setResults(data.films || []); // Use films array from API response
+      } catch (error) {
+        console.error('Error fetching search results:', error);
+        setResults([]);
       }
+      setLoading(false);
     };
 
-    if (query) {
-      fetchFilms();
-    }
+    fetchResults();
   }, [query]);
 
-  // Handle film card click to open the modal
-  const handleFilmClick = (film: any) => {
-    setSelectedFilm(film); // Store the clicked film
-    setIsModalOpen(true); // Open the modal
-  };
-
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-semibold mb-4">Search Results for "{query}"</h1>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-4">Search Results for "{query}"</h1>
 
-      {/* Display error message */}
-      {error && <p className="text-red-500">{error}</p>}
+      {loading && <p className="text-gray-500">Loading...</p>}
 
-      {/* Display films if available */}
-      {films.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {films.map((film: any) => (
-            <div key={film.id} className="relative">
-              <FilmCard
-                filmId={film.id}
-                overview={film.overview}
-                title={film.title}
-                watchList={film.watchList}
-                youtubeUrl={film.youtubeUrl}
-                year={film.year}
-                age={film.age}
-                time={film.time}
-                initialRatings={film.initialRatings}
-                category={film.category}
+      {!loading && results.length === 0 && (
+        <p className="text-gray-500">No results found for "{query}".</p>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {results.map((result: any) => (
+          <div
+            key={result.id}
+            className="border rounded-lg p-4 shadow hover:shadow-lg transition"
+          >
+            <a href={`/films/${result.id}`}>
+              <img
+                src={result.imageString}
+                alt={result.title}
+                className="w-full h-48 object-cover rounded-lg mb-4"
               />
-              <div
-                onClick={() => handleFilmClick(film)}
-                className="absolute inset-0 bg-black opacity-50 flex justify-center items-center cursor-pointer"
-              >
-                <span className="text-white">Play Video</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p>No films found.</p>
-      )}
-
-      {/* Film Video Modal */}
-      {selectedFilm && (
-        <PlayVideoModal
-          youtubeUrl={selectedFilm.youtubeUrl}
-          title={selectedFilm.title}
-          overview={selectedFilm.overview}
-          state={isModalOpen}
-          changeState={setIsModalOpen}
-          age={selectedFilm.age}
-          duration={selectedFilm.time}
-          release={selectedFilm.year}
-          ratings={selectedFilm.initialRatings}
-          setUserRating={() => {}}
-          category={selectedFilm.category}
-        />
-      )}
+              <h2 className="text-lg font-semibold">{result.title}</h2>
+              <p className="text-sm text-gray-500">{result.overview}</p>
+            </a>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
-export default SearchResults;
+export default SearchResultsPage;

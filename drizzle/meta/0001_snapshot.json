@@ -1,6 +1,6 @@
 {
-  "id": "52ced759-46d8-49d4-9a81-39e6ba334706",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "3cb7bfa2-c9f2-43d7-bac9-feb15ccaeff4",
+  "prevId": "80f1b697-923f-449a-a681-5b7f609dde23",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -353,6 +353,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "0"
+        },
+        "averageRating": {
+          "name": "averageRating",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -822,6 +828,48 @@
       },
       "uniqueConstraints": {}
     },
+    "public.watchHistory": {
+      "name": "watchHistory",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "filmId": {
+          "name": "filmId",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "watchedDuration": {
+          "name": "watchedDuration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "public.watchLists": {
       "name": "watchLists",
       "schema": "",
@@ -879,6 +927,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "currentTimestamp": {
+          "name": "currentTimestamp",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
         }
       },
       "indexes": {},

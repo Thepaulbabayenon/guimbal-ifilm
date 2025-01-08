@@ -1,23 +1,23 @@
-import { db } from '@/db/drizzle'; // Database instance
-import { film } from '@/db/schema'; // Schema definition
+import { db } from '@/db/drizzle';
+import { film } from '@/db/schema';
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from 'drizzle-orm'; // SQL helper
+import { sql } from 'drizzle-orm';
 
-// Force this route to be dynamic
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url); // Extract query parameters
-    const query = searchParams.get('query')?.toLowerCase().trim(); // Sanitize and normalize query
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.get('query')?.toLowerCase().trim();
 
-    // Return an empty list if no query is provided
     if (!query) {
       return NextResponse.json({ message: 'No query provided', films: [] });
     }
 
-    // Use parameterized SQL query for better security
     const queryPattern = `%${query}%`;
+    console.log("Query Parameter:", query); // Debug
+    console.log("Query Pattern:", queryPattern); // Debug
+
     const films = await db
       .select()
       .from(film)
@@ -27,9 +27,10 @@ export async function GET(req: NextRequest) {
       .limit(10)
       .execute();
 
-    // Return films or a message if no results are found
+    console.log("Query Results:", films); // Debug
+
     if (films.length === 0) {
-      return NextResponse.json({ message: 'No films found', films: [] });
+      return NextResponse.json({ message: `No films found for query "${query}"`, films: [] });
     }
 
     return NextResponse.json({ films });

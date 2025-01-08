@@ -11,6 +11,7 @@ import {
   primaryKey,
   boolean,
   uuid,
+  real,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import z from 'zod';
@@ -122,6 +123,7 @@ export const film = pgTable('film', {
   coDirector: varchar('coDirector').notNull(),
   studio: varchar('studio').notNull(),
   rank: integer('rank').default(sql`0`).notNull(),  // Default rank
+  averageRating: real('averageRating'),
 });
 export const movie = pgTable('movie', {
   id: serial('id').primaryKey(),
@@ -259,6 +261,17 @@ export const comments = pgTable(
     createdAt: timestamp('createdAt').defaultNow().notNull(),  // Timestamp for when the comment was made
   }
 );
+
+
+
+export const watchHistory = pgTable('watchHistory', {
+  id: serial('id').primaryKey(),
+  userId: varchar('userId').notNull(),
+  filmId: varchar('filmId').notNull(),
+  watchedDuration: integer('watchedDuration').default(0),
+  createdAt: timestamp('createdAt').defaultNow(),
+});
+
 
 
 // Relations Definitions

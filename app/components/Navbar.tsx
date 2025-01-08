@@ -1,12 +1,12 @@
 "use client";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Logo from "../../public/logo.svg";
-import { usePathname, useSelectedLayoutSegment } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bell, Menu, X } from "lucide-react";
-import UserNav from "./UserNav";
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { debounce } from "lodash";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CategoryDropdown } from "./CategoryDropdown";
 import { useCategory } from "@/app/context/categoryContext";
+import UserNav from "./UserNav";
 
 interface LinkProps {
   name: string;
@@ -33,14 +34,17 @@ const links: LinkProps[] = [
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
+  const [query, setQuery] = useState<string>("");
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const router = useRouter();
   const { selectedCategory, setSelectedCategory } = useCategory(); // Access category context
-  const segment = useSelectedLayoutSegment();
-  const pathName = usePathname();
-  const isProfilePage = segment === "user";
+  const pathName = usePathname(); // Use pathName to determine current route
+  const isProfilePage = pathName.includes("/user");
 
   useEffect(() => {
     const handleScroll = () => {
@@ -56,15 +60,42 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
-  if (isProfilePage) {
-    return null; // Don't render navbar on profile pages
-  }
+  const handleSearch = debounce(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setResults([]);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/films/search?query=${searchQuery}`);
+      const data = await response.json();
+      setResults(data.films || []);
+    } catch (error) {
+      console.error("Search error:", error);
+      setResults([]);
+    }
+
+    setLoading(false);
+  }, 500);
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(event.target.value);
+    handleSearch(event.target.value);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && query.trim()) {
+      router.push(`/home/search-results?query=${encodeURIComponent(query)}`);
+    }
+  };
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
+  if (isProfilePage) {
+    return null; // Don't render navbar on profile pages
+  }
 
   return (
     <>
@@ -97,13 +128,49 @@ export default function Navbar() {
             ))}
           </ul>
           <div className="mt-4 flex flex-col items-center w-full px-6">
-            <input
-              type="text"
-              placeholder="Search films..."
-              className="w-full p-2 text-sm bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              value={searchQuery}
-              onChange={handleSearch}
-            />
+            <div className="relative max-w-lg mx-auto mt-4">
+              <input
+                type="text"
+                className="p-1 pl-8 pr-3 text-xs bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                placeholder="Search for films..."
+                value={query}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+              />
+              {loading && (
+                <div className="absolute top-full left-0 w-full py-2 text-center text-gray-500">
+                  Loading...
+                </div>
+              )}
+              <div className="absolute top-full left-0 w-full mt-2 r border-gray-200 rounded-lg shadow-md z-10">
+                {results && results.length > 0 ? (
+                  <ul className="max-h-64 overflow-y-auto">
+                    {results.map((result: any) => (
+                      <li
+                        key={result.id}
+                        className="px-4 py-2 border-b border-gray-200 hover:bg-gray-100"
+                      >
+                        <a
+                          href={`/films/${result.id}`}
+                          className="block text-gray-800"
+                        >
+                          <div className="font-semibold text-lg">
+                            {result.title}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {result.overview}
+                          </div>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : query && !loading ? (
+                  <div className="px-4 py-2 text-center text-gray-500">
+                    No results found
+                  </div>
+                ) : null}
+              </div>
+            </div>
             <div className="mt-4">
               <UserNav />
             </div>
@@ -120,10 +187,9 @@ export default function Navbar() {
           isScrolled ? "bg-black bg-opacity-80" : "bg-transparent"
         }`}
       >
-        {/* Logo and Links */}
         <div className="flex items-center">
           <Link href="/home" className="w-24">
-            <Image src={Logo} alt="Logo" priority width={50} height={50} />
+            <Image src={Logo} alt="Logo" priority width={60} height={60} />
           </Link>
           <ul className="lg:flex gap-x-4 ml-10 hidden">
             {links.map((link, idx) => (
@@ -150,20 +216,53 @@ export default function Navbar() {
             ))}
           </ul>
         </div>
-
-        {/* Right Actions */}
-        <div className="hidden lg:flex items-center gap-x-6">
-          <CategoryDropdown
-            categories={["Comedy", "Drama", "Folklore", "Horror"]}
-             // Update category in context
-          />
-          <input
-            type="text"
-            placeholder="Search films..."
-            className="p-1 pl-8 pr-3 text-xs bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            value={searchQuery}
-            onChange={handleSearch}
-          />
+        <div className="hidden lg:flex items-center gap-x-4">
+          <div className="flex items-center gap-x-4">
+            <CategoryDropdown categories={["Comedy", "Drama", "Folklore", "Horror"]} />
+            <div className="relative max-w-lg">
+              <input
+                type="text"
+                className="p-1 pl-8 pr-3 text-xs bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                placeholder="Search for films..."
+                value={query}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+              />
+              {loading && (
+                <div className="absolute top-full left-0 w-full py-2 text-center text-gray-500">
+                  Loading...
+                </div>
+              )}
+              <div className="absolute top-full left-0 w-full mt-2 r border-gray-200 rounded-lg shadow-md z-10">
+                {results && results.length > 0 ? (
+                  <ul className="max-h-64 overflow-y-auto">
+                    {results.map((result: any) => (
+                      <li
+                        key={result.id}
+                        className="px-4 py-2 border-b border-gray-200 hover:bg-gray-100"
+                      >
+                        <a
+                          href={`/films/${result.id}`}
+                          className="block text-gray-800"
+                        >
+                          <div className="font-semibold text-lg">
+                            {result.title}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {result.overview}
+                          </div>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : query && !loading ? (
+                  <div className="px-4 py-2 text-center text-gray-500">
+                    No results found
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger>
               <Bell className="h-4 w-4 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-110" />
@@ -182,4 +281,3 @@ export default function Navbar() {
     </>
   );
 }
-

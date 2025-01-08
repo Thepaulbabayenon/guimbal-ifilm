@@ -1,12 +1,13 @@
 'use client';
 import React, { useState } from 'react';
-import { debounce } from 'lodash'; // For debouncing the search query
+import { useRouter } from 'next/navigation';
+import { debounce } from 'lodash';
 
-// SearchBar Component
-const SearchBar: React.FC = () => {
+export const SearchBar: React.FC = () => {
   const [query, setQuery] = useState<string>('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const router = useRouter();
 
   // Debounce the search query
   const handleSearch = debounce(async (searchQuery: string) => {
@@ -20,33 +21,41 @@ const SearchBar: React.FC = () => {
     try {
       const response = await fetch(`/api/films/search?query=${searchQuery}`);
       const data = await response.json();
-      setResults(data);
+      setResults(data.films || []); // Use films array from API response
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
     }
 
     setLoading(false);
-  }, 500); // Debounce delay of 500ms
+  }, 500);
 
   // Handle input change
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
-    handleSearch(event.target.value); // Trigger search on input change
+    handleSearch(event.target.value);
+  };
+
+  // Redirect to search-results page on pressing "Enter"
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && query.trim()) {
+      router.push(`/home/search-results?query=${encodeURIComponent(query)}`);
+    }
   };
 
   return (
     <div className="relative max-w-lg mx-auto mt-4">
       <input
         type="text"
-        className="w-full p-3 pl-10 pr-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="p-1 pl-8 pr-3 text-xs bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
         placeholder="Search for films..."
         value={query}
         onChange={handleChange}
+        onKeyDown={handleKeyDown} // Redirect on Enter
       />
       {loading && <div className="absolute top-full left-0 w-full py-2 text-center text-gray-500">Loading...</div>}
 
-      <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-md z-10">
+      <div className="absolute top-full left-0 w-full mt-2 r border-gray-200 rounded-lg shadow-md z-10">
         {results && results.length > 0 ? (
           <ul className="max-h-64 overflow-y-auto">
             {results.map((result: any) => (
@@ -65,5 +74,3 @@ const SearchBar: React.FC = () => {
     </div>
   );
 };
-
-export default SearchBar;

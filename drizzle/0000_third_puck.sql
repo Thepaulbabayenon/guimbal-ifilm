@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS "watchedFilms" (
 	"userId" text NOT NULL,
 	"filmId" integer NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL,
+	"currentTimestamp" double precision DEFAULT 0,
 	CONSTRAINT "watchedFilms_userId_filmId_pk" PRIMARY KEY("userId","filmId")
 );
 --> statement-breakpoint
