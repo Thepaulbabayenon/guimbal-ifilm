@@ -15,8 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CategoryDropdown } from "./CategoryDropdown";
-import { useCategory } from "@/app/context/categoryContext";
 import UserNav from "./UserNav";
 
 interface LinkProps {
@@ -42,9 +40,9 @@ export default function Navbar() {
   const [loading, setLoading] = useState<boolean>(false);
 
   const router = useRouter();
-  const { selectedCategory, setSelectedCategory } = useCategory(); // Access category context
   const pathName = usePathname(); // Use pathName to determine current route
   const isProfilePage = pathName.includes("/user");
+  const isUploadPage = pathName.includes("/home/upload");
 
   useEffect(() => {
     const handleScroll = () => {
@@ -94,6 +92,9 @@ export default function Navbar() {
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 
   if (isProfilePage) {
+    return null; // Don't render navbar on profile pages
+  }
+  if (isUploadPage) {
     return null; // Don't render navbar on profile pages
   }
 
@@ -217,50 +218,47 @@ export default function Navbar() {
           </ul>
         </div>
         <div className="hidden lg:flex items-center gap-x-4">
-          <div className="flex items-center gap-x-4">
-            <CategoryDropdown categories={["Comedy", "Drama", "Folklore", "Horror"]} />
-            <div className="relative max-w-lg">
-              <input
-                type="text"
-                className="p-1 pl-8 pr-3 text-xs bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                placeholder="Search for films..."
-                value={query}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
-              />
-              {loading && (
-                <div className="absolute top-full left-0 w-full py-2 text-center text-gray-500">
-                  Loading...
-                </div>
-              )}
-              <div className="absolute top-full left-0 w-full mt-2 r border-gray-200 rounded-lg shadow-md z-10">
-                {results && results.length > 0 ? (
-                  <ul className="max-h-64 overflow-y-auto">
-                    {results.map((result: any) => (
-                      <li
-                        key={result.id}
-                        className="px-4 py-2 border-b border-gray-200 hover:bg-gray-100"
-                      >
-                        <a
-                          href={`/films/${result.id}`}
-                          className="block text-gray-800"
-                        >
-                          <div className="font-semibold text-lg">
-                            {result.title}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {result.overview}
-                          </div>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : query && !loading ? (
-                  <div className="px-4 py-2 text-center text-gray-500">
-                    No results found
-                  </div>
-                ) : null}
+          <div className="relative max-w-lg">
+            <input
+              type="text"
+              className="p-1 pl-8 pr-3 text-xs bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              placeholder="Search for films..."
+              value={query}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+            />
+            {loading && (
+              <div className="absolute top-full left-0 w-full py-2 text-center text-gray-500">
+                Loading...
               </div>
+            )}
+            <div className="absolute top-full left-0 w-full mt-2 r border-gray-200 rounded-lg shadow-md z-10">
+              {results && results.length > 0 ? (
+                <ul className="max-h-64 overflow-y-auto">
+                  {results.map((result: any) => (
+                    <li
+                      key={result.id}
+                      className="px-4 py-2 border-b border-gray-200 hover:bg-gray-100"
+                    >
+                      <a
+                        href={`/films/${result.id}`}
+                        className="block text-gray-800"
+                      >
+                        <div className="font-semibold text-lg">
+                          {result.title}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {result.overview}
+                        </div>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : query && !loading ? (
+                <div className="px-4 py-2 text-center text-gray-500">
+                  No results found
+                </div>
+              ) : null}
             </div>
           </div>
           <DropdownMenu>

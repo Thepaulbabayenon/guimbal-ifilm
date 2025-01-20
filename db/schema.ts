@@ -232,6 +232,14 @@ export const userRatings = pgTable(
   })
 );
 
+// File table
+export const filesTable = pgTable("files", {
+  id: serial("id").primaryKey(),
+  fileName: varchar("file_name", { length: 255 }),
+  s3Url: varchar("s3_url", { length: 500 }),
+  uploadDate: varchar("upload_date", { length: 50 }),
+});
+
 // Zod Schema for Inserting Films
 export const insertFilmSchema = z.object({
   imageString: z.string().min(1),
