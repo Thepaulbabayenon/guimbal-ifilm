@@ -46,7 +46,7 @@ export default function PlayVideoModal({
   userId,
   filmId,
   markAsWatched,
-  watchTimerDuration = 30000, 
+  watchTimerDuration = 60000, // Default to 60 seconds
 }: PlayVideoModalProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoverRating, setHoverRating] = useState<number>(0);
@@ -58,9 +58,9 @@ export default function PlayVideoModal({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const watchTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer to track watch time
-  const [modalWidth, setModalWidth] = useState(425);
-  const [modalHeight, setModalHeight] = useState(600); 
+  const [modalWidth, setModalWidth] = useState(425); // Set initial width of the modal
+  const [modalHeight, setModalHeight] = useState(600); // Set initial height of the modal
+  const [watchTime, setWatchTime] = useState(0); // Track the watch time in seconds
 
   // Resizing logic
   const isResizing = useRef(false);
@@ -78,8 +78,8 @@ export default function PlayVideoModal({
     if (!isResizing.current || !dialogRef.current) return;
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
-    setModalWidth((prevWidth) => Math.max(prevWidth + dx, 300));
-    setModalHeight((prevHeight) => Math.max(prevHeight + dy, 300));
+    setModalWidth((prevWidth) => Math.max(prevWidth + dx, 300)); // Prevent shrinking too small
+    setModalHeight((prevHeight) => Math.max(prevHeight + dy, 300)); // Prevent shrinking too small
     startX.current = e.clientX;
     startY.current = e.clientY;
   };
@@ -165,21 +165,37 @@ export default function PlayVideoModal({
     }
 
     if (state && !hasWatched && userId && filmId && markAsWatched) {
-      watchTimerRef.current = setTimeout(() => {
-        markAsWatched(userId, filmId);
-        setHasWatched(true); 
-      }, 60000); // 1 minute (60,000 milliseconds)
+      // Set up the timer to mark as watched after the specified duration
+      timerRef.current = setTimeout(() => {
+        markAsWatched(userId, filmId); // Call the API to mark the film as watched
+        setHasWatched(true); // Set the hasWatched state to true after 60 seconds
+      }, watchTimerDuration);
     }
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
-      if (watchTimerRef.current) {
-        clearTimeout(watchTimerRef.current); // Cleanup the watch timer
-      }
     };
-  }, [state, hasWatched, markAsWatched, userId, filmId, category]);
+  }, [state, hasWatched, markAsWatched, userId, filmId, category, watchTimerDuration]);
+
+  // Function to track video watch time and trigger the API call after 60 seconds
+  useEffect(() => {
+    const video = iframeRef.current;
+    if (video) {
+      const interval = setInterval(() => {
+        const currentTime = video.currentTime;
+        setWatchTime(currentTime);
+
+        if (currentTime >= 60 && !hasWatched) {
+          markAsWatched(userId, filmId);
+          setHasWatched(true); // Mark as watched after 60 seconds
+        }
+      }, 1000); // Check every second
+
+      return () => clearInterval(interval);
+    }
+  }, [hasWatched, userId, filmId, markAsWatched]);
 
   const handleIframeLoad = () => {
     setLoading(false);
