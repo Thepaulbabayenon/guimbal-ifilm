@@ -167,7 +167,9 @@ export default function PlayVideoModal({
     if (state && !hasWatched && userId && filmId && markAsWatched) {
       // Set up the timer to mark as watched after the specified duration
       timerRef.current = setTimeout(() => {
-        markAsWatched(userId, filmId); // Call the API to mark the film as watched
+        if (markAsWatched && userId && filmId) {
+          markAsWatched(userId, filmId); // Call the API to mark the film as watched
+        }
         setHasWatched(true); // Set the hasWatched state to true after 60 seconds
       }, watchTimerDuration);
     }
@@ -181,19 +183,24 @@ export default function PlayVideoModal({
 
   // Function to track video watch time and trigger the API call after 60 seconds
   useEffect(() => {
-    const video = iframeRef.current;
-    if (video) {
-      const interval = setInterval(() => {
-        const currentTime = video.currentTime;
-        setWatchTime(currentTime);
+    const iframe = iframeRef.current;
+    if (iframe && iframe.contentWindow) {
+      const video = iframe.contentWindow.document.querySelector('video');
+      if (video) {
+        const interval = setInterval(() => {
+          const currentTime = video.currentTime;
+          setWatchTime(currentTime);
 
-        if (currentTime >= 60 && !hasWatched) {
-          markAsWatched(userId, filmId);
-          setHasWatched(true); // Mark as watched after 60 seconds
-        }
-      }, 1000); // Check every second
+          if (currentTime >= 60 && !hasWatched) {
+            if (markAsWatched && userId && filmId) {
+              markAsWatched(userId, filmId); // Call the API to mark the film as watched
+            }
+            setHasWatched(true); // Mark as watched after 60 seconds
+          }
+        }, 1000); // Check every second
 
-      return () => clearInterval(interval);
+        return () => clearInterval(interval);
+      }
     }
   }, [hasWatched, userId, filmId, markAsWatched]);
 
@@ -296,7 +303,7 @@ export default function PlayVideoModal({
         <div
           className="absolute bottom-2 right-2 w-4 h-4 bg-gray-600 cursor-se-resize"
           onMouseDown={onMouseDownResize}
-        />
+        ></div>
       </DialogContent>
     </Dialog>
   );
