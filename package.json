@@ -65,8 +65,9 @@
     "drizzle-orm": "^0.33.0",
     "embla-carousel-autoplay": "^8.3.0",
     "embla-carousel-react": "^8.3.0",
+    "formidable": "^3.5.2",
     "framer-motion": "^11.9.0",
-    "hono": "^4.6.9",
+    "hono": "^4.6.17",
     "input-otp": "^1.2.4",
     "jsonwebtoken": "^9.0.2",
     "k6": "^0.0.0",
@@ -74,6 +75,7 @@
     "lucide-react": "^0.446.0",
     "next": "14.2.13",
     "next-cloudinary": "^6.16.0",
+    "next-connect": "^1.0.0-next.4",
     "next-themes": "^0.3.0",
     "punycode": "^2.3.1",
     "react": "^18",
@@ -98,6 +100,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/formidable": "^3.4.5",
     "@types/k6": "^0.54.1",
     "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^20",
