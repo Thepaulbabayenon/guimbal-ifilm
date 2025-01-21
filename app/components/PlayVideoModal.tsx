@@ -9,8 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FaStar } from "react-icons/fa";
-import { db } from "@/db/drizzle"; 
-import { film, comments } from "@/db/schema"; 
+import { db } from "@/db/drizzle";
+import { film, comments } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 
 interface PlayVideoModalProps {
@@ -46,7 +46,7 @@ export default function PlayVideoModal({
   userId,
   filmId,
   markAsWatched,
-  watchTimerDuration = 60000, // Default to 60 seconds
+  watchTimerDuration = 30000, 
 }: PlayVideoModalProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoverRating, setHoverRating] = useState<number>(0);
@@ -60,7 +60,6 @@ export default function PlayVideoModal({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [modalWidth, setModalWidth] = useState(425); // Set initial width of the modal
   const [modalHeight, setModalHeight] = useState(600); // Set initial height of the modal
-  const [watchTime, setWatchTime] = useState(0); // Track the watch time in seconds
 
   // Resizing logic
   const isResizing = useRef(false);
@@ -114,8 +113,29 @@ export default function PlayVideoModal({
 
   const modifiedTrailerUrl = trailerUrl.replace("watch?v=", "embed/");
 
-  const handleRatingClick = (rating: number) => {
+  const handleRatingClick = async (rating: number) => {
     setUserRating(rating);
+    if (userId && filmId) {
+      try {
+        // POST request to the API to save rating and mark the film as watched
+        const response = await fetch("/api/rate-film", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId, filmId, rating }),
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          console.log("Rating and watch status saved:", data);
+        } else {
+          console.error("Failed to save rating:", data.error);
+        }
+      } catch (error) {
+        console.error("Error posting rating:", error);
+      }
+    }
   };
 
   const handleAddComment = async () => {
@@ -165,12 +185,9 @@ export default function PlayVideoModal({
     }
 
     if (state && !hasWatched && userId && filmId && markAsWatched) {
-      // Set up the timer to mark as watched after the specified duration
       timerRef.current = setTimeout(() => {
-        if (markAsWatched && userId && filmId) {
-          markAsWatched(userId, filmId); // Call the API to mark the film as watched
-        }
-        setHasWatched(true); // Set the hasWatched state to true after 60 seconds
+        markAsWatched(userId, filmId);
+        setHasWatched(true); 
       }, watchTimerDuration);
     }
 
@@ -180,29 +197,6 @@ export default function PlayVideoModal({
       }
     };
   }, [state, hasWatched, markAsWatched, userId, filmId, category, watchTimerDuration]);
-
-  // Function to track video watch time and trigger the API call after 60 seconds
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (iframe && iframe.contentWindow) {
-      const video = iframe.contentWindow.document.querySelector('video');
-      if (video) {
-        const interval = setInterval(() => {
-          const currentTime = video.currentTime;
-          setWatchTime(currentTime);
-
-          if (currentTime >= 60 && !hasWatched) {
-            if (markAsWatched && userId && filmId) {
-              markAsWatched(userId, filmId); // Call the API to mark the film as watched
-            }
-            setHasWatched(true); // Mark as watched after 60 seconds
-          }
-        }, 1000); // Check every second
-
-        return () => clearInterval(interval);
-      }
-    }
-  }, [hasWatched, userId, filmId, markAsWatched]);
 
   const handleIframeLoad = () => {
     setLoading(false);
@@ -303,7 +297,7 @@ export default function PlayVideoModal({
         <div
           className="absolute bottom-2 right-2 w-4 h-4 bg-gray-600 cursor-se-resize"
           onMouseDown={onMouseDownResize}
-        ></div>
+        />
       </DialogContent>
     </Dialog>
   );
