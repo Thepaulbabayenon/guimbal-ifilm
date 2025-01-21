@@ -45,42 +45,47 @@ export default async function RecentlyAdded() {
   return (
     <div className="recently-added-container mb-20">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mt-8 gap-6">
-        {data.map((film) => (
-          <div key={film.id} className="relative h-48">
-            <Image
-              src={film.imageString}
-              alt="film"
-              width={500}
-              height={400}
-              className="rounded-sm absolute w-full h-full object-cover"
-            />
-            <div className="h-60 relative z-10 w-full transform transition duration-500 hover:scale-125 opacity-0 hover:opacity-100">
-              <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center border">
-                <Image
-                  src={film.imageString}
-                  alt="Film"
-                  width={800}
-                  height={800}
-                  className="absolute w-full h-full -z-10 rounded-lg object-cover"
-                />
-                <FilmCard
-                  filmId={film.id}
-                  overview={film.overview}
-                  title={film.title}
-                  watchListId={film.WatchList?.filmId.toString() || ""}
-                  trailerUrl={film.trailer}
-                  watchList={film.WatchList?.userId ? parseInt(film.WatchList.userId, 10) > 0 : false}
-                  key={film.id}
-                  age={film.age}
-                  time={film.duration}
-                  year={film.release}
-                  category={film.category}
-                  initialRatings={Number(film.averageRating) || 0} // Ensure that averageRating is always a number
-                />
+        {data.map((film) => {
+          const baseUrl = "https://ifilm-bucket.s3.ap-southeast-2.amazonaws.com";
+          const fullImageUrl = `${baseUrl}/${film.imageString}`;
+
+          return (
+            <div key={film.id} className="relative h-48">
+              <Image
+                src={fullImageUrl} // Use the full image URL here
+                alt="film"
+                width={500}
+                height={400}
+                className="rounded-sm absolute w-full h-full object-cover"
+              />
+              <div className="h-60 relative z-10 w-full transform transition duration-500 hover:scale-125 opacity-0 hover:opacity-100">
+                <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center border">
+                  <Image
+                    src={fullImageUrl} // Use the full image URL here
+                    alt="Film"
+                    width={800}
+                    height={800}
+                    className="absolute w-full h-full -z-10 rounded-lg object-cover"
+                  />
+                  <FilmCard
+                    filmId={film.id}
+                    overview={film.overview}
+                    title={film.title}
+                    watchListId={film.WatchList?.filmId.toString() || ""}
+                    trailerUrl={film.trailer}
+                    watchList={film.WatchList?.userId ? parseInt(film.WatchList.userId, 10) > 0 : false}
+                    key={film.id}
+                    age={film.age}
+                    time={film.duration}
+                    year={film.release}
+                    category={film.category}
+                    initialRatings={Number(film.averageRating) || 0} // Ensure that averageRating is always a number
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

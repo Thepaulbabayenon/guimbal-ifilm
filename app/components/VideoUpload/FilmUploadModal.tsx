@@ -1,9 +1,14 @@
 'use client';
-import { useState, ChangeEvent, FormEvent } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 
-export default function FilmUploadModal() {
+const FilmUploadModal = () => {
   const [formData, setFormData] = useState({
+    fileNameImage: '',
+    fileTypeImage: '',
+    fileNameVideo: '',
+    fileTypeVideo: '',
+    id: '',
     title: '',
     age: '',
     duration: '',
@@ -15,183 +20,352 @@ export default function FilmUploadModal() {
     coDirector: '',
     studio: '',
   });
-
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [videoFileTrailer, setVideoFileTrailer] = useState<File | null>(null);
-  const [videoFileSource, setVideoFileSource] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0); // Track progress here
+  const [message, setMessage] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>, type: 'image' | 'trailer' | 'source') => {
-    const file = e.target.files ? e.target.files[0] : null;
-
-    if (!file) return;
-
-    if (type === 'image' && file.type.startsWith('image/')) {
-      setImageFile(file);
-    } else if (type === 'trailer' && file.type === 'video/mp4') {
-      setVideoFileTrailer(file);
-    } else if (type === 'source' && file.type === 'video/mp4') {
-      setVideoFileSource(file);
-    } else {
-      toast.error(`Invalid file type for ${type}.`);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files?.[0]) {
+      if (name === 'imageFile') {
+        setImageFile(files[0]);
+        setFormData((prev) => ({
+          ...prev,
+          fileNameImage: files[0].name,
+          fileTypeImage: files[0].type,
+        }));
+      } else if (name === 'videoFile') {
+        setVideoFile(files[0]);
+        setFormData((prev) => ({
+          ...prev,
+          fileNameVideo: files[0].name,
+          fileTypeVideo: files[0].type,
+        }));
+      }
     }
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  // Function to reset the form
+  const resetForm = () => {
+    setFormData({
+      fileNameImage: '',
+      fileTypeImage: '',
+      fileNameVideo: '',
+      fileTypeVideo: '',
+      id: '',
+      title: '',
+      age: '',
+      duration: '',
+      overview: '',
+      release: '',
+      category: '',
+      producer: '',
+      director: '',
+      coDirector: '',
+      studio: '',
+    });
+    setImageFile(null);
+    setVideoFile(null);
+    setProgress(0);
+  };
+
+  // Function to upload file with progress tracking
+  const uploadFileWithProgress = (url: string, file: File) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url, true);
+
+      // Track progress
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = (event.loaded / event.total) * 100;
+          setProgress(Math.round(percent)); // Update progress state
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          resolve('File uploaded successfully');
+        } else {
+          reject(new Error('Failed to upload file'));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Error during file upload'));
+      };
+
+      xhr.send(file);
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!imageFile || !videoFileTrailer || !videoFileSource) {
-      toast.error('Please upload all required files.');
-      return;
-    }
-
-    setUploading(true);
-    toast.loading('Uploading...');
-
-    const formDataToSend = new FormData();
-    Object.keys(formData).forEach((key) => formDataToSend.append(key, formData[key as keyof typeof formData]));
-    formDataToSend.append('image', imageFile);
-    formDataToSend.append('trailer', videoFileTrailer);
-    formDataToSend.append('source', videoFileSource);
+    setLoading(true);
 
     try {
       const response = await fetch('/api/files/upload', {
         method: 'POST',
-        body: formDataToSend,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        throw new Error(`Error: ${response.status}`);
       }
 
-      toast.dismiss();
-      toast.success('Film uploaded successfully!');
-    } catch (error) {
-      toast.dismiss();
-      toast.error('An error occurred during the upload.');
+      const { uploadURLImage, uploadURLVideo } = await response.json();
+
+      // Upload image and video to S3 using signed URLs
+      if (imageFile && uploadURLImage) {
+        await uploadFileWithProgress(uploadURLImage, imageFile);
+      }
+
+      if (videoFile && uploadURLVideo) {
+        await uploadFileWithProgress(uploadURLVideo, videoFile);
+      }
+
+      setMessage('Film uploaded successfully!');
+      resetForm(); // Reset the form after successful upload
+    } catch (err) {
+      console.error(err);
+      setMessage('Failed to upload the film.');
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const openModal = () => {
+    setIsModalOpen(true);
+  };
+
   return (
-    <div className="film-upload-modal">
-      <Toaster />
-      <h1>Upload Film</h1>
+    <>
+      {/* Button to trigger the modal */}
+      <button onClick={openModal} className="bg-blue-600 text-white p-2 rounded-lg text-sm">
+        Upload Film
+      </button>
 
-      <form onSubmit={handleSubmit}>
-        {/* Form fields */}
-        <input
-          type="text"
-          name="title"
-          placeholder="Title"
-          value={formData.title}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <input
-          type="number"
-          name="age"
-          placeholder="Age"
-          value={formData.age}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <input
-          type="number"
-          name="duration"
-          placeholder="Duration (minutes)"
-          value={formData.duration}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <textarea
-          name="overview"
-          placeholder="Overview"
-          value={formData.overview}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <input
-          type="number"
-          name="release"
-          placeholder="Release Year"
-          value={formData.release}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <input
-          type="text"
-          name="category"
-          placeholder="Category"
-          value={formData.category}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <input
-          type="text"
-          name="producer"
-          placeholder="Producer"
-          value={formData.producer}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <input
-          type="text"
-          name="director"
-          placeholder="Director"
-          value={formData.director}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <input
-          type="text"
-          name="coDirector"
-          placeholder="Co-Director"
-          value={formData.coDirector}
-          onChange={handleInputChange}
-          className='bg-blue-600'
-          required
-        />
-        <input
-          type="text"
-          name="studio"
-          placeholder="Studio"
-          value={formData.studio}
-          onChange={handleInputChange}
-          required
-        />
+      {/* Modal */}
+      {isModalOpen && (
+        <motion.div
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="relative bg-white rounded-lg shadow-lg max-w-sm w-full p-4"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+          >
+            {/* Close Button */}
+            <button
+              onClick={closeModal}
+              className="absolute top-2 right-2 text-xl text-black hover:text-gray-900"
+            >
+              &times;
+            </button>
 
-        {/* File inputs */}
-        <label>
-          Upload Thumbnail Image:
-          <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'image')} required />
-        </label>
-        <label>
-          Upload Trailer Video:
-          <input type="file" accept="video/mp4" onChange={(e) => handleFileChange(e, 'trailer')} required />
-        </label>
-        <label>
-          Upload Full Film Video:
-          <input type="file" accept="video/mp4" onChange={(e) => handleFileChange(e, 'source')} required />
-        </label>
+            <h2 className="text-xl font-semibold text-black text-center mb-4">
+              Upload a Film to Guimbal iFilm Society
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Metadata fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  name="id"
+                  value={formData.id}
+                  placeholder="Film ID"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  placeholder="Title"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+                <input
+                  type="number"
+                  name="age"
+                  value={formData.age}
+                  placeholder="Age"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+                <input
+                  type="number"
+                  name="duration"
+                  value={formData.duration}
+                  placeholder="Duration (mins)"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+              </div>
+              <textarea
+                name="overview"
+                value={formData.overview}
+                placeholder="Overview"
+                onChange={handleInputChange}
+                required
+                className="border rounded-lg p-1 w-full text-sm text-black"
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  name="release"
+                  value={formData.release}
+                  placeholder="Release Year"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+                <input
+                  type="text"
+                  name="category"
+                  value={formData.category}
+                  placeholder="Category"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+                <input
+                  type="text"
+                  name="producer"
+                  value={formData.producer}
+                  placeholder="Producer"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+                <input
+                  type="text"
+                  name="director"
+                  value={formData.director}
+                  placeholder="Director"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+                <input
+                  type="text"
+                  name="coDirector"
+                  value={formData.coDirector}
+                  placeholder="Co-Director"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+                <input
+                  type="text"
+                  name="studio"
+                  value={formData.studio}
+                  placeholder="Studio"
+                  onChange={handleInputChange}
+                  required
+                  className="border rounded-lg p-1 w-full text-sm text-black"
+                />
+              </div>
 
-        <button type="submit" disabled={uploading}>
-          {uploading ? 'Uploading...' : 'Upload'}
-        </button>
-      </form>
-    </div>
+              {/* File fields */}
+              <div className="space-y-3">
+                <label className="block text-sm text-black">
+                  <span className="text-black">Upload Image:</span>
+                  <input
+                    type="file"
+                    name="imageFile"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    required
+                    className="block w-full mt-1 text-sm"
+                  />
+                </label>
+                <label className="block text-sm text-black">
+                  <span className="text-black">Trailer:</span>
+                  <input
+                    type="file"
+                    name="videoFile"
+                    accept="video/*"
+                    onChange={handleFileChange}
+                    required
+                    className="block w-full mt-1 text-sm"
+                  />
+                </label>
+                <label className="block text-sm text-black">
+                  <span className="text-black">Film:</span>
+                  <input
+                    type="file"
+                    name="videoFile"
+                    accept="video/*"
+                    onChange={handleFileChange}
+                    required
+                    className="block w-full mt-1 text-sm"
+                  />
+                </label>
+              </div>
+
+              {/* Submit button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-2 px-4 text-white rounded-lg text-sm ${
+                  loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {loading ? 'Uploading...' : 'Upload'}
+              </button>
+            </form>
+
+            {/* Progress Bar */}
+            {loading && (
+              <div className="mt-4">
+                <div className="h-2 bg-gray-200 rounded-full">
+                  <div
+                    className="h-2 bg-blue-600 rounded-full"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="text-center text-sm text-black mt-2">{progress}%</p>
+              </div>
+            )}
+
+            {message && (
+              <motion.p
+                className={`mt-4 text-center ${
+                  message.includes('successfully') ? 'text-green-600' : 'text-red-600'
+                }`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                {message}
+              </motion.p>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </>
   );
-}
+};
+
+export default FilmUploadModal;
