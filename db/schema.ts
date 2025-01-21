@@ -116,7 +116,7 @@ export const film = pgTable('film', {
   release: integer('release').notNull(),
   videoSource: varchar('videoSource').notNull(),
   category: varchar('category').notNull(),
-  youtubeString: varchar('youtubeString').notNull(),
+  trailer: varchar('trailer').notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   producer: varchar('producer').notNull(),
   director: varchar('director').notNull(),
@@ -135,7 +135,7 @@ export const movie = pgTable('movie', {
   release: integer('release').notNull(),
   videoSource: varchar('videoSource').notNull(),
   category: varchar('category').notNull(),
-  youtubeString: varchar('youtubeString').notNull(),
+  trailer: varchar('trailer').notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   producer: varchar('producer').notNull(),
   director: varchar('director').notNull(),
@@ -250,7 +250,7 @@ export const insertFilmSchema = z.object({
   release: z.number().int().positive(),
   videoSource: z.string().min(1),
   category: z.string().min(1),
-  youtubeString: z.string().min(1),
+  trailerString: z.string().min(1),
   rank: z.number().int().positive(),
 });
 

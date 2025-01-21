@@ -8,7 +8,7 @@ export interface Film {
     release: number;
     videoSource: string;
     category: string;
-    youtubeString: string;
+    trailer: string;
     rank: number;  // External rating
   }
   

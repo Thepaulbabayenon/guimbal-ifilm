@@ -13,7 +13,7 @@ interface FilmCardProps {
   title: string;
   watchList: boolean;
   watchListId?: string;
-  youtubeUrl: string;
+  trailerUrl: string;
   year: number;
   age: number;
   time: number;
@@ -27,7 +27,7 @@ export function FilmCard({
   title,
   watchList: initialWatchList,
   watchListId,
-  youtubeUrl,
+  trailerUrl,
   year,
   age,
   time,
@@ -231,7 +231,7 @@ export function FilmCard({
 
       {/* PlayVideoModal */}
       <PlayVideoModal
-        youtubeUrl={youtubeUrl}
+        trailerUrl={trailerUrl}
         key={filmId}
         title={title}
         overview={overview}

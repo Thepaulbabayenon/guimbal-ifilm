@@ -13,7 +13,7 @@ interface FilmDetails {
   age: number;
   duration: number;
   category: string;
-  youtubeString: string;
+  trailer: string;
   rank: number;
   imageString: string;
 }
@@ -60,7 +60,7 @@ const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ show, onHide, film }) =
             <iframe
               width="100%"
               height="100%"
-              src={`${film.youtubeString}`}
+              src={`${film.trailer}`}
               title={`${film.title} Trailer`}
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

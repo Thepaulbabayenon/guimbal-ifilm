@@ -38,7 +38,7 @@ export async function getUserData(userEmail: string) {
       overview: film.overview,
       release: film.release,
       id: film.id,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       watchListId: watchLists.id,
       category: film.category
     })

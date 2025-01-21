@@ -18,7 +18,7 @@ async function getData(userId: string) {
         filmId: film.id,
       },
       imageString: film.imageString,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       age: film.age,
       release: film.release,
       duration: film.duration,
@@ -68,7 +68,7 @@ export default async function RecentlyAdded() {
                   overview={film.overview}
                   title={film.title}
                   watchListId={film.WatchList?.filmId.toString() || ""}
-                  youtubeUrl={film.youtubeString}
+                  trailerUrl={film.trailer}
                   watchList={film.WatchList?.userId ? parseInt(film.WatchList.userId, 10) > 0 : false}
                   key={film.id}
                   age={film.age}

@@ -16,7 +16,7 @@ interface Film {
   release: number;
   videoSource: string;
   category: string;
-  youtubeString: string;
+  trailer: string;
   createdAt: Date;
   rank: number;
 }
@@ -114,7 +114,7 @@ export default function FilmVideo() {
             overview={data.overview}
             releaseDate={data.release}
             title={data.title}
-            youtubeUrl={data.youtubeString}
+            trailerUrl={data.trailer}
             key={data.id}
             category={data.category}
             isMuted={isMuted}

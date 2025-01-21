@@ -26,7 +26,7 @@ interface Film {
   release: number;
   videoSource: string;
   category: string;
-  youtubeString: string;
+  trailer: string;
   rank: number;
 }
 
@@ -251,7 +251,7 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
           overview={selectedFilm.overview}
           state={modalOpen}
           title={selectedFilm.title}
-          youtubeUrl={selectedFilm.youtubeString}
+          trailerUrl={selectedFilm.trailer}
           age={selectedFilm.age}
           duration={selectedFilm.duration}
           release={selectedFilm.release}

@@ -35,7 +35,7 @@ app.get(
           release: film.release,
           videoSource: film.videoSource,
           category: film.category,
-          youtubeString: film.youtubeString,
+          trailer: film.trailer,
           createdAt: film.createdAt,
           rank: film.rank,
         })

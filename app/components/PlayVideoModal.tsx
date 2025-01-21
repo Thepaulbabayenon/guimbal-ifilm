@@ -16,7 +16,7 @@ import { eq, sql } from "drizzle-orm";
 interface PlayVideoModalProps {
   title: string;
   overview: string;
-  youtubeUrl: string;
+  trailerUrl: string;
   state: boolean;
   changeState: (state: boolean) => void;
   release: number;
@@ -36,7 +36,7 @@ export default function PlayVideoModal({
   overview,
   state,
   title,
-  youtubeUrl,
+  trailerUrl,
   age,
   duration,
   release,
@@ -111,7 +111,7 @@ export default function PlayVideoModal({
     }
   };
 
-  const modifiedYoutubeUrl = youtubeUrl.replace("watch?v=", "embed/");
+  const modifiedTrailerUrl = trailerUrl.replace("watch?v=", "embed/");
 
   const handleRatingClick = (rating: number) => {
     setUserRating(rating);
@@ -211,7 +211,7 @@ export default function PlayVideoModal({
           )}
           <iframe
             ref={iframeRef}
-            src={modifiedYoutubeUrl}
+            src={modifiedTrailerUrl}
             className={`absolute top-0 left-0 w-full h-full ${loading ? "opacity-0" : "opacity-100"}`}
             frameBorder="0"
             allowFullScreen

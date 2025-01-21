@@ -13,7 +13,7 @@ interface Film {
   release: number;
   videoSource: string;
   category: string;
-  youtubeString: string;
+  trailer: string;
   rank: number;
   userId: string;
 }
@@ -35,7 +35,7 @@ export async function getAllFilms() {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank,
     })
     .from(film)
@@ -62,7 +62,7 @@ export async function getFilmById(filmId: number) {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank,
     })
     .from(film)
@@ -94,7 +94,7 @@ export async function searchFilms(searchTerm: string) {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank,
     })
     .from(film)
@@ -127,7 +127,7 @@ export async function getTopRatedFilms() {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank,
     })
     .from(film)
@@ -155,7 +155,7 @@ export async function getHorrorFilms() {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank,
     })
     .from(film)
@@ -183,7 +183,7 @@ export async function getFolkloreFilms() {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank,
     })
     .from(film)
@@ -222,7 +222,7 @@ export async function getComedyFilms() {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank,
     })
     .from(film)
@@ -247,7 +247,7 @@ export async function getRecommendedFilms(userId: string): Promise<Film[]> {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank, // External rating
     }));
   } catch (error) {
@@ -274,7 +274,7 @@ export async function getDramaFilms() {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank
     })
     .from(film)
@@ -364,7 +364,7 @@ async function contentBasedFiltering(userId: string) {
       release: film.release,
       videoSource: film.videoSource,
       category: film.category,
-      youtubeString: film.youtubeString,
+      trailer: film.trailer,
       rank: film.rank,
     })
     .from(film)

@@ -10,7 +10,7 @@ interface Film {
   overview: string;
   watchList: boolean;
   watchListId?: string;
-  youtubeUrl: string;
+  trailerUrl: string;
   year: number;
   age: number;
   time: number; // Duration in minutes
@@ -59,7 +59,7 @@ const RecommendedPage = () => {
           overview={film.overview}
           watchList={film.watchList}
           watchListId={film.watchListId}
-          youtubeUrl={film.youtubeUrl}
+          trailerUrl={film.trailerUrl}
           year={film.year}
           age={film.age}
           time={film.time}

@@ -96,7 +96,7 @@ export default function SearchResultsPage() {
            title={film.title}
            overview={film.overview}
            watchList={film.watchList}
-           youtubeUrl={film.youtubeUrl}
+           trailerUrl={film.trailerUrl}
            year={film.year}
            age={film.age}
            time={film.duration}
@@ -129,7 +129,7 @@ export default function SearchResultsPage() {
       )}
 
       <PlayVideoModal
-        youtubeUrl={selectedFilm?.youtubeUrl || ""}
+        trailerUrl={selectedFilm?.trailerUrl || ""}
         key={pagination.currentPage}
         title={selectedFilm?.title || ""}
         overview={selectedFilm?.overview || ""}

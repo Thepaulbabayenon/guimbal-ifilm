@@ -19,7 +19,7 @@ async function getData(userId: string) {
         overview: film.overview,
         release: film.release,
         id: film.id,
-        youtubeString: film.youtubeString,
+        trailer: film.trailer,
         watchListId: watchLists.id,
         category: film.category,
       })
@@ -100,7 +100,7 @@ export default async function Favorites() {
                       time={film.duration}
                       title={film.title}
                       year={parseInt(film.release.toString())}
-                      youtubeUrl={film.youtubeString}
+                      trailerUrl={film.trailer}
                       initialRatings={0}
                       watchList={false}
                       category={film.category || "Unknown"}

@@ -15,7 +15,7 @@ interface Film {
   overview: string;
   duration: number;
   release: string | number;
-  youtubeString: string;
+  trailer: string;
   category: string;
 }
 
@@ -100,7 +100,7 @@ export default function CategoryFilms() {
                     time={film.duration}
                     title={film.title}
                     year={parseInt(film.release.toString())}
-                    youtubeUrl={film.youtubeString}
+                    trailerUrl={film.trailer}
                     initialRatings={0}
                     watchList={false}
                     category={film.category || "Uncategorized"}

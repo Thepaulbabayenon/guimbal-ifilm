@@ -7,7 +7,7 @@ import LearnMoreModal from './learnMoreModal'; // Import LearnMoreModal
 
 interface iAppProps {
   overview: string;
-  youtubeUrl: string;
+  trailerUrl: string;
   id: number;
   age: number;
   title: string;
@@ -30,7 +30,7 @@ export default function FilmButtons({
   overview,
   releaseDate,
   title,
-  youtubeUrl,
+  trailerUrl,
   category,
   isMuted,
   toggleMute,
@@ -54,7 +54,7 @@ export default function FilmButtons({
     age,
     duration,
     category,
-    youtubeString: youtubeUrl.split('v=')[1], // Extract video ID from YouTube URL
+    trailer: trailerUrl.split('v=')[1], // Extract video ID from trailer URL
     rank: 5, // replace with actual ranking
     imageString: 'url-to-image.jpg', // replace with actual image URL
   };
@@ -98,7 +98,7 @@ export default function FilmButtons({
         overview={overview}
         release={releaseDate}
         title={title}
-        youtubeUrl={youtubeUrl}
+        trailerUrl={trailerUrl}
         category={category}
         ratings={userRatings[id] || 0} // Pass user rating
         setUserRating={setUserRating} // Function to update the rating

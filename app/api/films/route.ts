@@ -14,7 +14,7 @@ export type Film = {
   release: number;
   videoSource: string;
   category: string;
-  youtubeString: string;
+  trailer: string;
   createdAt: string; // Expecting a string for createdAt
   rank: number;
 };

@@ -94,7 +94,7 @@ export default async function Recently() {
                     time={film.duration}
                     title={film.title}
                     year={parseInt(film.release.toString())}
-                    youtubeUrl={film.youtubeString}
+                    trailerUrl={film.trailer}
                     initialRatings={0}
                     watchList={false}
                     category={film.category || "Uncategorized"}

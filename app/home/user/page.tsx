@@ -22,7 +22,7 @@ interface Film {
   release: number;
   category?: string;
   imageString?: string;
-  youtubeString?: string;
+  trailer?: string;
   age: number;
   watchListId?: string | null;
 }
@@ -73,7 +73,7 @@ export default async function Profile() {
           watchListId={options.watchList ? film.watchListId?.toString() ?? "" : ""}
           watchList={options.watchList || false}
           year={film.release}
-          youtubeUrl={film.youtubeString || film.imageString || ""}
+          trailerUrl={film.trailer || film.imageString || ""}
           initialRatings={0}
           category={film.category || "Unknown"}
         />

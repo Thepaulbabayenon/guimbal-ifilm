@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     // Step 1: Upload Image to S3
     const imageParams = {
       Bucket: process.env.AWS_BUCKET_NAME!,
-      Key: `/${fileNameImage}`,
+      Key: `film/img/${fileNameImage}`,
       Expires: new Date(Date.now() + 60 * 1000), // Expires in 60 seconds
       ContentType: fileTypeImage,
       ACL: 'public-read' as const, // Correct ACL type
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     // Step 2: Upload Video to S3
     const videoParams = {
       Bucket: process.env.AWS_BUCKET_NAME!,
-      Key: `/${fileNameVideo}`,
+      Key: `film/videos/${fileNameVideo}`,
       Expires: new Date(Date.now() + 60 * 1000), // Expires in 60 seconds
       ContentType: fileTypeVideo,
       ACL: 'public-read' as const, // Correct ACL type
@@ -51,15 +51,15 @@ export async function POST(req: NextRequest) {
     // Step 3: Save Film Metadata into NeonDB
     await db.insert(film).values({
       id,
-      imageString: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileNameImage}`,
+      imageString: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/film/img/${fileNameImage}`,
       title,
       age,
       duration,
       overview,
       release,
       category,
-      videoSource: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileNameVideo}`,
-      youtubeString: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileNameVideo}`, // You can adjust this for YouTube or leave it empty for now
+      videoSource: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/film/video/${fileNameVideo}`,
+      trailer: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/film.video/${fileNameVideo}`, // You can adjust this trailer or leave it empty for now
       producer,
       director,
       coDirector,

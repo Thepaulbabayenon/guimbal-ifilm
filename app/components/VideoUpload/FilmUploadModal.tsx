@@ -30,11 +30,11 @@ export default function FilmUploadModal() {
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [videoFileYouTube, setVideoFileYouTube] = useState<File | null>(null);
+  const [videoFileTrailer, setVideoFileTrailer] = useState<File | null>(null);
   const [videoFileSource, setVideoFileSource] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [imageUploadProgress, setImageUploadProgress] = useState<number>(0);
-  const [videoUploadProgressYouTube, setVideoUploadProgressYouTube] = useState<number>(0);
+  const [videoUploadProgressTrailer, setVideoUploadProgressTrailer] = useState<number>(0);
   const [videoUploadProgressSource, setVideoUploadProgressSource] = useState<number>(0);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -51,11 +51,11 @@ export default function FilmUploadModal() {
     }
   };
 
-  const handleVideoChange = (e: ChangeEvent<HTMLInputElement>, type: 'youtube' | 'source') => {
+  const handleVideoChange = (e: ChangeEvent<HTMLInputElement>, type: 'trailer' | 'source') => {
     const file = e.target.files ? e.target.files[0] : null;
     if (file && file.type === 'video/mp4') {
-      if (type === 'youtube') {
-        setVideoFileYouTube(file);
+      if (type === 'trailer') {
+        setVideoFileTrailer(file);
       } else {
         setVideoFileSource(file);
       }
@@ -100,18 +100,19 @@ export default function FilmUploadModal() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!imageFile || !videoFileYouTube || !videoFileSource) {
+    if (!imageFile || !videoFileTrailer || !videoFileSource) {
       toast.error('Please upload all required files.');
       return;
     }
 
     setIsLoading(true);
     setImageUploadProgress(0);
-    setVideoUploadProgressYouTube(0);
+    setVideoUploadProgressTrailer(0);
     setVideoUploadProgressSource(0);
     toast.loading('Uploading data...');
 
     try {
+      // Step 1: Request signed URLs from the backend
       const res = await fetch('/api/files/upload', {
         method: 'POST',
         headers: {
@@ -121,10 +122,8 @@ export default function FilmUploadModal() {
           ...formData,
           fileNameImage: imageFile.name,
           fileTypeImage: imageFile.type,
-          fileNameVideoYouTube: videoFileYouTube.name,
-          fileTypeVideoYouTube: videoFileYouTube.type,
-          fileNameVideoSource: videoFileSource.name,
-          fileTypeVideoSource: videoFileSource.type,
+          fileNameVideo: videoFileTrailer.name,
+          fileTypeVideo: videoFileTrailer.type,
         }),
       });
 
@@ -132,11 +131,11 @@ export default function FilmUploadModal() {
         throw new Error('Failed to get signed upload URLs from the server.');
       }
 
-      const { uploadURLImage, uploadURLVideoYouTube, uploadURLVideoSource } = await res.json();
+      const { uploadURLImage, uploadURLVideo } = await res.json();
 
+      // Step 2: Upload files directly to S3 using the signed URLs
       await uploadFileWithProgress(imageFile, uploadURLImage, setImageUploadProgress);
-      await uploadFileWithProgress(videoFileYouTube, uploadURLVideoYouTube, setVideoUploadProgressYouTube);
-      await uploadFileWithProgress(videoFileSource, uploadURLVideoSource, setVideoUploadProgressSource);
+      await uploadFileWithProgress(videoFileTrailer, uploadURLVideo, setVideoUploadProgressTrailer);
 
       toast.dismiss();
       toast.success('Film uploaded successfully!');
@@ -152,13 +151,13 @@ export default function FilmUploadModal() {
   return (
     <div className="film-upload-modal">
        <Toaster />
-      <form onSubmit={handleSubmit} className="upload-form">
+       <form onSubmit={handleSubmit} className="upload-form">
         <h2>Upload Film</h2>
 
         {/* Other form fields for film metadata */}
         <div>
           <label htmlFor="title">Title</label>
-          <input
+           <input
             type="text"
             id="title"
             name="title"
@@ -288,18 +287,19 @@ export default function FilmUploadModal() {
           <label htmlFor="imageFile">Image</label>
           <input type="file" id="imageFile" accept="image/*" onChange={handleImageChange} required />
         </div>
+
         <div>
-          <label htmlFor="youtubeVideo">YouTube Video</label>
+          <label htmlFor="trailerVideo"> Trailer </label>
           <input
             type="file"
-            id="youtubeVideo"
+            id="trailerVideo"
             accept="video/mp4"
-            onChange={(e) => handleVideoChange(e, 'youtube')}
+            onChange={(e) => handleVideoChange(e, 'trailer')}
             required
           />
         </div>
         <div>
-          <label htmlFor="sourceVideo">Source Video</label>
+          <label htmlFor="sourceVideo"> Film </label>
           <input
             type="file"
             id="sourceVideo"
@@ -314,8 +314,8 @@ export default function FilmUploadModal() {
             <p>Image Upload Progress: {imageUploadProgress}%</p>
             <progress value={imageUploadProgress} max="100"></progress>
 
-            <p>YouTube Video Upload Progress: {videoUploadProgressYouTube}%</p>
-            <progress value={videoUploadProgressYouTube} max="100"></progress>
+            <p>Trailer Video Upload Progress: {videoUploadProgressTrailer}%</p>
+            <progress value={videoUploadProgressTrailer} max="100"></progress>
 
             <p>Source Video Upload Progress: {videoUploadProgressSource}%</p>
             <progress value={videoUploadProgressSource} max="100"></progress>

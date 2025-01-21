@@ -60,7 +60,7 @@ export default async function Watchlist() {
                         time={film?.duration as number}
                         title={film?.title as string}
                         year={parseInt(film?.release.toString())}
-                        youtubeUrl={film?.youtubeString as string}
+                        trailerUrl={film?.trailer as string}
                         initialRatings={0}
                         watchList={false}
                         category={film?.category || "Uncategorized"} // Add this line
