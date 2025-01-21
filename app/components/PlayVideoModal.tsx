@@ -58,8 +58,9 @@ export default function PlayVideoModal({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const [modalWidth, setModalWidth] = useState(425); // Set initial width of the modal
-  const [modalHeight, setModalHeight] = useState(600); // Set initial height of the modal
+  const watchTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer to track watch time
+  const [modalWidth, setModalWidth] = useState(425);
+  const [modalHeight, setModalHeight] = useState(600); 
 
   // Resizing logic
   const isResizing = useRef(false);
@@ -77,8 +78,8 @@ export default function PlayVideoModal({
     if (!isResizing.current || !dialogRef.current) return;
     const dx = e.clientX - startX.current;
     const dy = e.clientY - startY.current;
-    setModalWidth((prevWidth) => Math.max(prevWidth + dx, 300)); // Prevent shrinking too small
-    setModalHeight((prevHeight) => Math.max(prevHeight + dy, 300)); // Prevent shrinking too small
+    setModalWidth((prevWidth) => Math.max(prevWidth + dx, 300));
+    setModalHeight((prevHeight) => Math.max(prevHeight + dy, 300));
     startX.current = e.clientX;
     startY.current = e.clientY;
   };
@@ -164,18 +165,21 @@ export default function PlayVideoModal({
     }
 
     if (state && !hasWatched && userId && filmId && markAsWatched) {
-      timerRef.current = setTimeout(() => {
+      watchTimerRef.current = setTimeout(() => {
         markAsWatched(userId, filmId);
         setHasWatched(true); 
-      }, watchTimerDuration);
+      }, 60000); // 1 minute (60,000 milliseconds)
     }
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
+      if (watchTimerRef.current) {
+        clearTimeout(watchTimerRef.current); // Cleanup the watch timer
+      }
     };
-  }, [state, hasWatched, markAsWatched, userId, filmId, category, watchTimerDuration]);
+  }, [state, hasWatched, markAsWatched, userId, filmId, category]);
 
   const handleIframeLoad = () => {
     setLoading(false);
