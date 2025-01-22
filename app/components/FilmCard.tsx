@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Heart, PlayCircle, Star } from "lucide-react";
+import { CiStar, CiPlay1, CiHeart  } from "react-icons/ci";
 import PlayVideoModal from "./PlayVideoModal";
 import { usePathname } from "next/navigation";
 import axios from "axios";
@@ -175,13 +175,13 @@ export function FilmCard({
     <>
       {/* Removed onClick from the button */}
       <button onClick={() => setOpen(true)} className="-mt-14">
-        <PlayCircle className="h-20 w-20" />
+        <CiPlay1 className="h-20 w-20" />
       </button>
 
       {/* Watchlist Button */}
       <div className="right-5 top-5 absolute z-10">
         <Button variant="outline" size="icon" onClick={handleToggleWatchlist} disabled={isSavingWatchlist || loading}>
-          <Heart className={`w-4 h-4 ${watchList ? "text-red-500" : ""}`} />
+          <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : ""}`} />
         </Button>
       </div>
 
@@ -198,7 +198,7 @@ export function FilmCard({
             </div>
             <div className="flex gap-x-2">
               {Array.from({ length: 5 }).map((_, index) => (
-                <Star key={index} className="w-4 h-4 text-gray-300 animate-pulse" />
+                <CiStar key={index} className="w-4 h-4 text-gray-300 animate-pulse" />
               ))}
             </div>
             <div className="bg-gray-300 animate-pulse w-48 h-4 rounded"></div>
@@ -213,9 +213,9 @@ export function FilmCard({
               <p className="font-normal text-sm">{time}m</p>
               <div className="flex items-center">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
+                  <CiStar
                     key={star}
-                    className={`w-4 h-4 cursor-pointer ${userRating >= star ? "text-yellow-400" : "text-gray-400"}`}
+                    className={`w-4 h-4 cursor-pointer ${userRating >= star ? "text-green-400" : "text-gray-400"}`}
                     onClick={() => handleRatingClick(star)}
                   />
                 ))}
@@ -230,11 +230,11 @@ export function FilmCard({
       </div>
 
       {/* PlayVideoModal */}
-      <PlayVideoModal
-        trailerUrl={trailerUrl}
+      <PlayVideoModal 
         key={filmId}
         title={title}
         overview={overview}
+        trailerUrl={trailerUrl}
         state={open}
         changeState={setOpen}
         age={age}

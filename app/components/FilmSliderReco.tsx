@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/carousel";
 import PlayVideoModal from "./PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
-import { Star } from "lucide-react";
+import { CiStar } from "react-icons/ci";
 import { FaHeart, FaPlay } from "react-icons/fa";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
@@ -221,7 +221,7 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
                         <span className="text-xs font-semibold">{film.title}</span>
                         <div className="flex items-center justify-center mt-1">
                           {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
+                            <CiStar
                               key={star}
                               className={`w-3 h-3 cursor-pointer ${
                                 userRatings[film.id] >= star ? "text-yellow-400" : "text-gray-400"

@@ -9,8 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FaStar } from "react-icons/fa";
-import { db } from "@/db/drizzle";
-import { film, comments } from "@/db/schema";
+import { db } from "@/db/drizzle"; 
+import { film, comments } from "@/db/schema"; 
 import { eq, sql } from "drizzle-orm";
 
 interface PlayVideoModalProps {
@@ -113,29 +113,8 @@ export default function PlayVideoModal({
 
   const modifiedTrailerUrl = trailerUrl.replace("watch?v=", "embed/");
 
-  const handleRatingClick = async (rating: number) => {
+  const handleRatingClick = (rating: number) => {
     setUserRating(rating);
-    if (userId && filmId) {
-      try {
-        // POST request to the API to save rating and mark the film as watched
-        const response = await fetch("/api/rate-film", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ userId, filmId, rating }),
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-          console.log("Rating and watch status saved:", data);
-        } else {
-          console.error("Failed to save rating:", data.error);
-        }
-      } catch (error) {
-        console.error("Error posting rating:", error);
-      }
-    }
   };
 
   const handleAddComment = async () => {
@@ -208,8 +187,8 @@ export default function PlayVideoModal({
 
   return (
     <Dialog open={state} onOpenChange={() => changeState(!state)}>
-      <DialogContent
-        ref={dialogRef}
+      <DialogContent 
+        ref={dialogRef} 
         className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto p-4"
         style={{ width: `${modalWidth}px`, height: `${modalHeight}px` }}
       >
