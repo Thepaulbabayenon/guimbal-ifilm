@@ -1,6 +1,8 @@
 import { db } from "@/db/drizzle";
-import { film, userInteractions, watchLists } from "@/db/schema";
-import { eq, and, desc, like, or, sql, inArray } from "drizzle-orm";
+import { film, userInteractions, watchLists, userRatings, accounts, } from "@/db/schema";
+import { eq, and, desc, like, or, sql, inArray, asc, avg } from "drizzle-orm";
+
+
 
 // Define the Film type (you can adjust fields to match your database schema)
 interface Film {
@@ -47,8 +49,19 @@ export async function getAllFilms() {
     .from(film)
     .orderBy(desc(film.release)); // Sort by release date in descending order
 
-  return filmsData;
+  // Map data to match the expected Film structure
+  const films = filmsData.map((film) => ({
+    ...film,
+    watchList: false,            // Default value for watchList
+    trailerUrl: film.trailer,    // Map the trailer directly
+    year: new Date(film.release).getFullYear(), // Extract year from release date
+    time: film.duration,         // Map the duration as the time in minutes
+    initialRatings: 0,           // Default value for initial ratings
+  }));
+
+  return films;
 }
+
 
 /**
  * Fetch a specific film by ID.
@@ -170,6 +183,41 @@ export async function getHorrorFilms() {
 
   return horrorFilmsData;
 }
+
+export async function getRecentlyAdded(userId: string) {
+  try {
+    const userFilms = await db
+      .select({
+        id: film.id,
+        overview: film.overview,
+        title: film.title,
+        WatchList: {
+          userId: accounts.userId,
+          filmId: film.id,
+        },
+        imageString: film.imageString,
+        trailer: film.trailer,
+        age: film.age,
+        release: film.release,
+        duration: film.duration,
+        category: film.category,
+        // Aggregation to calculate average rating using avg()
+        averageRating: avg(userRatings.rating).as('averageRating'),
+      })
+      .from(film)
+      .leftJoin(accounts, eq(accounts.userId, userId))
+      .leftJoin(userRatings, eq(userRatings.filmId, film.id))
+      .groupBy(film.id, accounts.userId) // Group by both film.id and accounts.userId
+      .orderBy(asc(avg(userRatings.rating))) // Order by the calculated average rating
+      .limit(4); // Limit the results to top 4
+
+    return userFilms;
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    throw new Error("Error fetching films from the database. Please try again later.");
+  }
+}
+
 
 /**
  * Fetch folklore films.
@@ -324,13 +372,15 @@ export async function getRecommendedFilms(userId: string): Promise<Film[]> {
   }
 }
 
+
+
+type FilmId = number; // Define FilmId
 /**
  * Collaborative Filtering: Find similar users based on interactions and recommend films.
  * @param userId - The ID of the current user.
  */
 async function collaborativeFiltering(userId: string) {
   try {
-    // Fetch films that the current user has interacted with
     const userInteractionsData = await db
       .select({
         filmId: userInteractions.filmId,
@@ -338,13 +388,11 @@ async function collaborativeFiltering(userId: string) {
       .from(userInteractions)
       .where(eq(userInteractions.userId, userId));
 
-    // Return an empty array if no interactions exist
     if (userInteractionsData.length === 0) {
       console.log(`No interactions found for user: ${userId}`);
       return [];
     }
 
-    // Fetch films watched by other users who interacted with the same films
     const filmIds = userInteractionsData.map((interaction) => interaction.filmId);
     const similarUserFilms = await db
       .select({
@@ -352,10 +400,9 @@ async function collaborativeFiltering(userId: string) {
       })
       .from(userInteractions)
       .where(inArray(userInteractions.filmId, filmIds))
-      .limit(10);
+      .limit(8); // Limit to 8
 
     console.log(`Collaborative recommendations for user ${userId}:`, similarUserFilms);
-
     return similarUserFilms.map((interaction) => interaction.filmId);
   } catch (error) {
     console.error("Error in collaborativeFiltering:", error);
@@ -367,9 +414,9 @@ async function collaborativeFiltering(userId: string) {
  * Content-Based Filtering: Recommend films similar to those the user interacted with.
  * @param userId - The ID of the current user.
  */
+// Content-Based Filtering: Limit to 8 films
 async function contentBasedFiltering(userId: string) {
   try {
-    // Fetch the films in the user's watchlist
     const userWatchedFilms = await db
       .select({
         filmId: watchLists.filmId,
@@ -379,15 +426,13 @@ async function contentBasedFiltering(userId: string) {
 
     console.log("User's watched films:", userWatchedFilms);
 
-    // Fallback: Return top-rated films if the user hasn't watched any films
     if (userWatchedFilms.length === 0) {
       console.log(`No watchlist found for user: ${userId}, fetching top-rated films`);
       const topRated = await getTopRatedFilms();
       console.log("Top-rated films fetched:", topRated);
-      return topRated;
+      return topRated.slice(0, 8); // Limit to 8
     }
 
-    // Get unique categories from watched films for recommendations
     const categories = await db
       .select({
         category: film.category,
@@ -399,13 +444,11 @@ async function contentBasedFiltering(userId: string) {
 
     const categoryList = categories.map((c) => c.category);
 
-    // Fallback for no matching categories
     if (categoryList.length === 0) {
       console.log("No categories found, returning top-rated films as fallback");
       return await getTopRatedFilms();
     }
 
-    // Recommend films in the same categories
     const recommendedFilms = await db
       .select({
         id: film.id,
@@ -423,10 +466,9 @@ async function contentBasedFiltering(userId: string) {
       .from(film)
       .where(inArray(film.category, categoryList))
       .orderBy(desc(film.rank)) // Sort by rank
-      .limit(10);
+      .limit(8); // Limit to 8
 
     console.log(`Content-based recommendations for user ${userId}:`, recommendedFilms);
-
     return recommendedFilms;
   } catch (error) {
     console.error("Error in contentBasedFiltering:", error);
@@ -438,16 +480,14 @@ async function contentBasedFiltering(userId: string) {
  * Hybrid Recommendation: Combine collaborative and content-based filtering.
  * @param userId - The ID of the current user.
  */
+// Hybrid Recommendation: Combine results and limit to 8 films
 export async function hybridRecommendation(userId: string) {
   try {
     console.log("Starting hybrid recommendation for userId:", userId);
 
-    // Define the type for film IDs and films
-    type FilmId = number;
-    let collaborativeFilms: FilmId[] = []; // Explicitly typed as an array of Film IDs
-    let contentFilms: Film[] = []; // Explicitly typed as an array of Film objects
+    let collaborativeFilms: FilmId[] = [];
+    let contentFilms: Film[] = [];
 
-    // Fetch recommendations from collaborative filtering
     try {
       collaborativeFilms = await collaborativeFiltering(userId);
       console.log("Collaborative films fetched:", collaborativeFilms);
@@ -455,7 +495,6 @@ export async function hybridRecommendation(userId: string) {
       console.error("Error in collaborativeFiltering:", err);
     }
 
-    // Fetch recommendations from content-based filtering
     try {
       contentFilms = await contentBasedFiltering(userId);
       console.log("Content-based films fetched:", contentFilms);
@@ -463,18 +502,15 @@ export async function hybridRecommendation(userId: string) {
       console.error("Error in contentBasedFiltering:", err);
     }
 
-    // Combine results from both approaches and deduplicate film IDs
     const recommendedFilmsIds = new Set<FilmId>([
       ...collaborativeFilms,
       ...contentFilms.map((f) => f.id),
     ]);
     console.log("Combined film IDs:", Array.from(recommendedFilmsIds));
 
-    // Limit to a maximum of 8 films
     const limitedRecommendations = Array.from(recommendedFilmsIds).slice(0, 8);
     console.log("Limited recommendations (IDs):", limitedRecommendations);
 
-    // Fetch full film details for each recommended film
     const recommendedFilms = await Promise.all(
       limitedRecommendations.map(async (filmId) => {
         try {
@@ -502,20 +538,18 @@ export async function hybridRecommendation(userId: string) {
  * @param req - The API request object.
  * @param res - The API response object.
  */
+// API Handler: Provide the recommendations
 export default async function handler(req: any, res: any) {
   const { userId } = req.query;
 
-  // Ensure that userId is provided in the request
   if (!userId) {
     return res.status(400).json({ error: "User ID is required" });
   }
 
   try {
-    let recommendations: any[] = []; // To store the final recommendations
+    let recommendations: any[] = [];
 
-    // Attempt collaborative filtering
     try {
-      console.log("Trying collaborative filtering...");
       const collaborativeFilms = await collaborativeFiltering(userId as string);
       console.log("Collaborative recommendations fetched:", collaborativeFilms);
 
@@ -529,23 +563,19 @@ export default async function handler(req: any, res: any) {
       console.error("Collaborative filtering failed:", collabError);
     }
 
-    // Fallback to content-based filtering
     try {
-      console.log("Trying content-based filtering...");
       const contentFilms = await contentBasedFiltering(userId as string);
       console.log("Content-based recommendations fetched:", contentFilms);
 
       if (contentFilms.length > 0) {
-        recommendations = contentFilms; // Already fetched as full objects
-        return res.status(200).json(recommendations.slice(0, 8)); // Limit to 8 films
+        recommendations = contentFilms.slice(0, 8); // Limit to 8 films
+        return res.status(200).json(recommendations);
       }
     } catch (contentError) {
       console.error("Content-based filtering failed:", contentError);
     }
 
-    // Final fallback to hybrid recommendations
     try {
-      console.log("Trying hybrid recommendations...");
       recommendations = await hybridRecommendation(userId as string);
       console.log("Hybrid recommendations fetched:", recommendations);
 
@@ -554,7 +584,6 @@ export default async function handler(req: any, res: any) {
       console.error("Hybrid recommendation failed:", hybridError);
     }
 
-    // If all methods fail, return an empty array
     return res.status(200).json([]);
   } catch (error) {
     console.error("Error fetching recommendations:", error);

@@ -13,8 +13,6 @@ import Autoplay from "embla-carousel-autoplay";
 import { CiStar } from "react-icons/ci";
 import { FaHeart, FaPlay } from "react-icons/fa";
 import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 
 interface Film {
   id: number;
@@ -115,7 +113,7 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
 
   const handleToggleWatchlist = async (filmId: number) => {
     if (!userId) {
-      toast.warn("Please log in to manage your watchlist.");
+      console.warn("Please log in to manage your watchlist.");
       return;
     }
 
@@ -123,21 +121,18 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
     try {
       if (isInWatchlist) {
         await axios.delete(`/api/watchlist/${filmId}`, { data: { userId } });
-        toast.success("Removed from your watchlist.");
       } else {
         await axios.post("/api/watchlist", { filmId, userId });
-        toast.success("Added to your watchlist.");
       }
       setWatchList((prev) => ({ ...prev, [filmId]: !isInWatchlist }));
     } catch (error) {
       console.error("Error toggling watchlist:", error);
-      toast.error("Failed to update watchlist.");
     }
   };
 
   const handleRatingClick = async (filmId: number, newRating: number) => {
     if (!userId) {
-      toast.warn("Please log in to rate films.");
+      console.warn("Please log in to rate films.");
       return;
     }
 
@@ -150,11 +145,8 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
         ...prev,
         [filmId]: avgResponse.data.averageRating || 0,
       }));
-
-      toast.success("Your rating has been saved!");
     } catch (error) {
       console.error("Error saving rating:", error);
-      toast.error("Failed to save your rating.");
     }
   };
 
@@ -171,16 +163,13 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
 
     try {
       await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
-      toast.success("Marked as watched!");
     } catch (error) {
       console.error("Error marking film as watched:", error);
-      toast.error("Failed to mark as watched.");
     }
   };
 
   return (
     <div className="recently-added-container mb-10 w-full">
-      <ToastContainer />
       {isLoading ? (
         <div className="flex justify-center items-center w-full">
           <div className="flex space-x-2">

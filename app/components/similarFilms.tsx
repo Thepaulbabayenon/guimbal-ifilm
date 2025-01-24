@@ -18,7 +18,7 @@ export default function SimilarFilms({ category }: SimilarFilmsProps) {
         .select()
         .from(film)
         .where(eq(film.category, category))
-        .limit(5);
+        .limit(6);
       setSimilarFilms(films);
     };
 

@@ -70,7 +70,7 @@ export default function PlayVideoModal({
     }
   };
 
-  const modifiedTrailerUrl = trailerUrl.replace("watch?v=", "embed/");
+  const modifiedTrailerUrl = trailerUrl ? trailerUrl.replace("watch?v=", "embed/") : "";
 
   const handleRatingClick = (rating: number) => {
     setUserRating(rating);

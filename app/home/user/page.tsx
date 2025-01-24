@@ -1,18 +1,11 @@
-import { auth } from "@clerk/nextjs/server";
-import { getUserData } from "@/app/api/getUser"; // Adjust the import path as needed
+"use client"; // Ensure this is present if using Next.js 13 with the app directory
+
+import { useState, useEffect } from "react";
+import { getRecommendedFilms } from "@/app/api/getFilms"; // Assuming you have a function for recommended films
+import { FilmCard } from "@/app/components/FilmCard";
 import Image from "next/image";
-import { FilmCard } from "@/app/components/FilmCard"; // Adjust the import path as needed
-import { Logo } from "@/app/components/Logo";
-
-// Ensure dynamic rendering
-export const dynamic = "force-dynamic";
-
-// Define types for the user and film objects
-interface User {
-  name: string | null;
-  email: string;
-  image?: string | null;
-}
+import { Logo } from "@/app/components/Logo"; // Adjust the import path
+import { useUser, useClerk } from "@clerk/nextjs"; // Clerk hooks
 
 interface Film {
   id: number;
@@ -27,126 +20,147 @@ interface Film {
   watchListId?: string | null;
 }
 
-interface UserData {
-  user: User;
-  watchlist: Film[];
-  top10: Film[];
-  favorites: Film[];
-}
+export default function Profile() {
+  const { isLoaded, isSignedIn, user } = useUser(); // Access Clerk's user data
+  const { signOut } = useClerk(); // Access Clerk's signOut function
 
-export default async function Profile() {
-  try {
-    // Authenticate the user
-    const { userId }: { userId: string | null } = auth();
-    if (!userId) {
-      throw new Error("User not logged in");
+  const [userData, setUserData] = useState<any>(null); // Store user data
+  const [recommendedFilms, setRecommendedFilms] = useState<Film[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Handle loading state
+  if (!isLoaded) {
+    return <div className="flex items-center justify-center p-4">Loading...</div>;
+  }
+
+  // Fetch user data using useEffect (only when user is signed in)
+  useEffect(() => {
+    if (isSignedIn && user) {
+      const fetchUserData = async () => {
+        try {
+          const email = user.emailAddresses[0]?.emailAddress; // Get email from user object
+          if (!email) {
+            setError("No email provided.");
+            setLoading(false);
+            return;
+          }
+
+          // Fetch user data using the email
+          const response = await fetch(`/api/getUserData?email=${encodeURIComponent(email)}`);
+          const data = await response.json();
+          if (response.ok) {
+            setUserData(data);
+          } else {
+            setError(data.error);
+          }
+        } catch (err) {
+          setError("Error fetching user data");
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchUserData();
+    } else {
+      setLoading(false);
+      setError("User not signed in.");
     }
+  }, [isSignedIn, user]); // Only re-run when `isSignedIn` or `user` changes
 
-    // Fetch user data
-    const userData: UserData | null = await getUserData(userId);
+  // Fetch recommended films once user data is available
+  useEffect(() => {
+    if (userData && userData.userId) {
+      const fetchRecommendedFilms = async () => {
+        try {
+          setLoading(true);
+          const films = await getRecommendedFilms(userData.userId);
+          setRecommendedFilms(films);
+        } catch (err) {
+          setError("Error fetching recommended films");
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    if (!userData || !userData.user) {
-      return (
-        <div className="profile-container mb-20">
-          <div className="flex flex-col items-center justify-center">
-            <h1 className="text-gray-400 text-4xl font-bold underline mt-10 px-5 sm:px-0">
-              Profile Not Found
-            </h1>
-            <p>User data could not be fetched. Please try again later.</p>
-          </div>
-        </div>
-      );
+      fetchRecommendedFilms();
     }
+  }, [userData]); // Only re-run when `userData` changes
 
-    const { user, watchlist = [], top10 = [], favorites = [] } = userData;
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
-    // Render Film Cards Helper
-    const renderFilmCards = (films: Film[], options: { watchList?: boolean } = {}) =>
-      films.map((film) => (
-        <FilmCard
-          key={film.id}
-          age={film.age}
-          filmId={film.id}
-          overview={film.overview}
-          time={film.duration}
-          title={film.title}
-          watchListId={options.watchList ? film.watchListId?.toString() ?? "" : ""}
-          watchList={options.watchList || false}
-          year={film.release}
-          trailerUrl={film.trailer || film.imageString || ""}
-          initialRatings={0}
-          category={film.category || "Unknown"}
-        />
-      ));
+  if (error) {
+    return <div>{error}</div>;
+  }
 
+  if (!userData) {
     return (
       <div className="profile-container mb-20">
-        <div className="top-0 left-0 pt-1">
-          <Logo />
-        </div>
-
-        {/* Profile Info */}
-        <div className="flex flex-col items-center justify-center mt-10 px-5 sm:px-0">
-          <div className="flex items-center space-x-4">
-            <Image
-              src={user.image || "/default-profile.png"}
-              alt="Profile Image"
-              width={100}
-              height={100}
-              className="rounded-full"
-              loading="lazy"
-            />
-            <div>
-              <h1 className="text-gray-400 text-4xl font-bold">{user.name || "Anonymous"}</h1>
-              <p className="text-gray-600">{user.email}</p>
-            </div>
-          </div>
-
-          {/* Watchlist */}
-          <div className="mt-10">
-            <h2 className="text-gray-400 text-3xl font-bold">Your Watchlist</h2>
-            {watchlist.length === 0 ? (
-              <p>No films in your watchlist.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mt-6 gap-6">
-                {renderFilmCards(watchlist, { watchList: true })}
-              </div>
-            )}
-          </div>
-
-          {/* Top 10 Films */}
-          <div className="mt-10">
-            <h2 className="text-gray-400 text-3xl font-bold mb-6">Top 10 Films</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {renderFilmCards(top10)}
-            </div>
-          </div>
-
-          {/* Favorites */}
-          <div className="mt-10">
-            <h2 className="text-gray-400 text-3xl font-bold">Favorites</h2>
-            {favorites.length === 0 ? (
-              <p>No favorites found.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mt-6 gap-6">
-                {renderFilmCards(favorites)}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  } catch (error) {
-    console.error("Error fetching profile data:", error);
-    return (
-      <div className="profile-container mb-20">
-        <div className="flex flex-col items-center justify-center">
-          <h1 className="text-gray-400 text-4xl font-bold underline mt-10 px-5 sm:px-0">
-            Profile Error
-          </h1>
-          <p>There was an error loading your profile. Please try again later.</p>
-        </div>
+        <h1 className="text-gray-400 text-4xl font-bold">Profile Not Found</h1>
+        <p>User data could not be fetched. Please try again later.</p>
       </div>
     );
   }
+
+  const { user: profile, watchlist = [], top10 = [], favorites = [] } = userData;
+
+  // Render Film Cards Helper
+  const renderFilmCards = (films: Film[], options: { watchList?: boolean } = {}) =>
+    films.map((film) => (
+      <FilmCard
+        key={film.id}
+        age={film.age}
+        filmId={film.id}
+        overview={film.overview}
+        time={film.duration}
+        title={film.title}
+        watchListId={options.watchList ? film.watchListId?.toString() ?? "" : ""}
+        watchList={options.watchList || false}
+        year={film.release}
+        trailerUrl={film.trailer || film.imageString || ""}
+        initialRatings={0}
+        category={film.category || "Unknown"}
+      />
+    ));
+
+  return (
+    <div className="profile-container mb-20">
+      <div className="top-0 left-0 pt-1">
+        <Logo />
+      </div>
+
+      <div className="flex flex-col items-center justify-center mt-10 px-5 sm:px-0">
+        <div className="flex items-center space-x-4">
+          <Image
+            src={profile.image || "/default-profile.png"}
+            alt="Profile Image"
+            width={100}
+            height={100}
+            className="rounded-full"
+            loading="lazy"
+          />
+          <div>
+            <h1 className="text-gray-400 text-4xl font-bold">{profile.name || "Anonymous"}</h1>
+            <p className="text-gray-600">{user?.emailAddresses[0]?.emailAddress}</p>
+          </div>
+        </div>
+
+        {/* Watchlist */}
+        <h2 className="text-2xl font-semibold mt-10">Your Watchlist</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+          {renderFilmCards(watchlist, { watchList: true })}
+        </div>
+
+        {/* Recommended Films */}
+        <h2 className="text-2xl font-semibold mt-10">Recommended Films</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+          {renderFilmCards(recommendedFilms)}
+        </div>
+      </div>
+    </div>
+  );
 }

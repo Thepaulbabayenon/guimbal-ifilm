@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { db } from "@/db/drizzle";
 import { comments } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 interface CommentsProps {
   filmId?: number;
@@ -68,18 +68,19 @@ export default function Comments({ filmId, userId, username }: CommentsProps) {
         })
         .from(comments)
         .where(eq(comments.filmId, filmId))
-        .orderBy((comments.createdAt as any).desc());
-
+        .orderBy(desc(comments.createdAt)); // Fix: Using "desc" correctly here
+  
       // Map dates to strings for display
       const formattedComments = fetchedComments.map((comment) => ({
         ...comment,
         createdAt: comment.createdAt.toISOString(),
         username: comment.username || "Anonymous", // Provide default username if null
       }));
-
+  
       setCommentsList(formattedComments);
     }
   };
+  
 
   useEffect(() => {
     if (filmId) fetchComments();
