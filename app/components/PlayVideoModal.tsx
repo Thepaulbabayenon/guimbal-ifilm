@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from "react";
+import { gsap } from "gsap"; // Import GSAP
 import {
   Dialog,
   DialogContent,
@@ -8,10 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FaStar } from "react-icons/fa";
-import { db } from "@/db/drizzle"; 
-import { film, comments } from "@/db/schema"; 
-import { eq, sql } from "drizzle-orm";
+import { CiStar } from "react-icons/ci";
+import axios from "axios";
+import Comments from "@/app/components/Comments";
+import SimilarFilms from "@/app/components/similarFilms";
 
 interface PlayVideoModalProps {
   title: string;
@@ -23,12 +24,12 @@ interface PlayVideoModalProps {
   age: number;
   duration: number;
   ratings: number;
-  category: string; 
   setUserRating: (rating: number) => void;
-  userId?: string; 
-  filmId?: number; 
+  userId?: string;
+  filmId?: number;
   markAsWatched?: (userId: string, filmId: number) => void;
-  watchTimerDuration?: number; 
+  watchTimerDuration?: number;
+  category: string;
 }
 
 export default function PlayVideoModal({
@@ -41,65 +42,23 @@ export default function PlayVideoModal({
   duration,
   release,
   ratings,
-  category, 
   setUserRating,
   userId,
   filmId,
   markAsWatched,
-  watchTimerDuration = 30000, 
+  watchTimerDuration = 30000,
+  category,
 }: PlayVideoModalProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
-  const [loading, setLoading] = useState(true); 
-  const [similarMovies, setSimilarMovies] = useState<any[]>([]); 
-  const [commentsList, setCommentsList] = useState<any[]>([]); 
-  const [newComment, setNewComment] = useState(""); 
+  const [loading, setLoading] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const [modalWidth, setModalWidth] = useState(425); // Set initial width of the modal
-  const [modalHeight, setModalHeight] = useState(600); // Set initial height of the modal
-
-  // Resizing logic
-  const isResizing = useRef(false);
-  const startX = useRef(0);
-  const startY = useRef(0);
-
-  const onMouseDownResize = (e: React.MouseEvent) => {
-    e.preventDefault();
-    isResizing.current = true;
-    startX.current = e.clientX;
-    startY.current = e.clientY;
-  };
-
-  const onMouseMoveResize = (e: MouseEvent) => {
-    if (!isResizing.current || !dialogRef.current) return;
-    const dx = e.clientX - startX.current;
-    const dy = e.clientY - startY.current;
-    setModalWidth((prevWidth) => Math.max(prevWidth + dx, 300)); // Prevent shrinking too small
-    setModalHeight((prevHeight) => Math.max(prevHeight + dy, 300)); // Prevent shrinking too small
-    startX.current = e.clientX;
-    startY.current = e.clientY;
-  };
-
-  const onMouseUpResize = () => {
-    isResizing.current = false;
-  };
-
-  useEffect(() => {
-    if (isResizing.current) {
-      document.addEventListener("mousemove", onMouseMoveResize);
-      document.addEventListener("mouseup", onMouseUpResize);
-    } else {
-      document.removeEventListener("mousemove", onMouseMoveResize);
-      document.removeEventListener("mouseup", onMouseUpResize);
-    }
-    return () => {
-      document.removeEventListener("mousemove", onMouseMoveResize);
-      document.removeEventListener("mouseup", onMouseUpResize);
-    };
-  }, []);
+  const [modalWidth, setModalWidth] = useState(425);
+  const [modalHeight, setModalHeight] = useState(600);
+  const [isResizing, setIsResizing] = useState(false);
 
   const toggleFullscreen = () => {
     if (!isFullscreen && iframeRef.current) {
@@ -117,56 +76,80 @@ export default function PlayVideoModal({
     setUserRating(rating);
   };
 
-  const handleAddComment = async () => {
-    if (newComment.trim() && userId && filmId) {
-      const commentData = {
-        userId,
-        filmId,
-        content: newComment.trim(),
-      };
+  // GSAP animation for modal entry
+  useEffect(() => {
+    if (state) {
+      gsap.fromTo(
+        dialogRef.current,
+        { opacity: 0, scale: 0.9 }, // initial state
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" } // final state
+      );
+    }
+  }, [state]);
 
-      await db.insert(comments).values(commentData);
-      setCommentsList((prev) => [
-        ...prev,
-        { user: "You", content: newComment.trim() },
-      ]);
-      setNewComment("");
+  // GSAP animation for iframe loading
+  useEffect(() => {
+    if (!loading && iframeRef.current) {
+      gsap.fromTo(
+        iframeRef.current,
+        { opacity: 0, scale: 0.95 }, // initial state
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }
+      );
+    }
+  }, [loading]);
+
+  // Mouse down event to start resizing
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsResizing(true);
+  };
+
+  // Mouse move event to resize the modal
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isResizing) {
+      setModalWidth(Math.max(e.clientX - dialogRef.current!.offsetLeft, 200)); // Minimum width of 200px
+      setModalHeight(Math.max(e.clientY - dialogRef.current!.offsetTop, 200)); // Minimum height of 200px
     }
   };
 
-  const fetchComments = async () => {
-    if (filmId) {
-      const fetchedComments = await db
-        .select()
-        .from(comments)
-        .where(eq(comments.filmId, filmId))
-        .orderBy(sql`${comments.createdAt} DESC`);
-      setCommentsList(fetchedComments);
-    }
+  // Mouse up event to stop resizing
+  const handleMouseUp = () => {
+    setIsResizing(false);
   };
+
+  // Set up event listeners for resizing
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    } else {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   useEffect(() => {
-    const fetchSimilarMovies = async () => {
-      const similarMovies = await db
-        .select()
-        .from(film)
-        .where(eq(film.category, category))
-        .limit(5);
-      setSimilarMovies(similarMovies);
-    };
-
-    if (category) {
-      fetchSimilarMovies();
-    }
-
-    if (state && filmId) {
-      fetchComments();
-    }
-
     if (state && !hasWatched && userId && filmId && markAsWatched) {
       timerRef.current = setTimeout(() => {
-        markAsWatched(userId, filmId);
-        setHasWatched(true); 
+        if (userId && filmId) {
+          axios
+            .post("/api/films/[filmId]/watchedFilms", {
+              userId,
+              filmId,
+              watchedDuration: 60, // Adjust as per your requirement
+            })
+            .then(() => {
+              markAsWatched(userId, filmId);
+              setHasWatched(true);
+            })
+            .catch((error) => {
+              console.error("Error marking film as watched:", error);
+            });
+        }
       }, watchTimerDuration);
     }
 
@@ -175,20 +158,16 @@ export default function PlayVideoModal({
         clearTimeout(timerRef.current);
       }
     };
-  }, [state, hasWatched, markAsWatched, userId, filmId, category, watchTimerDuration]);
+  }, [state, hasWatched, markAsWatched, userId, filmId, watchTimerDuration]);
 
   const handleIframeLoad = () => {
     setLoading(false);
-    if (iframeRef.current) {
-      iframeRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    }
   };
 
   return (
     <Dialog open={state} onOpenChange={() => changeState(!state)}>
-      <DialogContent 
-        ref={dialogRef} 
+      <DialogContent
+        ref={dialogRef}
         className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto p-4"
         style={{ width: `${modalWidth}px`, height: `${modalHeight}px` }}
       >
@@ -222,10 +201,10 @@ export default function PlayVideoModal({
         </div>
 
         <div className="mt-4">
-          <h4 className="text-lg font-semibold mb-2">Rate this movie:</h4>
+          <h4 className="text-lg font-semibold mb-2">Rate this film:</h4>
           <div className="flex gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
-              <FaStar
+              <CiStar
                 key={star}
                 size={24}
                 color={(hoverRating || ratings) >= star ? "#FFD700" : "#e4e5e9"}
@@ -238,45 +217,23 @@ export default function PlayVideoModal({
           </div>
         </div>
 
-        <button
-          className="absolute top-2 right-2 bg-gray-800 text-white px-2 py-1 rounded-md"
-          onClick={toggleFullscreen}
-        >
-          {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-        </button>
-
+        {/* Comments Section */}
         <div className="mt-8">
-          <h3 className="text-lg font-semibold">Comments</h3>
-          <div className="mt-4">
-            <input
-              type="text"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment"
-              className="w-full border border-gray-300 rounded-md p-2 text-black"
-            />
-            <button
-              onClick={handleAddComment}
-              className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md"
-            >
-              Post
-            </button>
-          </div>
-
-          <div className="mt-4">
-            {commentsList.map((comment, index) => (
-              <div key={index} className="border-b border-gray-200 py-2">
-                <p className="text-sm font-semibold">{comment.user}</p>
-                <p className="text-sm text-gray-600">{comment.content}</p>
-              </div>
-            ))}
-          </div>
+          <Comments filmId={filmId} userId={userId} />
         </div>
 
+        {/* Similar Films Section */}
+        <div className="mt-8">
+          <SimilarFilms category={category} />
+        </div>
+
+        {/* Resizer handle */}
         <div
-          className="absolute bottom-2 right-2 w-4 h-4 bg-gray-600 cursor-se-resize"
-          onMouseDown={onMouseDownResize}
-        />
+          className="absolute bottom-0 right-0 cursor-se-resize p-2"
+          onMouseDown={handleMouseDown}
+        >
+          <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
+        </div>
       </DialogContent>
     </Dialog>
   );

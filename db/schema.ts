@@ -266,6 +266,7 @@ export const comments = pgTable(
       .notNull()
       .references(() => film.id, { onDelete: 'cascade' }),  // Reference to the film
     content: text('content').notNull(),  // The comment's content
+    username: varchar('username', { length: 255 }),
     createdAt: timestamp('createdAt').defaultNow().notNull(),  // Timestamp for when the comment was made
   }
 );

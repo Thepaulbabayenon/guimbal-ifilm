@@ -1,6 +1,6 @@
 'use client';
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { gsap } from 'gsap';
 
 const FilmUploadModal = () => {
   const [formData, setFormData] = useState({
@@ -8,7 +8,6 @@ const FilmUploadModal = () => {
     fileTypeImage: '',
     fileNameVideo: '',
     fileTypeVideo: '',
-    id: '',
     title: '',
     age: '',
     duration: '',
@@ -60,7 +59,6 @@ const FilmUploadModal = () => {
       fileTypeImage: '',
       fileNameVideo: '',
       fileTypeVideo: '',
-      id: '',
       title: '',
       age: '',
       duration: '',
@@ -144,12 +142,32 @@ const FilmUploadModal = () => {
   };
 
   const closeModal = () => {
-    setIsModalOpen(false);
+    gsap.to('.modal-container', {
+      opacity: 0,
+      scale: 0.9,
+      duration: 0.3,
+      onComplete: () => setIsModalOpen(false),
+    });
   };
 
   const openModal = () => {
     setIsModalOpen(true);
+    gsap.fromTo(
+      '.modal-container',
+      { opacity: 0, scale: 0.9 },
+      { opacity: 1, scale: 1, duration: 0.3 }
+    );
   };
+
+  useEffect(() => {
+    if (isModalOpen) {
+      gsap.fromTo(
+        '.modal-container',
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.3 }
+      );
+    }
+  }, [isModalOpen]);
 
   return (
     <>
@@ -160,18 +178,8 @@ const FilmUploadModal = () => {
 
       {/* Modal */}
       {isModalOpen && (
-        <motion.div
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <motion.div
-            className="relative bg-white rounded-lg shadow-lg max-w-sm w-full p-4"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-          >
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="modal-container relative bg-white rounded-lg shadow-lg max-w-sm w-full p-4">
             {/* Close Button */}
             <button
               onClick={closeModal}
@@ -186,15 +194,6 @@ const FilmUploadModal = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Metadata fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  name="id"
-                  value={formData.id}
-                  placeholder="Film ID"
-                  onChange={handleInputChange}
-                  required
-                  className="border rounded-lg p-1 w-full text-sm text-black"
-                />
                 <input
                   type="text"
                   name="title"
@@ -329,9 +328,7 @@ const FilmUploadModal = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-2 px-4 text-white rounded-lg text-sm ${
-                  loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className={`w-full py-2 px-4 text-white rounded-lg text-sm ${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
               >
                 {loading ? 'Uploading...' : 'Upload'}
               </button>
@@ -351,18 +348,12 @@ const FilmUploadModal = () => {
             )}
 
             {message && (
-              <motion.p
-                className={`mt-4 text-center ${
-                  message.includes('successfully') ? 'text-green-600' : 'text-red-600'
-                }`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
+              <p className={`mt-4 text-center ${message.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
                 {message}
-              </motion.p>
+              </p>
             )}
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
     </>
   );

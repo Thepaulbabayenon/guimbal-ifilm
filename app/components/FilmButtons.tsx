@@ -1,9 +1,10 @@
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CiCircleInfo, CiVolumeHigh, CiVolumeMute, CiPlay1 } from 'react-icons/ci';
+import { CiCircleInfo, CiVolumeHigh, CiVolumeMute, CiPlay1, CiVolume } from 'react-icons/ci';
 import PlayVideoModal from './PlayVideoModal';
 import LearnMoreModal from './learnMoreModal'; // Import LearnMoreModal
+import { gsap } from 'gsap';
 
 interface iAppProps {
   overview: string;
@@ -59,33 +60,61 @@ export default function FilmButtons({
     imageString: 'url-to-image.jpg', // replace with actual image URL
   };
 
+  // GSAP animations for buttons
+  const handleHoverIn = (element: any) => {
+    gsap.to(element, {
+      scale: 1.1,
+      duration: 0.3,
+      ease: 'power2.out',
+    });
+  };
+
+  const handleHoverOut = (element: any) => {
+    gsap.to(element, {
+      scale: 1,
+      duration: 0.3,
+      ease: 'power2.in',
+    });
+  };
+
   return (
     <>
-      <div className="flex gap-3">
+      <div className="flex gap-4">
+        {/* Play Button */}
         <Button
           onClick={() => setPlayModalOpen(true)}
-          className="text-lg font-medium bg-blue-900 hover:bg-blue-600 text-white shadow-md rounded-lg transition-all duration-200 transform hover:scale-105"
+          className="text-lg font-medium bg-blue-900 hover:bg-blue-600 text-white shadow-md rounded-lg"
+          onMouseEnter={(e) => handleHoverIn(e.currentTarget)}
+          onMouseLeave={(e) => handleHoverOut(e.currentTarget)}
         >
-          <CiPlay1 className="mr-2 h-6 w-6 transition-all duration-200 transform hover:scale-110" />
+          <CiPlay1 className="mr-2 h-8 w-8 transition-all duration-200" />
           Play
         </Button>
+
+        {/* Learn More Button */}
         <Button
           onClick={() => setLearnMoreModalOpen(true)} // Open LearnMoreModal
-          className="text-lg font-medium bg-gray-800 hover:bg-gray-600 text-white shadow-md rounded-lg transition-all duration-200 transform hover:scale-105"
+          className="text-lg font-medium bg-gray-800 hover:bg-gray-600 text-white shadow-md rounded-lg"
+          onMouseEnter={(e) => handleHoverIn(e.currentTarget)}
+          onMouseLeave={(e) => handleHoverOut(e.currentTarget)}
         >
-          <CiCircleInfo className="mr-2 h-6 w-6 transition-all duration-200 transform hover:scale-110" />
+          <CiCircleInfo className="mr-2 h-8 w-8 transition-all duration-200" />
           Learn More
         </Button>
-        <Button
-          onClick={toggleMute} // Call the passed toggleMute function
-          className="text-lg font-medium bg-gray-400 hover:bg-gray-200 text-black shadow-md rounded-lg transition-all duration-200 transform hover:scale-105"
+
+        {/* Volume Icon (No Background) */}
+        <div
+          onClick={toggleMute}
+          onMouseEnter={(e) => handleHoverIn(e.currentTarget)}
+          onMouseLeave={(e) => handleHoverOut(e.currentTarget)}
+          className="cursor-pointer transition-transform duration-200"
         >
           {isMuted ? (
-            <CiVolumeMute className="mr-2 h-6 w-6 text-red-600 transition-all duration-200 transform hover:scale-110" />
+            <CiVolumeMute className="h-10 w-10 text-red-600 transition-transform duration-300 hover:scale-110" />
           ) : (
-            <CiVolumeHigh className="mr-2 h-6 w-6 text-green-600 transition-all duration-200 transform hover:scale-110" />
+            <CiVolumeHigh className="h-10 w-10 text-green-600 transition-transform duration-300 hover:scale-110" />
           )}
-        </Button>
+        </div>
       </div>
 
       {/* Play Video Modal */}

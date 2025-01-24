@@ -1,85 +1,68 @@
-import { db } from '@/db/drizzle';
-import { userRatings, watchedFilms, users } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextApiRequest, NextApiResponse } from "next";
+import { db } from "@/db/drizzle"; // Adjust the path to your Drizzle database instance
+import { watchedFilms, film, users } from "@/db/schema"; // Adjust schema imports as necessary
+import { eq, and } from "drizzle-orm"; // Import comparison helpers
+import { z } from "zod"; // Zod for validation
 
-export async function POST(req: NextRequest) {
+// Validation schema for the request body
+const watchedFilmsSchema = z.object({
+  userId: z.string().uuid(),
+  filmId: z.number().int(),
+  watchedDuration: z.number().min(60, "Watched duration must be at least 60 seconds."),
+});
+
+// Define POST method explicitly
+export async function POST(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const body = await req.json();
-    console.log('Request Body:', body);  // Debug log
+    // Parse and validate the request body
+    const body = watchedFilmsSchema.parse(req.body);
 
-    const { userId, filmId, rating } = body;
+    const { userId, filmId, watchedDuration } = body;
 
-    // Validate input
-    if (!userId || !filmId || rating === undefined) {
-      return NextResponse.json(
-        { error: 'userId, filmId, and rating are required' }, 
-        { status: 400 }
-      );
-    }
-
-    // Validate that the rating is between 1 and 5
-    if (rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { error: 'Rating must be between 1 and 5' }, 
-        { status: 400 }
-      );
-    }
-
-    // Ensure user exists in the database
-    const userExists = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
+    // Fetch user and film in parallel to optimize DB queries
+    const [userExists, filmExists] = await Promise.all([
+      db.query.users.findFirst({ where: eq(users.id, userId) }),
+      db.query.film.findFirst({ where: eq(film.id, filmId) }),
+    ]);
 
     if (!userExists) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return res.status(404).json({ error: "User not found." });
     }
 
-    // Check for an existing rating for this user and film
-    const existingRating = await db.query.userRatings.findFirst({
-      where: and(eq(userRatings.userId, userId), eq(userRatings.filmId, filmId)),
-    });
-
-    if (existingRating) {
-      // Update the existing rating
-      await db.update(userRatings).set({ rating }).where(eq(userRatings.id, existingRating.id));
-      console.log("Updated existing rating for filmId:", filmId);
-    } else {
-      // Insert a new rating
-      await db.insert(userRatings).values({
-        userId,
-        filmId,
-        rating,
-      });
-      console.log("Inserted new rating for filmId:", filmId);
+    if (!filmExists) {
+      return res.status(404).json({ error: "Film not found." });
     }
 
-    // After rating, mark the film as watched
-    // Check if the film has already been marked as watched
-    const alreadyWatched = await db.query.watchedFilms.findFirst({
-      where: eq(watchedFilms.userId, userId) && eq(watchedFilms.filmId, filmId),
+    // Check if the film is already in the watchedFilms table
+    const existingRecord = await db.query.watchedFilms.findFirst({
+      where: and(eq(watchedFilms.userId, userId), eq(watchedFilms.filmId, filmId)),
     });
 
-    if (!alreadyWatched) {
-      // Insert into watchedFilms if not already marked as watched
+    if (!existingRecord) {
+      // Insert new record into watchedFilms
       await db.insert(watchedFilms).values({
         userId,
         filmId,
-        timestamp: new Date(),  // Insert current timestamp
+        currentTimestamp: watchedDuration,
       });
-      console.log("Inserted film into watchedFilms table:", filmId);
+
+      return res.status(201).json({ message: "Film successfully added to watched films." });
     }
 
-    return NextResponse.json(
-      { message: 'Rating and watch status saved successfully', rating }, 
-      { status: 200 }
-    );
+    // Update the currentTimestamp if a record already exists
+    await db
+      .update(watchedFilms)
+      .set({ currentTimestamp: watchedDuration })
+      .where(and(eq(watchedFilms.userId, userId), eq(watchedFilms.filmId, filmId)));
 
+    return res.status(200).json({ message: "Watched film updated successfully." });
   } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to save rating and watch status', details: (error as Error).message }, 
-      { status: 500 }
-    );
+    if (error instanceof z.ZodError) {
+      // Handle validation errors
+      return res.status(400).json({ error: error.errors });
+    }
+
+    console.error("Error handling watched film:", error);
+    return res.status(500).json({ error: "Internal server error." });
   }
 }
