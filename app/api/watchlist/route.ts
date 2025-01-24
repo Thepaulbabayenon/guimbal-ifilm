@@ -1,59 +1,48 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { db } from '@/db/drizzle'; // Assuming centralized database connection
-import { watchLists } from '@/db/schema'; // Import your watchlist schema
-import { eq, and } from 'drizzle-orm'; // Import Drizzle ORM helper functions
+import { NextResponse } from "next/server";
+import { db } from "@/db/drizzle";
+import { watchLists } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { isValidUUID } from "@/app/utils/uuid";
 
-// Database function to add a film to the watchlist
-const addFilmToWatchlist = async (userId: string, filmId: number) => {
+// Helper function to remove movie from the watchlist
+const removeMovieFromWatchlist = async (userId: string, watchListId: string) => {
   try {
-    // Check if the film is already in the user's watchlist
-    const existingEntry = await db.select()
-      .from(watchLists)
-      .where(and(eq(watchLists.userId, userId), eq(watchLists.filmId, filmId))) // Fixed: using 'and' for multiple conditions
-      .limit(1);
+    const deletedWatchlistEntry = await db
+      .delete(watchLists)
+      .where(and(eq(watchLists.id, watchListId), eq(watchLists.userId, userId)))
+      .returning();
 
-    if (existingEntry.length > 0) {
-      return { success: false, message: "Film is already in the watchlist" };
-    }
-
-    // Insert a new film into the watchlist (ensure 'id' is provided)
-    const insertedWatchlistEntry = await db.insert(watchLists).values({
-      id: crypto.randomUUID(), // Generate a unique ID for the new watchlist entry
-      userId,
-      filmId,
-      isFavorite: false, // Default to false (adjust if needed)
-    }).returning();
-
-    return insertedWatchlistEntry.length > 0
+    return deletedWatchlistEntry.length > 0
       ? { success: true }
-      : { success: false, message: "Failed to add to watchlist" };
+      : { success: false, message: "Watchlist entry not found" };
   } catch (error) {
-    console.error('Error adding film to watchlist:', (error as Error).message); // Cast error to 'Error' to access message
+    console.error("Error deleting watchlist entry:", error);
     return { success: false, message: (error as Error).message };
   }
 };
 
-// POST endpoint for adding a film to the watchlist
-export async function POST(request: NextRequest) {
-  try {
-    const { filmId, pathname, userId } = await request.json();
+// DELETE request for removing a movie from the watchlist
+export async function DELETE(request: Request, { params }: { params: { watchListId: string } }) {
+  const { watchListId } = params;
 
-    // Validate the incoming data
-    if (!filmId || !userId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
+  // Validate watchListId - it should be a valid UUID
+  if (!watchListId || !isValidUUID(watchListId)) {
+    return NextResponse.json({ error: "Invalid or missing watchListId" }, { status: 400 });
+  }
 
-    // Add the film to the watchlist
-    const result = await addFilmToWatchlist(userId, filmId);
+  // Parse the userId from the request body
+  const { userId } = await request.json();
 
-    if (result.success) {
-      return NextResponse.json({ message: "Film added to watchlist successfully" }, { status: 200 });
-    } else {
-      return NextResponse.json({ error: result.message || "Failed to add to watchlist" }, { status: 400 });
-    }
-  } catch (error) {
-    console.error("Error in POST /api/watchlist:", (error as Error).message); // Cast error to 'Error'
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  // Check for missing `userId`
+  if (!userId) {
+    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+  }
+
+  // Call function to remove the movie
+  const result = await removeMovieFromWatchlist(userId, watchListId);
+  if (result.success) {
+    return NextResponse.json({ message: "Movie removed from watchlist successfully" }, { status: 200 });
+  } else {
+    return NextResponse.json({ error: result.message || "Failed to remove from watchlist" }, { status: 400 });
   }
 }

@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { FilmCard } from "@/app/components/FilmCard";
 import Image from "next/image";
+import gsap from "gsap";
 
 interface Film {
   id: number;
@@ -24,6 +25,25 @@ interface FilmLayoutProps {
 }
 
 const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error }) => {
+  const filmGridRef = useRef<HTMLDivElement | null>(null);
+
+  // GSAP Animation for film cards
+  useEffect(() => {
+    if (filmGridRef.current) {
+      gsap.fromTo(
+        filmGridRef.current.children, 
+        { opacity: 0, y: 50 }, // initial state
+        {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          stagger: 0.1, // stagger the animations for each film
+          ease: "power3.out",
+        }
+      );
+    }
+  }, [films]);
+
   return (
     <div className="recently-added-container mb-20">
       {/* Title Section */}
@@ -44,9 +64,16 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error })
       {error && <div className="text-center text-red-500 mt-4">{error}</div>}
 
       {/* Film Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6">
+      <div
+        ref={filmGridRef}
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6"
+      >
         {films.map((film) => (
-          <div key={film.id} className="relative h-60">
+          <div
+            key={film.id}
+            className="relative h-60"
+            style={{ opacity: 0 }} // Initial opacity set to 0 for animation
+          >
             {/* Film Thumbnail */}
             <Image
               src={film.imageString}
@@ -56,7 +83,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error })
               className="rounded-sm absolute w-full h-full object-cover"
             />
 
-            {/* Overlay */}
+            {/* Overlay with hover animation */}
             <div className="h-60 relative z-10 w-full transform transition duration-500 hover:scale-125 opacity-0 hover:opacity-100">
               <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center">
                 <Image

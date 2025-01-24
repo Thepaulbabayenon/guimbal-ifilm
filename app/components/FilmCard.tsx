@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { CiStar, CiPlay1, CiHeart  } from "react-icons/ci";
+import { CiStar, CiPlay1, CiHeart } from "react-icons/ci";
 import PlayVideoModal from "./PlayVideoModal";
 import { usePathname } from "next/navigation";
 import axios from "axios";
@@ -123,22 +123,28 @@ export function FilmCard({
       return;
     }
 
-    setWatchList((prev) => !prev);
+    // Start the process of updating the watchlist
     setIsSavingWatchlist(true);
 
     try {
       if (watchList) {
+        // Removing from watchlist
         await axios.delete(`/api/watchlist/${watchListId}`, { data: { userId } });
+        setWatchList(false); // Set watchlist state to false if the film is removed
       } else {
+        // Adding to watchlist
         await axios.post("/api/watchlist", { filmId, pathname: pathName, userId });
+        setWatchList(true); // Set watchlist state to true if the film is added
       }
     } catch (error) {
       console.error("Error toggling watchlist:", error);
+      // Optionally revert the state if the API call fails
       setWatchList((prev) => !prev);
     } finally {
       setIsSavingWatchlist(false);
     }
-  };
+};
+
 
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
@@ -173,9 +179,12 @@ export function FilmCard({
 
   return (
     <>
-      {/* Removed onClick from the button */}
-      <button onClick={() => setOpen(true)} className="-mt-14">
-        <CiPlay1 className="h-20 w-20" />
+      {/* Play Button */}
+      <button
+        onClick={() => setOpen(true)}
+        className="-mt-14 play-button" // Add a specific class for hover effect
+      >
+        <CiPlay1 className="h-20 w-20 transition-colors duration-300 hover:text-red-500" /> {/* Apply hover color change */}
       </button>
 
       {/* Watchlist Button */}
@@ -230,7 +239,7 @@ export function FilmCard({
       </div>
 
       {/* PlayVideoModal */}
-      <PlayVideoModal 
+      <PlayVideoModal
         key={filmId}
         title={title}
         overview={overview}
