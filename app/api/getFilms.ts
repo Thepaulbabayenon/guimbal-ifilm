@@ -238,6 +238,29 @@ export async function getComedyFilms() {
   return comedyFilmsData;
 }
 
+export async function getAllFilmsWithDetails(userId: string): Promise<Film[]> {
+  // Fetch films and additional data in parallel
+  const filmsResponse = await fetch("http://localhost:3000/api/films");
+  const films: Film[] = await filmsResponse.json();
+
+  const userWatchlistResponse = await fetch(`http://localhost:3000/api/watchlist?userId=${userId}`);
+  const userWatchlist: number[] = await userWatchlistResponse.json(); // Array of film IDs in watchlist
+
+  const userRatingsResponse = await fetch(`http://localhost:3000/api/user-ratings?userId=${userId}`);
+  const userRatings: Record<number, number> = await userRatingsResponse.json(); // Map of film ID to user rating
+
+  const averageRatingsResponse = await fetch(`http://localhost:3000/api/average-ratings`);
+  const averageRatings: Record<number, number> = await averageRatingsResponse.json(); // Map of film ID to average rating
+
+  // Merge additional data into films
+  return films.map((film: Film) => ({
+    ...film,
+    inWatchlist: userWatchlist.includes(film.id),
+    userRating: userRatings[film.id] || 0,
+    averageRating: averageRatings[film.id] || 0,
+  }));
+}
+
 /**
  * Fetch drama films.
  * This function returns all films that belong to the drama category.

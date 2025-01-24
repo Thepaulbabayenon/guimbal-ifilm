@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/drizzle"; // Adjust the path to your Drizzle database instance
 import { watchedFilms, film, users } from "@/db/schema"; // Adjust schema imports as necessary
 import { eq, and } from "drizzle-orm"; // Import comparison helpers
@@ -12,12 +12,13 @@ const watchedFilmsSchema = z.object({
 });
 
 // Define POST method explicitly
-export async function POST(req: NextApiRequest, res: NextApiResponse) {
+export async function POST(req: NextRequest) {
   try {
     // Parse and validate the request body
-    const body = watchedFilmsSchema.parse(req.body);
+    const body = await req.json(); // Use `req.json()` to parse body in App Router
+    const parsedBody = watchedFilmsSchema.parse(body);
 
-    const { userId, filmId, watchedDuration } = body;
+    const { userId, filmId, watchedDuration } = parsedBody;
 
     // Fetch user and film in parallel to optimize DB queries
     const [userExists, filmExists] = await Promise.all([
@@ -26,11 +27,11 @@ export async function POST(req: NextApiRequest, res: NextApiResponse) {
     ]);
 
     if (!userExists) {
-      return res.status(404).json({ error: "User not found." });
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
     if (!filmExists) {
-      return res.status(404).json({ error: "Film not found." });
+      return NextResponse.json({ error: "Film not found." }, { status: 404 });
     }
 
     // Check if the film is already in the watchedFilms table
@@ -46,7 +47,7 @@ export async function POST(req: NextApiRequest, res: NextApiResponse) {
         currentTimestamp: watchedDuration,
       });
 
-      return res.status(201).json({ message: "Film successfully added to watched films." });
+      return NextResponse.json({ message: "Film successfully added to watched films." }, { status: 201 });
     }
 
     // Update the currentTimestamp if a record already exists
@@ -55,14 +56,14 @@ export async function POST(req: NextApiRequest, res: NextApiResponse) {
       .set({ currentTimestamp: watchedDuration })
       .where(and(eq(watchedFilms.userId, userId), eq(watchedFilms.filmId, filmId)));
 
-    return res.status(200).json({ message: "Watched film updated successfully." });
+    return NextResponse.json({ message: "Watched film updated successfully." });
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Handle validation errors
-      return res.status(400).json({ error: error.errors });
+      return NextResponse.json({ error: error.errors }, { status: 400 });
     }
 
     console.error("Error handling watched film:", error);
-    return res.status(500).json({ error: "Internal server error." });
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
