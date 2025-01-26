@@ -1,5 +1,5 @@
 {
-  "id": "80f1b697-923f-449a-a681-5b7f609dde23",
+  "id": "befb5843-523b-4bab-bf84-d5130aabd8fe",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -184,6 +184,86 @@
         }
       }
     },
+    "public.commentVotes": {
+      "name": "commentVotes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commentId": {
+          "name": "commentId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "voteType": {
+          "name": "voteType",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "filmId": {
+          "name": "filmId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "commentVotes_userId_user_id_fk": {
+          "name": "commentVotes_userId_user_id_fk",
+          "tableFrom": "commentVotes",
+          "tableTo": "user",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "commentVotes_commentId_comments_id_fk": {
+          "name": "commentVotes_commentId_comments_id_fk",
+          "tableFrom": "commentVotes",
+          "tableTo": "comments",
+          "columnsFrom": [
+            "commentId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "commentVotes_filmId_film_id_fk": {
+          "name": "commentVotes_filmId_film_id_fk",
+          "tableFrom": "commentVotes",
+          "tableTo": "film",
+          "columnsFrom": [
+            "filmId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "public.comments": {
       "name": "comments",
       "schema": "",
@@ -211,6 +291,32 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "thumbsUp": {
+          "name": "thumbsUp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "thumbsDown": {
+          "name": "thumbsDown",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "createdAt": {
           "name": "createdAt",
@@ -249,6 +355,40 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.files": {
+      "name": "files",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "s3_url": {
+          "name": "s3_url",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "upload_date": {
+          "name": "upload_date",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
@@ -310,8 +450,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "youtubeString": {
-          "name": "youtubeString",
+        "trailer": {
+          "name": "trailer",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -353,6 +493,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "0"
+        },
+        "averageRating": {
+          "name": "averageRating",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -493,8 +639,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "youtubeString": {
-          "name": "youtubeString",
+        "trailer": {
+          "name": "trailer",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -822,13 +968,55 @@
       },
       "uniqueConstraints": {}
     },
+    "public.watchHistory": {
+      "name": "watchHistory",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "filmId": {
+          "name": "filmId",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "watchedDuration": {
+          "name": "watchedDuration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "public.watchLists": {
       "name": "watchLists",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "serial",
           "primaryKey": true,
           "notNull": true
         },

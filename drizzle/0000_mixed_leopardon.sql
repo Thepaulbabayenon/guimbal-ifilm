@@ -25,12 +25,31 @@ CREATE TABLE IF NOT EXISTS "authenticator" (
 	CONSTRAINT "authenticator_credentialID_unique" UNIQUE("credentialID")
 );
 --> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "commentVotes" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"userId" text NOT NULL,
+	"commentId" integer NOT NULL,
+	"voteType" varchar(10) NOT NULL,
+	"filmId" integer NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "comments" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"userId" text NOT NULL,
 	"filmId" integer NOT NULL,
 	"content" text NOT NULL,
+	"username" varchar(255),
+	"email" varchar(255) NOT NULL,
+	"thumbsUp" integer DEFAULT 0 NOT NULL,
+	"thumbsDown" integer DEFAULT 0 NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "files" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"file_name" varchar(255),
+	"s3_url" varchar(500),
+	"upload_date" varchar(50)
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "film" (
@@ -43,13 +62,14 @@ CREATE TABLE IF NOT EXISTS "film" (
 	"release" integer NOT NULL,
 	"videoSource" varchar NOT NULL,
 	"category" varchar NOT NULL,
-	"youtubeString" varchar NOT NULL,
+	"trailer" varchar NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
 	"producer" varchar NOT NULL,
 	"director" varchar NOT NULL,
 	"coDirector" varchar NOT NULL,
 	"studio" varchar NOT NULL,
-	"rank" integer DEFAULT 0 NOT NULL
+	"rank" integer DEFAULT 0 NOT NULL,
+	"averageRating" real
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "filmRecommendations" (
@@ -69,7 +89,7 @@ CREATE TABLE IF NOT EXISTS "movie" (
 	"release" integer NOT NULL,
 	"videoSource" varchar NOT NULL,
 	"category" varchar NOT NULL,
-	"youtubeString" varchar NOT NULL,
+	"trailer" varchar NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
 	"producer" varchar NOT NULL,
 	"director" varchar NOT NULL,
@@ -118,8 +138,16 @@ CREATE TABLE IF NOT EXISTS "verificationToken" (
 	CONSTRAINT "verificationToken_identifier_token_pk" PRIMARY KEY("identifier","token")
 );
 --> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "watchHistory" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"userId" varchar NOT NULL,
+	"filmId" varchar NOT NULL,
+	"watchedDuration" integer DEFAULT 0,
+	"createdAt" timestamp DEFAULT now()
+);
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "watchLists" (
-	"id" uuid PRIMARY KEY NOT NULL,
+	"id" serial PRIMARY KEY NOT NULL,
 	"userId" text NOT NULL,
 	"filmId" integer NOT NULL,
 	"isFavorite" boolean DEFAULT false
@@ -141,6 +169,24 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "authenticator" ADD CONSTRAINT "authenticator_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "commentVotes" ADD CONSTRAINT "commentVotes_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "commentVotes" ADD CONSTRAINT "commentVotes_commentId_comments_id_fk" FOREIGN KEY ("commentId") REFERENCES "public"."comments"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "commentVotes" ADD CONSTRAINT "commentVotes_filmId_film_id_fk" FOREIGN KEY ("filmId") REFERENCES "public"."film"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

@@ -3,7 +3,7 @@ import axios from "axios";
 
 export async function addToWatchlist(formData: FormData) {
   try {
-    const response = await fetch("/api/watchlist/add", {
+    const response = await fetch("/api/watchlist", {
       method: "POST",
       body: formData,
     });

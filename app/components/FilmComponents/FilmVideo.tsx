@@ -4,7 +4,7 @@ import { db } from "@/db/drizzle";
 import { film } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import FilmButtons from "./FilmButtons";
-import LoadingState from "./loading"; // Import the loading state component
+import LoadingState from "../loading"; // Import the loading state component
 
 interface Film {
   id: number;

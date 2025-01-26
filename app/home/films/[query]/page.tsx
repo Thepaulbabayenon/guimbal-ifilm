@@ -1,8 +1,8 @@
 'use client';
 import { useSearchParams } from "next/navigation"; 
 import { useState, useEffect } from "react";
-import FilmLayout from "@/app/components/FilmLayout"; // Import the FilmLayout
-import FilmDetails from "@/app/components/FilmDetails"; // Import the new FilmDetails component
+import FilmLayout from "@/app/components/FilmComponents/FilmLayout"; // Import the FilmLayout
+import FilmDetails from "@/app/components/FilmComponents/FilmDetails"; // Import the new FilmDetails component
 
 interface Film {
   id: number;

@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1736170648607,
-      "tag": "0000_third_puck",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1736175415933,
-      "tag": "0001_reflective_living_tribunal",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1737433494266,
-      "tag": "0002_lyrical_rafael_vega",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1737434283585,
-      "tag": "0003_nosy_hemingway",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1737434418157,
-      "tag": "0004_blue_madame_hydra",
+      "when": 1737877125408,
+      "tag": "0000_mixed_leopardon",
       "breakpoints": true
     }
   ]

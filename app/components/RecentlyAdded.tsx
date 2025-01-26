@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { db } from "@/db/drizzle";
-import { FilmCard } from "./FilmCard";
+import { FilmCard } from "./FilmComponents/FilmCard";
 import { auth } from "@clerk/nextjs/server";
 import { and, asc, eq, avg } from "drizzle-orm"; // Ensure that avg() is imported
 import { accounts, film, userRatings } from "@/db/schema";

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { CiStar } from "react-icons/ci";
 import axios from "axios";
-import Comments from "@/app/components/Comments";
+import Comments from "@/app/components/Comments"; // Import Comments component
 import SimilarFilms from "@/app/components/similarFilms";
 
 interface PlayVideoModalProps {
@@ -26,7 +26,7 @@ interface PlayVideoModalProps {
   ratings: number;
   setUserRating: (rating: number) => void;
   userId?: string;
-  filmId?: number;
+  filmId?: number; // Ensure filmId is passed as a prop
   markAsWatched?: (userId: string, filmId: number) => void;
   watchTimerDuration?: number;
   category: string;
@@ -44,7 +44,7 @@ export default function PlayVideoModal({
   ratings,
   setUserRating,
   userId,
-  filmId,
+  filmId, // Destructure filmId
   markAsWatched,
   watchTimerDuration = 30000,
   category,
@@ -98,12 +98,10 @@ export default function PlayVideoModal({
     }
   }, [loading]);
 
-  // Mouse down event to start resizing
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
   };
 
-  // Mouse move event to resize the modal
   const handleMouseMove = (e: MouseEvent) => {
     if (isResizing) {
       setModalWidth(Math.max(e.clientX - dialogRef.current!.offsetLeft, 200)); // Minimum width of 200px
@@ -111,12 +109,10 @@ export default function PlayVideoModal({
     }
   };
 
-  // Mouse up event to stop resizing
   const handleMouseUp = () => {
     setIsResizing(false);
   };
 
-  // Set up event listeners for resizing
   useEffect(() => {
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
@@ -200,6 +196,7 @@ export default function PlayVideoModal({
           />
         </div>
 
+        {/* Rate this film */}
         <div className="mt-4">
           <h4 className="text-lg font-semibold mb-2">Rate this film:</h4>
           <div className="flex gap-1">
@@ -218,9 +215,11 @@ export default function PlayVideoModal({
         </div>
 
         {/* Comments Section */}
-        <div className="mt-8">
-          <Comments filmId={filmId} userId={userId} />
-        </div>
+        {filmId && (
+          <div className="mt-8">
+            <Comments filmId={filmId} />
+          </div>
+        )}
 
         {/* Similar Films Section */}
         <div className="mt-8">

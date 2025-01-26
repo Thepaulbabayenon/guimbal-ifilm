@@ -1,4 +1,4 @@
-import { FilmCard } from "@/app/components/FilmCard";
+import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db/drizzle";
 import Image from "next/image";

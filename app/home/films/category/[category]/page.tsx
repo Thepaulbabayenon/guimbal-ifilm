@@ -1,6 +1,6 @@
 'use client'; // Mark this component as client-side
 
-import { FilmCard } from "@/app/components/FilmCard";
+import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import { getFilmsByCategory } from "@/app/api/getFilms"; // Function to get films by category
 import { useParams } from "next/navigation"; // For accessing the category from the URL
 import Image from "next/image";

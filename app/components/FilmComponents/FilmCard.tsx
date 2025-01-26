@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CiStar, CiPlay1, CiHeart } from "react-icons/ci";
-import PlayVideoModal from "./PlayVideoModal";
+import PlayVideoModal from "../PlayVideoModal";
 import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
@@ -45,6 +45,30 @@ export function FilmCard({
   const [isSavingRating, setIsSavingRating] = useState(false);
   const [loading, setLoading] = useState(true); // State for overall loading
   const pathName = usePathname();
+
+  // Fetch current watchlist state when the component mounts
+  useEffect(() => {
+    if (!userId) return;
+
+    const checkIfInWatchlist = async () => {
+      try {
+        const response = await axios.get(`/api/watchlist`, {
+          params: { userId, filmId },
+        });
+
+        // Check if the filmId exists in the watchlist
+        if (response.data?.isInWatchlist) {
+          setWatchList(true); // Set watchlist state to true if the film is in the watchlist
+        } else {
+          setWatchList(false); // Set watchlist state to false if the film is not in the watchlist
+        }
+      } catch (error) {
+        console.error("Error fetching watchlist data:", error);
+      }
+    };
+
+    checkIfInWatchlist();
+  }, [userId, filmId]);
 
   // Function to mark a film as watched
   const markAsWatched = async (userId: string, filmId: number) => {
@@ -117,33 +141,44 @@ export function FilmCard({
   // Handle watchlist toggle
   const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-
+  
     if (!userId) {
       alert("Please log in to manage your watchlist.");
       return;
     }
-
-    // Start the process of updating the watchlist
+  
     setIsSavingWatchlist(true);
-
+  
+    console.log("Toggling watchlist for user:", userId, "FilmId:", filmId, "watchListId:", watchListId); // Log the ID here
+  
     try {
       if (watchList) {
-        // Removing from watchlist
-        await axios.delete(`/api/watchlist/${watchListId}`, { data: { userId } });
-        setWatchList(false); // Set watchlist state to false if the film is removed
+        if (watchListId) {
+          // Modify the URL to include userId as a query parameter
+          await axios.delete(`/api/watchlist/${watchListId}?userId=${userId}`);
+          setWatchList(false); // Remove from watchlist
+        } else {
+          console.error("No watchListId available to delete");
+        }
       } else {
-        // Adding to watchlist
-        await axios.post("/api/watchlist", { filmId, pathname: pathName, userId });
-        setWatchList(true); // Set watchlist state to true if the film is added
+        await axios.post("/api/watchlist", {
+          filmId,
+          pathname: pathName,
+          userId,
+        });
+        setWatchList(true); // Add to watchlist
       }
     } catch (error) {
       console.error("Error toggling watchlist:", error);
-      // Optionally revert the state if the API call fails
-      setWatchList((prev) => !prev);
+      setWatchList((prev) => !prev); // Revert to the previous state in case of error
     } finally {
-      setIsSavingWatchlist(false);
+      setIsSavingWatchlist(false); // Reset the saving state
     }
-};
+  };
+  
+  
+  
+  
 
 
   // Handle rating click

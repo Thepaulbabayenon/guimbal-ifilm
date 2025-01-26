@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getRecommendedFilms } from "@/app/api/getFilms"; // Assuming you have a function for recommended films
-import { FilmCard } from "@/app/components/FilmCard";
+import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import Image from "next/image";
 import { Logo } from "@/app/components/Logo"; // Adjust the import path
 import { useUser, useClerk } from "@clerk/nextjs"; // Clerk hooks

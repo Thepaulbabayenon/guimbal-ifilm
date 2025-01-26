@@ -1,11 +1,15 @@
 'use client';
 import { useEffect, useState } from "react";
-import { getAllFilms } from "@/app/api/getFilms";
 import { Card, CardContent } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
-import PlayVideoModal from "./PlayVideoModal";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
+import PlayVideoModal from "../PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
-import { useUser } from "@clerk/nextjs";
 import { CiStar } from "react-icons/ci";
 import { FaHeart, FaPlay } from "react-icons/fa";
 import axios from "axios";
@@ -21,15 +25,29 @@ interface Film {
   videoSource: string;
   category: string;
   trailer: string;
-  rank: number; // External rating
+  rank: number;
 }
 
-export function FilmSlider() {
-  const { user } = useUser();
-  const userId = user?.id;
+interface FilmSliderRecoProps {
+  userId: string;
+}
 
+async function fetchRecommendedFilms(userId: string) {
+  try {
+    const response = await axios.get(`/api/recommendations?userId=${userId}`);
+    if (response.status !== 200 || !response.data) {
+      throw new Error("Invalid response");
+    }
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching recommended films:", error);
+    throw error;
+  }
+}
+
+export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
   const [films, setFilms] = useState<Film[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Loading state
+  const [isLoading, setIsLoading] = useState(true);
   const [watchList, setWatchList] = useState<{ [key: number]: boolean }>({});
   const [userRatings, setUserRatings] = useState<{ [key: number]: number }>({});
   const [averageRatings, setAverageRatings] = useState<{ [key: number]: number }>({});
@@ -39,47 +57,59 @@ export function FilmSlider() {
   useEffect(() => {
     async function fetchFilms() {
       try {
-        const filmsData = await getAllFilms();
-        setFilms(filmsData);
+        setIsLoading(true); // Set loading to true before fetching data
+        const data = await fetchRecommendedFilms(userId);
+        setFilms(data);
       } catch (error) {
-        console.error("Error fetching films:", error);
+        console.error("Error fetching recommended films:", error);
+        setFilms([]); // Set films to an empty array if there is an error
       } finally {
-        setIsLoading(false); // End loading state
+        setIsLoading(false); // Set loading to false after data fetch attempt (either success or failure)
       }
     }
 
-    fetchFilms();
-  }, []);
+    if (userId) {
+      fetchFilms();
+    } else {
+      console.warn("User ID is required to fetch recommendations.");
+      setFilms([]);
+      setIsLoading(false); // Ensure loading is set to false if no user ID is provided
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (userId && films.length > 0) {
-      films.forEach((film) => {
-        fetchUserAndAverageRating(film.id);
-        fetchWatchlistStatus(film.id);
-      });
-    }
-  }, [userId, films]);
+      async function fetchDataForFilms() {
+        const filmPromises = films.map(async (film) => {
+          try {
+            const [userRatingResponse, avgRatingResponse, watchlistResponse] = await Promise.all([
+              axios.get(`/api/films/${film.id}/user-rating`, { params: { userId } }),
+              axios.get(`/api/films/${film.id}/average-rating`),
+              axios.get(`/api/watchlist/${film.id}`, { params: { userId } }),
+            ]);
 
-  const fetchUserAndAverageRating = async (filmId: number) => {
-    try {
-      const userResponse = await axios.get(`/api/films/${filmId}/user-rating`, { params: { userId } });
-      setUserRatings((prev) => ({ ...prev, [filmId]: userResponse.data.rating || 0 }));
+            setUserRatings((prev) => ({
+              ...prev,
+              [film.id]: userRatingResponse.data.rating || 0,
+            }));
+            setAverageRatings((prev) => ({
+              ...prev,
+              [film.id]: avgRatingResponse.data.averageRating || 0,
+            }));
+            setWatchList((prev) => ({
+              ...prev,
+              [film.id]: watchlistResponse.data.inWatchlist,
+            }));
+          } catch (error) {
+            console.error(`Error fetching data for film ID ${film.id}:`, error);
+          }
+        });
 
-      const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
-      setAverageRatings((prev) => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
-    } catch (error) {
-      console.error("Error fetching ratings:", error);
+        await Promise.all(filmPromises);
+      }
+      fetchDataForFilms();
     }
-  };
-
-  const fetchWatchlistStatus = async (filmId: number) => {
-    try {
-      const response = await axios.get(`/api/watchlist/${filmId}`, { params: { userId } });
-      setWatchList((prev) => ({ ...prev, [filmId]: response.data.inWatchlist }));
-    } catch (error) {
-      console.error("Error fetching watchlist status:", error);
-    }
-  };
+  }, [films, userId]);
 
   const handleToggleWatchlist = async (filmId: number) => {
     if (!userId) {
@@ -88,16 +118,12 @@ export function FilmSlider() {
     }
 
     const isInWatchlist = watchList[filmId];
-
     try {
       if (isInWatchlist) {
-        await axios.delete(`/api/watchlist`, { data: { filmId, userId } });
-        console.info("Removed from your watchlist.");
+        await axios.delete(`/api/watchlist/${filmId}`, { data: { userId } });
       } else {
         await axios.post("/api/watchlist", { filmId, userId });
-        console.info("Added to your watchlist.");
       }
-
       setWatchList((prev) => ({ ...prev, [filmId]: !isInWatchlist }));
     } catch (error) {
       console.error("Error toggling watchlist:", error);
@@ -115,9 +141,10 @@ export function FilmSlider() {
       await axios.post(`/api/films/${filmId}/user-rating`, { userId, rating: newRating });
 
       const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
-      setAverageRatings((prev) => ({ ...prev, [filmId]: avgResponse.data.averageRating || 0 }));
-
-      console.info("Your rating has been saved!");
+      setAverageRatings((prev) => ({
+        ...prev,
+        [filmId]: avgResponse.data.averageRating || 0,
+      }));
     } catch (error) {
       console.error("Error saving rating:", error);
     }
@@ -136,7 +163,6 @@ export function FilmSlider() {
 
     try {
       await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
-      console.info("Marked as watched!");
     } catch (error) {
       console.error("Error marking film as watched:", error);
     }

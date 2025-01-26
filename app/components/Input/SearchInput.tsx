@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FilmCard } from "@/app/components/FilmCard"; // Ensure correct path
+import { FilmCard } from "@/app/components/FilmComponents/FilmCard"; // Ensure correct path
 import PlayVideoModal from "../PlayVideoModal";
 
 export default function SearchResultsPage() {

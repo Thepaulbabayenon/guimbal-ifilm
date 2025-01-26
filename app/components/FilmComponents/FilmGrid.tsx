@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { getAllFilms } from "../api/getFilms"; // Ensure this API function exists
+import { getAllFilms } from "../../api/getFilms"; // Ensure this API function exists
 import { Card, CardContent } from "@/components/ui/card";
-import PlayVideoModal from "./PlayVideoModal";
+import PlayVideoModal from "../PlayVideoModal";
 import { FaHeart, FaPlay } from "react-icons/fa";
 import { useUser } from "@clerk/nextjs";
 import axios from "axios";

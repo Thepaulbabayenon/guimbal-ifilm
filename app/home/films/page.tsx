@@ -1,7 +1,7 @@
 // home/films/page.tsx
 'use client';
 import { getAllFilms } from "@/app/api/getFilms";
-import FilmLayout from "@/app/components/FilmLayout";
+import FilmLayout from "@/app/components/FilmComponents/FilmLayout";
 
 export default async function Watchlist() {
   try {

@@ -188,12 +188,13 @@ export const watchedFilms = pgTable(
 
 // WatchLists Table
 export const watchLists = pgTable('watchLists', {
-  id: uuid('id').primaryKey(), // No default value
+  id: serial('id').primaryKey(), // Auto-incremented INTEGER
   userId: text('userId').notNull(),
   filmId: integer('filmId').notNull(),
   isFavorite: boolean('isFavorite').default(false),
   // ... other fields
 });
+
 
 // Recommendations Table (New)
 export const filmRecommendations = pgTable('filmRecommendations', {
@@ -267,9 +268,32 @@ export const comments = pgTable(
       .references(() => film.id, { onDelete: 'cascade' }),  // Reference to the film
     content: text('content').notNull(),  // The comment's content
     username: varchar('username', { length: 255 }),
+    email: varchar('email', { length: 255 }).notNull(), // New field for user email
+    thumbsUp: integer('thumbsUp').default(0).notNull(), // New field for thumbs up
+    thumbsDown: integer('thumbsDown').default(0).notNull(), // New field for thumbs down
     createdAt: timestamp('createdAt').defaultNow().notNull(),  // Timestamp for when the comment was made
   }
 );
+
+
+export const commentVotes = pgTable(
+  'commentVotes',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    commentId: integer('commentId')
+      .notNull()
+      .references(() => comments.id, { onDelete: 'cascade' }),
+    voteType: varchar('voteType', { length: 10 }).notNull(), // 'up' or 'down'
+    filmId: integer('filmId') // Add this line to include filmId
+      .notNull() // Ensure it is not null
+      .references(() => film.id, { onDelete: 'cascade' }), // Assuming films table exists
+  }
+);
+
+
 
 
 

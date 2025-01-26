@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useUser } from '@clerk/clerk-react'; // Import Clerk's useUser hook
-import FilmLayout from '@/app/components/FilmLayout'; // Import FilmLayout
+import FilmLayout from '@/app/components/FilmComponents/FilmLayout'; // Import FilmLayout
 
 // Define the Film interface with the required properties
 interface Film {

@@ -1,11 +1,11 @@
-import { FilmGrid } from "../components/FilmGrid";
-import { FilmSlider } from "../components/FilmSlider";
-import { FilmSliderComedy } from "../components/FilmSliderComedy";
-import { FilmSliderDrama } from "../components/FilmSliderDrama";
-import { FilmSliderFolklore } from "../components/FilmSliderFolklore";
-import { FilmSliderHorror } from "../components/FilmSliderHorror";
-import { FilmSliderReco } from "../components/FilmSliderReco";
-import FilmVideo from "../components/FilmVideo";
+import { FilmGrid } from "../components/FilmComponents/FilmGrid";
+import { FilmSlider } from "../components/FilmSliders/FilmSlider";
+import { FilmSliderComedy } from "../components/FilmSliders/FilmSliderComedy";
+import { FilmSliderDrama } from "../components/FilmSliders/FilmSliderDrama";
+import { FilmSliderFolklore } from "../components/FilmSliders/FilmSliderFolklore";
+import { FilmSliderHorror } from "../components/FilmSliders/FilmSliderHorror";
+import { FilmSliderReco } from "../components/FilmSliders/FilmSliderReco";
+import FilmVideo from "../components/FilmComponents/FilmVideo";
 import RecentlyAdded from "../components/RecentlyAdded";
 import { auth } from "@clerk/nextjs/server";
 

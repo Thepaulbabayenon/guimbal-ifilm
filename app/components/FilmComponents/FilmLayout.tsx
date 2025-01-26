@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { FilmCard } from "@/app/components/FilmCard";
+import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import Image from "next/image";
 import gsap from "gsap";
 

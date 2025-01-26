@@ -1,1 +1,0 @@
-ALTER TABLE "movie" RENAME COLUMN "youtubeString" TO "trailerString";
