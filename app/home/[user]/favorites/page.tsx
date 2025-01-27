@@ -93,17 +93,17 @@ export default async function Favorites() {
                       className="absolute w-full h-full -z-10 rounded-lg object-cover"
                     />
                     <FilmCard
-                      key={film.id}
-                      age={film.age}
-                      filmId={film.id}
-                      overview={film.overview}
-                      time={film.duration}
-                      title={film.title}
-                      year={parseInt(film.release.toString())}
-                      trailerUrl={film.trailer}
-                      initialRatings={0}
-                      watchList={false}
-                      category={film.category || "Unknown"}
+                    key={film.id}
+                    age={film.age}
+                    filmId={film.id}
+                    overview={film.overview}
+                    time={film.duration}
+                    title={film.title}
+                    year={parseInt(film.release.toString())}
+                    trailerUrl={film.trailer}
+                    initialRatings={0}
+                    watchList={false}
+                    category={film.category || "Unknown"}
                     />
                   </div>
                 </div>

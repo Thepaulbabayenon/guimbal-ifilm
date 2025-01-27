@@ -28,6 +28,7 @@ export default async function HomePage() {
             </div>
         );
     }
+    
 
     return (
         <div className="pt-[4rem] lg:pt-[5rem] p-5 lg:p-0">

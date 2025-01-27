@@ -6,6 +6,7 @@ import PlayVideoModal from "../PlayVideoModal";
 import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
+import { Spinner } from "react-bootstrap";
 
 interface FilmCardProps {
   filmId: number;
@@ -147,20 +148,23 @@ export function FilmCard({
       return;
     }
   
-    setIsSavingWatchlist(true);
+    console.log("Toggling watchlist for user:", userId, "FilmId:", filmId, "Current pathname:", pathName);
   
-    console.log("Toggling watchlist for user:", userId, "FilmId:", filmId, "watchListId:", watchListId); // Log the ID here
+    setIsSavingWatchlist(true); // Set saving state to true
   
     try {
       if (watchList) {
+        // If already in the watchlist, delete it
         if (watchListId) {
-          // Modify the URL to include userId as a query parameter
+          console.log("Deleting from watchlist...");
           await axios.delete(`/api/watchlist/${watchListId}?userId=${userId}`);
           setWatchList(false); // Remove from watchlist
         } else {
           console.error("No watchListId available to delete");
         }
       } else {
+        // If not in the watchlist, add it
+        console.log("Adding to watchlist...");
         await axios.post("/api/watchlist", {
           filmId,
           pathname: pathName,
@@ -172,14 +176,11 @@ export function FilmCard({
       console.error("Error toggling watchlist:", error);
       setWatchList((prev) => !prev); // Revert to the previous state in case of error
     } finally {
+      console.log("Toggling finished. Resetting isSavingWatchlist to false.");
       setIsSavingWatchlist(false); // Reset the saving state
     }
   };
   
-  
-  
-  
-
 
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
@@ -223,11 +224,17 @@ export function FilmCard({
       </button>
 
       {/* Watchlist Button */}
-      <div className="right-5 top-5 absolute z-10">
-        <Button variant="outline" size="icon" onClick={handleToggleWatchlist} disabled={isSavingWatchlist || loading}>
-          <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : ""}`} />
-        </Button>
-      </div>
+      <div className="right-5 top-5 absolute z-50 pointer-events-auto">
+      <Button
+  variant="outline"
+  size="icon"
+  onClick={handleToggleWatchlist}
+  disabled={isSavingWatchlist || loading}
+>
+  {isSavingWatchlist ? <Spinner /> : <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : ""}`} />}
+</Button>
+
+            </div>
 
       {/* Film Details */}
       <div className="p-5 absolute bottom-0 left-0">
@@ -252,27 +259,25 @@ export function FilmCard({
           <>
             <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
             <div className="flex gap-x-2 items-center">
-              <p className="font-normal text-sm">{year}</p>
-              <p className="font-normal border py-0.5 px-1 border-gray-200 rounded text-sm">{age}+</p>
-              <p className="font-normal text-sm">{time}m</p>
-              <div className="flex items-center">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <CiStar
-                    key={star}
-                    className={`w-4 h-4 cursor-pointer ${userRating >= star ? "text-green-400" : "text-gray-400"}`}
-                    onClick={() => handleRatingClick(star)}
-                  />
-                ))}
-              </div>
+              <span className="text-sm">{year}</span>
+              <span className="text-sm">{age}+ • {time} min</span>
             </div>
-            <p className="line-clamp-1 text-sm text-gray-200 font-light">{overview}</p>
-            <p className="font-normal text-sm mt-2">
-              Average Rating: {isNaN(safeAverageRating) ? "N/A" : safeAverageRating.toFixed(2)} / 5
-            </p>
+
+            {/* Rating */}
+            <div className="flex gap-x-2">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <CiStar
+                  key={index}
+                  className={`w-4 h-4 ${
+                    safeAverageRating >= index + 1 ? "text-yellow-400" : "text-gray-400"
+                  }`}
+                />
+              ))}
+              <span className="text-sm">{safeAverageRating.toFixed(1)}</span>
+            </div>
           </>
         )}
       </div>
-
       {/* PlayVideoModal */}
       <PlayVideoModal
         key={filmId}
