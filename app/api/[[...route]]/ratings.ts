@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { db } from '@/db/drizzle';
-import { userRatings } from '@/db/schema';
+import { db } from '@/app/db/drizzle';
+import { userRatings } from '@/app/db/schema';
 import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';

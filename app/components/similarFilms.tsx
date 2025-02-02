@@ -1,8 +1,8 @@
 // components/SimilarFilms.tsx
 'use client';
 import { useState, useEffect } from "react";
-import { db } from "@/db/drizzle";
-import { film } from "@/db/schema";
+import { db } from "@/app/db/drizzle";
+import { film } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
 interface SimilarFilmsProps {

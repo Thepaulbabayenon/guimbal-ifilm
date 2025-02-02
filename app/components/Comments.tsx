@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs'; // Import useUser from Clerk
-import { db } from '@/db/drizzle';
-import { comments } from '@/db/schema';
+import { db } from '@/app/db/drizzle';
+import { comments } from '@/app/db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 interface CommentsProps {

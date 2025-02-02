@@ -1,9 +1,9 @@
 import Image from "next/image";
-import { db } from "@/db/drizzle";
+import { db } from "@/app/db/drizzle";
 import { FilmCard } from "./FilmComponents/FilmCard";
 import { auth } from "@clerk/nextjs/server";
 import { and, asc, eq, avg } from "drizzle-orm"; // Ensure that avg() is imported
-import { accounts, film, userRatings } from "@/db/schema";
+import { accounts, film, userRatings } from "@/app/db/schema";
 
 // Fetch film data and calculate average ratings
 async function getData(userId: string) {

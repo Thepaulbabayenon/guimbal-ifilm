@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { hybridRecommendation } from '../getFilms';
-import { db } from "@/db/drizzle";
-import { users } from "@/db/schema";
+import { db } from "@/app/db/drizzle";
+import { users } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
 // GET request for recommendations

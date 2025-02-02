@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import { db } from '@/db/drizzle';
-import { watchLists } from '@/db/schema';
+import { db } from '@/app/db/drizzle';
+import { watchLists } from '@/app/db/schema';
 import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 

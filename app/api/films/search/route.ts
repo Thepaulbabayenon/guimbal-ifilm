@@ -1,5 +1,5 @@
-import { db } from '@/db/drizzle';
-import { film } from '@/db/schema';
+import { db } from '@/app/db/drizzle';
+import { film } from '@/app/db/schema';
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from 'drizzle-orm';
 

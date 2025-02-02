@@ -1,5 +1,5 @@
-import { db } from "@/db/drizzle";
-import { users, watchLists, film, userInteractions } from "@/db/schema";
+import { db } from "@/app/db/drizzle";
+import { users, watchLists, film, userInteractions } from "@/app/db/schema";
 import { desc, eq, and, like } from "drizzle-orm";
 
 export async function getUserData(userEmail: string) {

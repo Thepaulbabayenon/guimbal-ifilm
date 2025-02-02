@@ -1,9 +1,9 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
-import { db } from '@/db/drizzle'; // Corrected import based on your schema
-import { users } from '@/db/schema';
-import { UserJSON } from '@/db/schema'; // Import the UserJSON type you defined earlier
+import { db } from '@/app/db/drizzle'; // Corrected import based on your schema
+import { users } from '@/app/db/schema';
+import { UserJSON } from '@/app/db/schema'; // Import the UserJSON type you defined earlier
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;

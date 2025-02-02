@@ -2,6 +2,7 @@
     "cSpell.words": [
         "antd",
         "autoplay",
+        "axios",
         "clientside",
         "cloudinary",
         "clsx",
@@ -39,6 +40,7 @@
         "sslmode",
         "stringifying",
         "Subquery",
+        "supabase",
         "svix",
         "tailwindcss",
         "tfjs",

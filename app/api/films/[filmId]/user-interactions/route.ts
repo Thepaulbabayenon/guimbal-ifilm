@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/drizzle';  // Drizzle DB instance
-import { userRatings, watchedFilms, userInteractions } from '@/db/schema';  // Your schema imports
+import { db } from '@/app/db/drizzle';  // Drizzle DB instance
+import { userRatings, watchedFilms, userInteractions } from '@/app/db/schema';  // Your schema imports
 import { eq, and } from 'drizzle-orm';  // Import eq and logical operators like and
 
 export async function POST(req: NextRequest) {

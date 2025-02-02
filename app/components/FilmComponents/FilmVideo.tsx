@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from "react";
-import { db } from "@/db/drizzle";
-import { film } from "@/db/schema";
+import { db } from "@/app/db/drizzle";
+import { film } from "@/app/db/schema";
 import { desc } from "drizzle-orm";
 import FilmButtons from "./FilmButtons";
 import LoadingState from "../loading"; // Import the loading state component

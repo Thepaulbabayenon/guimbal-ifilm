@@ -1,8 +1,8 @@
 import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import { auth } from "@clerk/nextjs/server";
-import { db } from "@/db/drizzle";
+import { db } from "@/app/db/drizzle";
 import Image from "next/image";
-import { film } from "@/db/schema";
+import { film } from "@/app/db/schema";
 import { desc } from "drizzle-orm";
 
 // Ensure dynamic rendering

@@ -1,8 +1,8 @@
 import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
-import { db } from "@/db/drizzle";
+import { db } from "@/app/db/drizzle";
 import { currentUser } from "@clerk/nextjs/server";
 import Image from "next/image";
-import { film, watchLists } from "@/db/schema";
+import { film, watchLists } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { Logo } from "@/app/components/Logo";
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db/drizzle"; // Ensure correct import path for drizzle instance
-import { film } from "@/db/schema"; // Import your schema for 'film'
+import { db } from "@/app/db/drizzle"; // Ensure correct import path for drizzle instance
+import { film } from "@/app/db/schema"; // Import your schema for 'film'
 import { eq, sql } from "drizzle-orm"; // Import necessary operators
 
 // Define the film type based on your schema

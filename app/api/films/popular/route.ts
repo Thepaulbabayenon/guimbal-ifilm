@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db/drizzle'; // Adjust the path if needed
-import { film } from '@/db/schema'; // Adjust the path if needed
+import { db } from '@/app/db/drizzle'; // Adjust the path if needed
+import { film } from '@/app/db/schema'; // Adjust the path if needed
 import { asc } from 'drizzle-orm';
 
 export async function GET() {

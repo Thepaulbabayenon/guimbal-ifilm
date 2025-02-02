@@ -2,8 +2,8 @@
 'use server';
 import axios from 'axios';
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/drizzle'; // Adjust the import to match your NeonDB setup
-import { film } from '@/db/schema'; // Adjust import for your films table schema
+import { db } from '@/app/db/drizzle'; // Adjust the import to match your NeonDB setup
+import { film } from '@/app/db/schema'; // Adjust import for your films table schema
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 

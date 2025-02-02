@@ -1,5 +1,5 @@
 // app/api/categories/route.ts
-import { db } from '@/db/drizzle'; // Ensure correct import path
+import { db } from '@/app/db/drizzle'; // Ensure correct import path
 import { sql } from 'drizzle-orm';
 
 export async function GET() {

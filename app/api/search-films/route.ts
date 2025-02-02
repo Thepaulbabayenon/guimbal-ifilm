@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"; // Use NextRequest and NextResponse for the new API structure
-import { db } from "@/db/drizzle"; // Your Drizzle connection
-import { film } from "@/db/schema"; // Assuming film is your schema
+import { db } from "@/app/db/drizzle"; // Your Drizzle connection
+import { film } from "@/app/db/schema"; // Assuming film is your schema
 import { sql } from "drizzle-orm"; // Import Drizzle SQL utilities
 
 // Utility function to sanitize query input

@@ -1,5 +1,5 @@
-import { db } from '@/db/drizzle'; 
-import { userRatings, film, watchLists } from '@/db/schema'; 
+import { db } from '@/app/db/drizzle'; 
+import { userRatings, film, watchLists } from '@/app/db/schema'; 
 import { eq } from 'drizzle-orm/expressions';  // Correct import for eq
 
 export async function getUserRatings(userId: string) {

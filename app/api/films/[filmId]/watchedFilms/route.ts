@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db/drizzle"; // Adjust the path to your Drizzle database instance
-import { watchedFilms, film, users } from "@/db/schema"; // Adjust schema imports as necessary
+import { db } from "@/app/db/drizzle"; // Adjust the path to your Drizzle database instance
+import { watchedFilms, film, users } from "@/app/db/schema"; // Adjust schema imports as necessary
 import { eq, and } from "drizzle-orm"; // Import comparison helpers
 import { z } from "zod"; // Zod for validation
 

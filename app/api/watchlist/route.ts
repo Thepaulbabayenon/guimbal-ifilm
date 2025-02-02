@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';  // Make sure to import the correct type
-import { db } from '@/db/drizzle'; // Assuming centralized database connection
-import { watchLists } from '@/db/schema'; // Import your watchlist schema
+import { db } from '@/app/db/drizzle'; // Assuming centralized database connection
+import { watchLists } from '@/app/db/schema'; // Import your watchlist schema
 import { eq, and } from 'drizzle-orm'; // Import Drizzle ORM helper functions
 
 

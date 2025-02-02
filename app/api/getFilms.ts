@@ -1,5 +1,5 @@
-import { db } from "@/db/drizzle";
-import { film, userInteractions, watchLists, userRatings, accounts, } from "@/db/schema";
+import { db } from "@/app/db/drizzle";
+import { film, userInteractions, watchLists, userRatings, accounts, } from "@/app/db/schema";
 import { eq, and, desc, like, or, sql, inArray, asc, avg } from "drizzle-orm";
 
 
