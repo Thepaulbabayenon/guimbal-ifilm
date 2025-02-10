@@ -29,3 +29,11 @@ export interface Film {
     time: number;
   }
   
+   export // Example: Update the UserResource type to include isAdmin
+   interface UserResource {
+     id: number;
+     name: string;
+     email: string;
+     isAdmin: boolean; // Add this property
+   }
+   

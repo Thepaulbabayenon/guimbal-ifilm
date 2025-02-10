@@ -8,6 +8,8 @@ const FilmUploadModal = () => {
     fileTypeImage: '',
     fileNameVideo: '',
     fileTypeVideo: '',
+    fileTypeTrailer: '',
+    fileNameTrailer: '',
     title: '',
     age: '',
     duration: '',
@@ -21,6 +23,7 @@ const FilmUploadModal = () => {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [trailerFile, setTrailerFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0); // Track progress here
   const [message, setMessage] = useState('');
@@ -41,6 +44,14 @@ const FilmUploadModal = () => {
           fileNameImage: files[0].name,
           fileTypeImage: files[0].type,
         }));
+      }
+       if (name === 'trailerFile') {
+        setTrailerFile(files[0]);
+        setFormData((prev) => ({
+          ...prev,
+          fileNameTrailer: files[0].name,
+          fileTypeTrailer: files[0].type,
+        }));
       } else if (name === 'videoFile') {
         setVideoFile(files[0]);
         setFormData((prev) => ({
@@ -59,6 +70,8 @@ const FilmUploadModal = () => {
       fileTypeImage: '',
       fileNameVideo: '',
       fileTypeVideo: '',
+      fileNameTrailer: '',
+      fileTypeTrailer: '',
       title: '',
       age: '',
       duration: '',
@@ -72,6 +85,7 @@ const FilmUploadModal = () => {
     });
     setImageFile(null);
     setVideoFile(null);
+    setTrailerFile(null); 
     setProgress(0);
   };
 
@@ -110,7 +124,7 @@ const FilmUploadModal = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/files/upload', {
+      const response = await fetch('/api/admin/films/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -120,15 +134,18 @@ const FilmUploadModal = () => {
         throw new Error(`Error: ${response.status}`);
       }
 
-      const { uploadURLImage, uploadURLVideo } = await response.json();
+      const { uploadURLImage, uploadURLVideo, uploadURLTrailer } = await response.json();
 
-      // Upload image and video to S3 using signed URLs
+      // Upload image, video and trailer to S3 using signed URLs
       if (imageFile && uploadURLImage) {
         await uploadFileWithProgress(uploadURLImage, imageFile);
       }
 
       if (videoFile && uploadURLVideo) {
         await uploadFileWithProgress(uploadURLVideo, videoFile);
+      }
+      if (trailerFile && uploadURLTrailer) {
+        await uploadFileWithProgress(uploadURLTrailer, trailerFile);
       }
 
       setMessage('Film uploaded successfully!');
@@ -304,7 +321,7 @@ const FilmUploadModal = () => {
                   <span className="text-black">Trailer:</span>
                   <input
                     type="file"
-                    name="videoFile"
+                    name="trailerFile"
                     accept="video/*"
                     onChange={handleFileChange}
                     required
@@ -358,5 +375,6 @@ const FilmUploadModal = () => {
     </>
   );
 };
+
 
 export default FilmUploadModal;

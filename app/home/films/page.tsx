@@ -3,7 +3,7 @@
 import { getAllFilms } from "@/app/api/getFilms";
 import FilmLayout from "@/app/components/FilmComponents/FilmLayout";
 
-export default async function Watchlist() {
+export default async function AllFIlms() {
   try {
     const data = await getAllFilms();
 

@@ -29,14 +29,9 @@ export default function Profile() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle loading state
-  if (!isLoaded) {
-    return <div className="flex items-center justify-center p-4">Loading...</div>;
-  }
-
-  // Fetch user data using useEffect (only when user is signed in)
+  // Ensure that hooks are called unconditionally.
   useEffect(() => {
-    if (isSignedIn && user) {
+    if (isLoaded && isSignedIn && user) {
       const fetchUserData = async () => {
         try {
           const email = user.emailAddresses[0]?.emailAddress; // Get email from user object
@@ -46,13 +41,20 @@ export default function Profile() {
             return;
           }
 
+          // Log the email and the request URL for debugging
+          console.log("Fetching data for user email:", email);
+
           // Fetch user data using the email
           const response = await fetch(`/api/getUserData?email=${encodeURIComponent(email)}`);
           const data = await response.json();
+          
+          // Log the response to debug
+          console.log("Fetched user data:", data);
+
           if (response.ok) {
             setUserData(data);
           } else {
-            setError(data.error);
+            setError(data.error || "Failed to fetch user data");
           }
         } catch (err) {
           setError("Error fetching user data");
@@ -67,9 +69,8 @@ export default function Profile() {
       setLoading(false);
       setError("User not signed in.");
     }
-  }, [isSignedIn, user]); // Only re-run when `isSignedIn` or `user` changes
+  }, [isLoaded, isSignedIn, user]); // No conditional hooks here
 
-  // Fetch recommended films once user data is available
   useEffect(() => {
     if (userData && userData.userId) {
       const fetchRecommendedFilms = async () => {

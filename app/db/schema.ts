@@ -21,6 +21,7 @@ export interface UserJSON {
   email_addresses: { email_address: string }[]; // Assuming email_addresses is an array of objects
   image_url?: string; // Optional as it may not always be present
   name?: string; // If name is available
+  isAdmin?: boolean; //
 }
 
 // Users Table
@@ -118,30 +119,13 @@ export const film = pgTable('film', {
   category: varchar('category').notNull(),
   trailer: varchar('trailer').notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
   producer: varchar('producer').notNull(),
   director: varchar('director').notNull(),
   coDirector: varchar('coDirector').notNull(),
   studio: varchar('studio').notNull(),
   rank: integer('rank').default(sql`0`).notNull(),  // Default rank
   averageRating: real('averageRating'),
-});
-export const movie = pgTable('movie', {
-  id: serial('id').primaryKey(),
-  imageString: varchar('imageString').notNull(),
-  title: varchar('title').notNull(),
-  age: integer('age').notNull(),
-  duration: doublePrecision('duration').notNull(),
-  overview: text('overview').notNull(),
-  release: integer('release').notNull(),
-  videoSource: varchar('videoSource').notNull(),
-  category: varchar('category').notNull(),
-  trailer: varchar('trailer').notNull(),
-  createdAt: timestamp('createdAt').defaultNow().notNull(),
-  producer: varchar('producer').notNull(),
-  director: varchar('director').notNull(),
-  coDirector: varchar('coDirector').notNull(),
-  studio: varchar('studio').notNull(),
-  rank: integer('rank').default(sql`0`).notNull(),  // Default rank
 });
 
 // UserInteractions Table (Existing)

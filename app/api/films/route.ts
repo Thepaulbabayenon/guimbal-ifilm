@@ -34,15 +34,21 @@ export async function GET(req: NextRequest) {
     if (rating) filters.push(eq(film.rank, parseInt(rating)));
 
     // Query the database with filters if any are provided
-    const filmsData = await db
-      .select()
-      .from(film)
-      .where(filters.length ? sql`${filters.join(' and ')}` : undefined);
+    const query = db.select().from(film);
+    if (filters.length > 0) {
+      query.where(sql`${filters.join(' and ')}`);
+    }
+
+    const filmsData = await query;
+
+    if (filmsData.length === 0) {
+      return NextResponse.json({ message: "No films found" }, { status: 404 });
+    }
 
     return NextResponse.json({ rows: filmsData }); // Return films as JSON
   } catch (error) {
     console.error("Error fetching films:", error);
-    return NextResponse.error();
+    return NextResponse.json({ message: 'Error fetching films' }, { status: 500 });
   }
 }
 
@@ -66,6 +72,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ rows: filmData }); // Return the film as JSON
   } catch (error) {
     console.error("Error fetching film by ID:", error);
-    return NextResponse.error();
+    return NextResponse.json({ message: 'Error fetching film by ID' }, { status: 500 });
   }
 }

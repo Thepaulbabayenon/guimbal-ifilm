@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { CiStar, CiPlay1, CiHeart } from "react-icons/ci";
+import { CiHeart, CiPlay1, CiStar } from "react-icons/ci";
 import PlayVideoModal from "../PlayVideoModal";
 import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
-import { Spinner } from "react-bootstrap";
+import { addToWatchlist } from "@/app/action";
 
 interface FilmCardProps {
   filmId: number;
@@ -47,29 +47,7 @@ export function FilmCard({
   const [loading, setLoading] = useState(true); // State for overall loading
   const pathName = usePathname();
 
-  // Fetch current watchlist state when the component mounts
-  useEffect(() => {
-    if (!userId) return;
-
-    const checkIfInWatchlist = async () => {
-      try {
-        const response = await axios.get(`/api/watchlist`, {
-          params: { userId, filmId },
-        });
-
-        // Check if the filmId exists in the watchlist
-        if (response.data?.isInWatchlist) {
-          setWatchList(true); // Set watchlist state to true if the film is in the watchlist
-        } else {
-          setWatchList(false); // Set watchlist state to false if the film is not in the watchlist
-        }
-      } catch (error) {
-        console.error("Error fetching watchlist data:", error);
-      }
-    };
-
-    checkIfInWatchlist();
-  }, [userId, filmId]);
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   // Function to mark a film as watched
   const markAsWatched = async (userId: string, filmId: number) => {
@@ -148,36 +126,40 @@ export function FilmCard({
       return;
     }
   
-    console.log("Toggling watchlist for user:", userId, "FilmId:", filmId, "Current pathname:", pathName);
-  
-    setIsSavingWatchlist(true); // Set saving state to true
+    // Show a loading state during the API request
+    setIsSavingWatchlist(true);
   
     try {
       if (watchList) {
-        // If already in the watchlist, delete it
-        if (watchListId) {
-          console.log("Deleting from watchlist...");
-          await axios.delete(`/api/watchlist/${watchListId}?userId=${userId}`);
-          setWatchList(false); // Remove from watchlist
-        } else {
-          console.error("No watchListId available to delete");
+        // Ensure watchListId is set before attempting to delete
+        if (!watchListId) {
+          console.error("watchListId is missing!");
+          alert("Unable to remove film from watchlist. Please try again later.");
+          return;
         }
-      } else {
-        // If not in the watchlist, add it
-        console.log("Adding to watchlist...");
-        await axios.post("/api/watchlist", {
-          filmId,
-          pathname: pathName,
-          userId,
+  
+        // Remove from the watchlist
+        await axios.delete(`${baseUrl}/api/watchlist/${watchListId}`, {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${userId}`, // Ensure Authorization is correct
+          },
         });
-        setWatchList(true); // Add to watchlist
+  
+        setWatchList(false); // Update state to reflect removal from watchlist
+        alert("Film removed from your watchlist."); // Optional user feedback
+      } else {
+        // Add film to the watchlist
+        await addToWatchlist({ filmId, pathname: pathName, userId }); // Ensure userId is passed correctly
+        setWatchList(true); // Update state to reflect addition to watchlist
+        alert("Film added to your watchlist!"); // Optional user feedback
       }
     } catch (error) {
       console.error("Error toggling watchlist:", error);
-      setWatchList((prev) => !prev); // Revert to the previous state in case of error
+      setWatchList((prev) => !prev); // Revert back to previous state if there's an error
+      alert("Something went wrong. Please try again."); // Notify the user of an error
     } finally {
-      console.log("Toggling finished. Resetting isSavingWatchlist to false.");
-      setIsSavingWatchlist(false); // Reset the saving state
+      setIsSavingWatchlist(false); // Reset the loading state after the request
     }
   };
   
@@ -215,26 +197,17 @@ export function FilmCard({
 
   return (
     <>
-      {/* Play Button */}
-      <button
-        onClick={() => setOpen(true)}
-        className="-mt-14 play-button" // Add a specific class for hover effect
-      >
-        <CiPlay1 className="h-20 w-20 transition-colors duration-300 hover:text-red-500" /> {/* Apply hover color change */}
+      {/* Removed onClick from the button */}
+      <button onClick={() => setOpen(true)} className="-mt-14">
+      <CiPlay1 className="h-20 w-20 transition-colors duration-300 hover:text-red-500" /> {/* Apply hover color change */}
       </button>
 
-      {/* Watchlist Button */}
-      <div className="right-5 top-5 absolute z-50 pointer-events-auto">
-      <Button
-  variant="outline"
-  size="icon"
-  onClick={handleToggleWatchlist}
-  disabled={isSavingWatchlist || loading}
->
-  {isSavingWatchlist ? <Spinner /> : <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : ""}`} />}
-</Button>
-
-            </div>
+      {/* Watchlist Button */}  
+      <div className="right-5 top-5 absolute z-10">
+        <Button variant="outline" size="icon" onClick={handleToggleWatchlist} disabled={isSavingWatchlist || loading}>
+          <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : ""}`} />
+        </Button>
+      </div>
 
       {/* Film Details */}
       <div className="p-5 absolute bottom-0 left-0">
@@ -259,32 +232,33 @@ export function FilmCard({
           <>
             <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
             <div className="flex gap-x-2 items-center">
-              <span className="text-sm">{year}</span>
-              <span className="text-sm">{age}+ • {time} min</span>
+              <p className="font-normal text-sm">{year}</p>
+              <p className="font-normal border py-0.5 px-1 border-gray-200 rounded text-sm">{age}+</p>
+              <p className="font-normal text-sm">{time}m</p>
+              <div className="flex items-center">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <CiStar
+                    key={star}
+                    className={`w-4 h-4 cursor-pointer ${userRating >= star ? "text-green-400" : "text-gray-400"}`}
+                    onClick={() => handleRatingClick(star)}
+                  />
+                ))}
+              </div>
             </div>
-
-            {/* Rating */}
-            <div className="flex gap-x-2">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <CiStar
-                  key={index}
-                  className={`w-4 h-4 hover:text-green-800 hover:cursor-pointer ${
-                    safeAverageRating >= index + 1 ? "text-green-600" : "text-gray-400"
-                  }`}
-                  onClick={() => handleRatingClick(index)}
-                />
-              ))}
-              <span className="text-sm">{safeAverageRating.toFixed(1)}</span>
-            </div>
+            <p className="line-clamp-1 text-sm text-gray-200 font-light">{overview}</p>
+            <p className="font-normal text-sm mt-2">
+              Average Rating: {isNaN(safeAverageRating) ? "N/A" : safeAverageRating.toFixed(2)} / 5
+            </p>
           </>
         )}
       </div>
+
       {/* PlayVideoModal */}
       <PlayVideoModal
+        trailerUrl={trailerUrl}
         key={filmId}
         title={title}
         overview={overview}
-        trailerUrl={trailerUrl}
         state={open}
         changeState={setOpen}
         age={age}

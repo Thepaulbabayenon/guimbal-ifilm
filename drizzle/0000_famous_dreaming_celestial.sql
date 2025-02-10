@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS "film" (
 	"category" varchar NOT NULL,
 	"trailer" varchar NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now(),
 	"producer" varchar NOT NULL,
 	"director" varchar NOT NULL,
 	"coDirector" varchar NOT NULL,
@@ -77,25 +78,6 @@ CREATE TABLE IF NOT EXISTS "filmRecommendations" (
 	"filmId" integer NOT NULL,
 	"recommendedBy" text NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "movie" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"imageString" varchar NOT NULL,
-	"title" varchar NOT NULL,
-	"age" integer NOT NULL,
-	"duration" double precision NOT NULL,
-	"overview" text NOT NULL,
-	"release" integer NOT NULL,
-	"videoSource" varchar NOT NULL,
-	"category" varchar NOT NULL,
-	"trailer" varchar NOT NULL,
-	"createdAt" timestamp DEFAULT now() NOT NULL,
-	"producer" varchar NOT NULL,
-	"director" varchar NOT NULL,
-	"coDirector" varchar NOT NULL,
-	"studio" varchar NOT NULL,
-	"rank" integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "session" (

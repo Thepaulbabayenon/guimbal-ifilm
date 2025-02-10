@@ -1,5 +1,5 @@
 {
-  "id": "befb5843-523b-4bab-bf84-d5130aabd8fe",
+  "id": "d7dc2af3-d201-453c-9eee-31c76b3d2343",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -463,6 +463,13 @@
           "notNull": true,
           "default": "now()"
         },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
         "producer": {
           "name": "producer",
           "type": "varchar",
@@ -578,114 +585,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "public.movie": {
-      "name": "movie",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "imageString": {
-          "name": "imageString",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "age": {
-          "name": "age",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "duration": {
-          "name": "duration",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "overview": {
-          "name": "overview",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "release": {
-          "name": "release",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "videoSource": {
-          "name": "videoSource",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category": {
-          "name": "category",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "trailer": {
-          "name": "trailer",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "producer": {
-          "name": "producer",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "director": {
-          "name": "director",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "coDirector": {
-          "name": "coDirector",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "studio": {
-          "name": "studio",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rank": {
-          "name": "rank",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "0"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
