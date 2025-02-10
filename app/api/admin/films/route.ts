@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAllFilms } from '@/app/api/getFilms'; // Adjust path based on your project structure
 
+export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const films = await getAllFilms();

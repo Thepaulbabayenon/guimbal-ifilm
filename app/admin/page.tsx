@@ -4,7 +4,7 @@ import FilmManagement from '@/app/admin/components/FileManagement';
 import { db } from '@/app/db/drizzle';
 import { film } from '@/app/db/schema';
 
-
+export const dynamic = "force-dynamic"; // Ensure dynamic rendering
 export default async function AdminDashboard(params: {
   searchParams: { search?: string; filmId?: string }
 }) {

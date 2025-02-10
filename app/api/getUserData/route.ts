@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { getUserData } from "@/app/api/getUser"; // Ensure this path is correct
 
+
+export const dynamic = "force-dynamic"; // Prevents static generation
+  
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const userEmail = url.searchParams.get("email");
-
-    console.log("Request URL:", req.url);  // Log the full URL
-    console.log("User email parameter:", userEmail);  // Log the extracted email
+    const { searchParams } = new URL(req.url);
+    const userEmail = searchParams.get("email");
 
     if (!userEmail) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -20,4 +20,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to fetch user data" }, { status: 500 });
   }
 }
-

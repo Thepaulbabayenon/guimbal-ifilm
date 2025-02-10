@@ -13,6 +13,8 @@ const s3Client = new S3Client({
   },
 });
 
+export const dynamic = "force-dynamic";
+
 export async function PUT(req: NextRequest) {
   try {
     const formData = await req.formData();

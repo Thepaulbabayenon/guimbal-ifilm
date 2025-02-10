@@ -13,6 +13,9 @@ const s3Client = new S3Client({
   },
 });
 
+
+export const dynamic = "force-dynamic";
+
 export async function DELETE(req: NextRequest) {
   try {
     const { id } = await req.json();

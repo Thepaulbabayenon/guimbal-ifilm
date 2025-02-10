@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"; // Force dynamic rendering
+
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import UserManagementClient from "./UserManagementClient";
 import { checkRole } from "@/app/utils/roles"; // ✅ Import on Server Only
