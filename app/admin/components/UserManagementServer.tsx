@@ -1,22 +1,26 @@
 export const dynamic = "force-dynamic"; // Force dynamic rendering
 
-import { clerkClient, currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/clerk-sdk-node";
 import UserManagementClient from "./UserManagementClient";
-import { checkRole } from "@/app/utils/roles"; // ✅ Import on Server Only
+import { checkRole } from "@/app/utils/roles";
+import type { User } from "@clerk/backend"; // Import Clerk User Type
 
 const UserManagementServer = async ({ search }: { search?: string }) => {
   try {
     const user = await currentUser();
     const currentUserId = user?.id ?? "";
-    
+
     // ✅ Check if the current user is an admin (server-side)
     const isAdmin = await checkRole("admin");
 
-    const userResponse = await clerkClient.users.getUserList({
+    // ✅ Correct usage of Clerk API
+    const usersResponse = await clerkClient.users.getUserList({
       query: search || undefined,
     });
 
-    const users = userResponse.data.map((user) => ({
+    // ✅ Fix: Access `data` property and define types explicitly
+    const users = usersResponse.data.map((user: User) => ({
       id: user.id,
       firstName: user.firstName ?? "Unknown",
       lastName: user.lastName ?? "User",
