@@ -62,13 +62,13 @@ export default function AdminDeletePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-gray-100 rounded-lg shadow-md">
+    <div className="max-w-3xl mx-auto p-6 bg-gray-100 rounded-lg shadow-md text-black">
       <h1 className="text-2xl font-bold mb-4">Delete Film</h1>
 
       {/* Film Selection Dropdown */}
-      <label className="block font-semibold">Select a Film:</label>
+      <label className="block font-semibold text-black">Select a Film:</label>
       <select
-        className="w-full p-2 border rounded mb-4"
+        className="w-full p-2 border rounded mb-4 text-black"
         onChange={(e) => setSelectedFilmId(e.target.value)}
         value={selectedFilmId || ""}
       >
