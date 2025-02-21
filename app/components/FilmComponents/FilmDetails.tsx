@@ -1,7 +1,9 @@
 'use client';
 import { FC, useState } from "react";
+import Link from "next/link";
 
 interface FilmDetailsProps {
+  filmId: number;
   title: string;
   overview: string;
   producer: string;
@@ -13,6 +15,7 @@ interface FilmDetailsProps {
 }
 
 const FilmDetails: FC<FilmDetailsProps> = ({
+  filmId,
   title,
   overview,
   producer,
@@ -24,22 +27,21 @@ const FilmDetails: FC<FilmDetailsProps> = ({
 }) => {
   const [isVisible, setIsVisible] = useState(false);
 
-  const handleToggleVisibility = () => {
-    setIsVisible((prevState) => !prevState);
-  };
-
   return (
     <div
       className="flex flex-col justify-between w-full md:w-1/2 text-white mt-4"
-      onMouseEnter={() => setIsVisible(true)} // Show details when hovered
-      onMouseLeave={() => setIsVisible(false)} // Hide details when not hovered
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
     >
-      <h2 className="text-2xl font-semibold">{title}</h2>
+      {/* Make title clickable inside FilmDetails */}
+      <h2 className="text-2xl font-semibold">
+        <Link href={`/home/films/${filmId}`} className="text-blue-500 hover:underline">
+          {title}
+        </Link>
+      </h2>
 
-      {/* Overview always visible */}
       <p className="text-sm mt-2">{overview}</p>
 
-      {/* FilmDetails toggle logic */}
       {isVisible && (
         <div className="mt-4">
           <div className="text-sm">
@@ -60,7 +62,6 @@ const FilmDetails: FC<FilmDetailsProps> = ({
         </div>
       )}
 
-      {/* More Info / Trailer */}
       {isVisible && (
         <div className="mt-4">
           <a
@@ -76,5 +77,6 @@ const FilmDetails: FC<FilmDetailsProps> = ({
     </div>
   );
 };
+
 
 export default FilmDetails;

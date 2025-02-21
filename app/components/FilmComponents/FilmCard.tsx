@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
 import { addToWatchlist } from "@/app/action";
+import FilmRelease from "./FilmRelease";
 
 interface FilmCardProps {
   filmId: number;
@@ -57,7 +58,7 @@ export function FilmCard({
         return;
       }
 
-      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId, filmId }, { headers: { "Content-Type": "application/json" } });
+      await axios.post(`/api/films/${filmId}/watched-films`, { userId, filmId }, { headers: { "Content-Type": "application/json" } });
       console.log(`Film ${filmId} marked as watched for user ${userId}`);
     } catch (error) {
       console.error("Error marking film as watched:", error);
@@ -126,40 +127,42 @@ export function FilmCard({
       return;
     }
   
-    // Show a loading state during the API request
     setIsSavingWatchlist(true);
   
     try {
       if (watchList) {
-        // Ensure watchListId is set before attempting to delete
+        // Check if watchListId is defined
         if (!watchListId) {
-          console.error("watchListId is missing!");
+          console.error("Error: watchListId is missing!");
           alert("Unable to remove film from watchlist. Please try again later.");
           return;
         }
   
-        // Remove from the watchlist
-        await axios.delete(`${baseUrl}/api/watchlist/${watchListId}`, {
+        // Ensure the API URL is correct
+        const deleteUrl = `${baseUrl}/api/watchlist/${watchListId}`;
+        console.log("Deleting from watchlist:", deleteUrl);
+  
+        // Make the delete request
+        await axios.delete(deleteUrl, {
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${userId}`, // Ensure Authorization is correct
+            Authorization: `Bearer ${userId}`, // Check if this is the correct auth method
           },
         });
   
-        setWatchList(false); // Update state to reflect removal from watchlist
-        alert("Film removed from your watchlist."); // Optional user feedback
+        setWatchList(false);
+        alert("Film removed from your watchlist.");
       } else {
-        // Add film to the watchlist
-        await addToWatchlist({ filmId, pathname: pathName, userId }); // Ensure userId is passed correctly
-        setWatchList(true); // Update state to reflect addition to watchlist
-        alert("Film added to your watchlist!"); // Optional user feedback
+        // Add to watchlist
+        await addToWatchlist({ filmId, pathname: pathName, userId });
+        setWatchList(true);
+        alert("Film added to your watchlist!");
       }
     } catch (error) {
       console.error("Error toggling watchlist:", error);
-      setWatchList((prev) => !prev); // Revert back to previous state if there's an error
-      alert("Something went wrong. Please try again."); // Notify the user of an error
+      alert("Something went wrong. Please try again.");
     } finally {
-      setIsSavingWatchlist(false); // Reset the loading state after the request
+      setIsSavingWatchlist(false);
     }
   };
   
@@ -197,6 +200,7 @@ export function FilmCard({
 
   return (
     <>
+    
       {/* Removed onClick from the button */}
       <button onClick={() => setOpen(true)} className="-mt-14">
       <CiPlay1 className="h-20 w-20 transition-colors duration-300 hover:text-red-500" /> {/* Apply hover color change */}
@@ -230,6 +234,7 @@ export function FilmCard({
           </div>
         ) : (
           <>
+           
             <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
             <div className="flex gap-x-2 items-center">
               <p className="font-normal text-sm">{year}</p>

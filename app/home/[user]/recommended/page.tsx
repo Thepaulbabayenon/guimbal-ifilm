@@ -22,16 +22,14 @@ interface Film {
 // Fetch the recommended films for a given user
 async function fetchRecommendedFilms(userId: string): Promise<Film[]> {
   try {
-    const response = await axios.get(`/api/recommendations?userId=${userId}`);
-    if (response.status !== 200 || !response.data) {
-      throw new Error('Invalid response');
-    }
-    return response.data; // Expected format is an array of films
+    const response = await axios.get<Film[]>(`/api/recommendations?userId=${userId}`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching recommended films:', error);
     throw error;
   }
 }
+
 
 const RecommendedPage = () => {
   // Get the current user's data from Clerk

@@ -8,6 +8,7 @@ import { FilmSliderReco } from "../components/FilmSliders/FilmSliderReco";
 import FilmVideo from "../components/FilmComponents/FilmVideo";
 import RecentlyAdded from "../components/RecentlyAdded";
 import { auth } from "@clerk/nextjs/server";
+import { Suspense } from "react";
 
 export default async function HomePage() {
     const { userId } = await auth();
@@ -34,7 +35,9 @@ export default async function HomePage() {
         <div className="pt-[4rem] lg:pt-[5rem] p-5 lg:p-0">
             <FilmVideo />
             <h1 className="text-3xl font-bold text-gray-400">BEST FILMS</h1>
+            <Suspense fallback={<div className="text-blue-600 animate-spin">Loading...</div>}>
             <RecentlyAdded />
+            </Suspense>
             <h1 className="text-3xl font-bold text-gray-400">POPULAR FILMS</h1>
             <FilmSlider />
     
@@ -51,7 +54,10 @@ export default async function HomePage() {
             <FilmSliderHorror />
     
             <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
+            
+            <Suspense fallback={<div className="text-blue-600 animate-spin">Loading...</div>}>
             <FilmSliderReco userId={userId.toString()} />
+            </Suspense>
         </div>
     );
     

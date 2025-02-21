@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from "react";
-import { gsap } from "gsap"; // Import GSAP
+import { gsap } from "gsap"; 
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { CiStar } from "react-icons/ci";
 import axios from "axios";
-import Comments from "@/app/components/Comments"; // Import Comments component
+import ReactPlayer from "react-player"; 
+import Comments from "@/app/components/Comments";
 import SimilarFilms from "@/app/components/similarFilms";
 
 interface PlayVideoModalProps {
@@ -26,7 +27,7 @@ interface PlayVideoModalProps {
   ratings: number;
   setUserRating: (rating: number) => void;
   userId?: string;
-  filmId?: number; // Ensure filmId is passed as a prop
+  filmId?: number;
   markAsWatched?: (userId: string, filmId: number) => void;
   watchTimerDuration?: number;
   category: string;
@@ -44,68 +45,63 @@ export default function PlayVideoModal({
   ratings,
   setUserRating,
   userId,
-  filmId, // Destructure filmId
+  filmId,
   markAsWatched,
   watchTimerDuration = 30000,
   category,
 }: PlayVideoModalProps) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
   const [loading, setLoading] = useState(true);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   const [modalWidth, setModalWidth] = useState(425);
   const [modalHeight, setModalHeight] = useState(600);
   const [isResizing, setIsResizing] = useState(false);
-
-  const toggleFullscreen = () => {
-    if (!isFullscreen && iframeRef.current) {
-      iframeRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else if (isFullscreen && document.fullscreenElement) {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  const modifiedTrailerUrl = trailerUrl ? trailerUrl.replace("watch?v=", "embed/") : "";
 
   const handleRatingClick = (rating: number) => {
     setUserRating(rating);
   };
 
-  // GSAP animation for modal entry
   useEffect(() => {
     if (state) {
       gsap.fromTo(
         dialogRef.current,
-        { opacity: 0, scale: 0.9 }, // initial state
-        { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" } // final state
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }
       );
     }
   }, [state]);
 
-  // GSAP animation for iframe loading
   useEffect(() => {
-    if (!loading && iframeRef.current) {
-      gsap.fromTo(
-        iframeRef.current,
-        { opacity: 0, scale: 0.95 }, // initial state
-        { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }
-      );
+    if (state && !hasWatched && userId && filmId && markAsWatched) {
+      timerRef.current = setTimeout(() => {
+        axios
+          .post("/api/films/[filmId]/watchedFilms", { userId, filmId, watchedDuration: 60 })
+          .then(() => {
+            markAsWatched(userId, filmId);
+            setHasWatched(true);
+          })
+          .catch((error) => console.error("Error marking film as watched:", error));
+      }, watchTimerDuration);
     }
-  }, [loading]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [state, hasWatched, markAsWatched, userId, filmId, watchTimerDuration]);
+
+  const handleMouseDown = () => {
     setIsResizing(true);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (isResizing) {
-      setModalWidth(Math.max(e.clientX - dialogRef.current!.offsetLeft, 200)); // Minimum width of 200px
-      setModalHeight(Math.max(e.clientY - dialogRef.current!.offsetTop, 200)); // Minimum height of 200px
+      setModalWidth(Math.max(e.clientX - dialogRef.current!.offsetLeft, 200));
+      setModalHeight(Math.max(e.clientY - dialogRef.current!.offsetTop, 200));
     }
   };
 
@@ -128,38 +124,6 @@ export default function PlayVideoModal({
     };
   }, [isResizing]);
 
-  useEffect(() => {
-    if (state && !hasWatched && userId && filmId && markAsWatched) {
-      timerRef.current = setTimeout(() => {
-        if (userId && filmId) {
-          axios
-            .post("/api/films/[filmId]/watchedFilms", {
-              userId,
-              filmId,
-              watchedDuration: 60, // Adjust as per your requirement
-            })
-            .then(() => {
-              markAsWatched(userId, filmId);
-              setHasWatched(true);
-            })
-            .catch((error) => {
-              console.error("Error marking film as watched:", error);
-            });
-        }
-      }, watchTimerDuration);
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [state, hasWatched, markAsWatched, userId, filmId, watchTimerDuration]);
-
-  const handleIframeLoad = () => {
-    setLoading(false);
-  };
-
   return (
     <Dialog open={state} onOpenChange={() => changeState(!state)}>
       <DialogContent
@@ -178,25 +142,25 @@ export default function PlayVideoModal({
           </div>
         </DialogHeader>
 
-        <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+        <div className="relative w-full h-[300px]}">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="spinner-border animate-spin border-t-4 border-blue-500 rounded-full w-12 h-12"></div>
             </div>
           )}
-          <iframe
-            ref={iframeRef}
-            src={modifiedTrailerUrl}
-            className={`absolute top-0 left-0 w-full h-full ${loading ? "opacity-0" : "opacity-100"}`}
-            frameBorder="0"
-            allowFullScreen
-            title={title}
-            loading="lazy"
-            onLoad={handleIframeLoad}
+          <ReactPlayer
+            url={trailerUrl}
+            playing
+            controls
+            width="100%"
+            height="100%"
+            onReady={() => setLoading(false)}
+            config={{
+              file: { attributes: { controlsList: "nodownload" } },
+            }}
           />
         </div>
 
-        {/* Rate this film */}
         <div className="mt-4">
           <h4 className="text-lg font-semibold mb-2">Rate this film:</h4>
           <div className="flex gap-1">
@@ -214,19 +178,16 @@ export default function PlayVideoModal({
           </div>
         </div>
 
-        {/* Comments Section */}
         {filmId && (
           <div className="mt-8">
             <Comments filmId={filmId} />
           </div>
         )}
 
-        {/* Similar Films Section */}
         <div className="mt-8">
           <SimilarFilms category={category} />
         </div>
 
-        {/* Resizer handle */}
         <div
           className="absolute bottom-0 right-0 cursor-se-resize p-2"
           onMouseDown={handleMouseDown}

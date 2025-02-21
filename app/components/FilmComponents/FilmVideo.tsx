@@ -95,7 +95,7 @@ export default function FilmVideo() {
         autoPlay
         muted={isMuted}
         loop
-        src={data.videoSource}
+        src={data.trailer}
         className="w-full absolute top-0 left-0 h-[100vh] object-cover -z-10 brightness-[45%]"
       ></video>
       <div className="absolute bottom-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>

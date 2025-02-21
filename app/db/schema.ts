@@ -1,5 +1,4 @@
-// /app/db/schema.ts
-
+// /app/db/schema.ts  
 import {
   pgTable,
   serial,
@@ -148,6 +147,19 @@ export const userInteractions = pgTable(
   })
 );
 
+//announcement table
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  adminId: text("adminId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }), // References the user (admin)
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdate(() => new Date()),
+});
+
+
 // WatchedFilms Table (Updated)
 export const watchedFilms = pgTable(
   'watchedFilms',
@@ -258,6 +270,15 @@ export const comments = pgTable(
     createdAt: timestamp('createdAt').defaultNow().notNull(),  // Timestamp for when the comment was made
   }
 );
+
+
+
+export const dismissedAnnouncements = pgTable("dismissed_announcements", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  announcementId: integer("announcement_id").notNull(),
+  dismissedAt: timestamp("dismissed_at").defaultNow(),
+});
 
 
 export const commentVotes = pgTable(
@@ -371,3 +392,10 @@ export const commentsRelations = relations(comments, ({ one }) => ({
   }),
 }));
 
+
+export const announcementRelations = relations(announcements, ({ one }) => ({
+  admin: one(users, {
+    fields: [announcements.adminId],
+    references: [users.id],
+  }),
+}));

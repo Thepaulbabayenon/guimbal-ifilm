@@ -1,15 +1,14 @@
-'use client';
+"use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Logo from "../../public/logo.svg";
-import { usePathname, useRouter } from "next/navigation";
-import { Bell, Menu, X } from "lucide-react";
-import { motion } from "framer-motion";
-import { debounce } from "lodash";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import UserNav from "./UserNav";
-import SearchBar from "@/app/components/SearchBar";  // Import the SearchBar
+import SearchBar from "@/app/components/SearchBar";
+import NotificationDropdown from "@/app/components/NotificationDropdown";
 
 interface LinkProps {
   name: string;
@@ -28,20 +27,14 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-
-  const router = useRouter();
-  const pathName = usePathname(); // Use pathName to determine current route
+  
+  const pathName = usePathname();
   const isProfilePage = pathName.includes("/user");
-  const isUploadPage = pathName.includes("/home/upload");
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
-      if (window.scrollY > lastScrollY) {
-        setShowNavbar(false); // Hide navbar on scroll down
-      } else {
-        setShowNavbar(true); // Show navbar on scroll up
-      }
+      setShowNavbar(window.scrollY < lastScrollY);
       setLastScrollY(window.scrollY);
     };
     window.addEventListener("scroll", handleScroll);
@@ -50,77 +43,99 @@ export default function Navbar() {
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 
-  if (isProfilePage || isUploadPage) {
-    return null; // Don't render navbar on profile or upload pages
-  }
+  if (isProfilePage) return null;
 
   return (
     <>
       {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-3 right-3 z-50">
-        <Menu onClick={toggleMobileMenu} className="w-6 h-6 text-white cursor-pointer transition-opacity duration-300 hover:opacity-75" />
-      </div>
+      <motion.div 
+        className="lg:hidden fixed top-3 right-3 z-50 cursor-pointer"
+        whileTap={{ scale: 0.9 }}
+      >
+        <Menu onClick={toggleMobileMenu} className="w-6 h-6 text-white transition-opacity hover:opacity-75" />
+      </motion.div>
 
       {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <motion.div
-          initial={{ opacity: 0, x: "-100%" }}
-          animate={{ opacity: 1, x: "0%" }}
-          exit={{ opacity: 0, x: "-100%" }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col items-center justify-center lg:hidden"
-        >
-          <X onClick={toggleMobileMenu} className="absolute top-3 right-3 w-6 h-6 text-white cursor-pointer" />
-          <ul className="flex flex-col items-center gap-y-4 text-white text-base">
-            {links.map((link, idx) => (
-              <li key={idx} onClick={toggleMobileMenu}>
-                <Link href={link.href}>{link.name}</Link>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 flex flex-col items-center w-full px-6">
-            <SearchBar isMobile={true} />  {/* Pass isMobile prop */}
-            <UserNav />
-          </div>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: "-100%" }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: "-100%" }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col items-center justify-center lg:hidden"
+          >
+            <X onClick={toggleMobileMenu} className="absolute top-3 right-3 w-6 h-6 text-white cursor-pointer" />
+            <ul className="flex flex-col items-center gap-y-4 text-white text-base">
+              {links.map((link, idx) => (
+                <motion.li 
+                  key={idx} 
+                  whileHover={{ scale: 1.1 }} 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={toggleMobileMenu}
+                >
+                  <Link href={link.href}>{link.name}</Link>
+                </motion.li>
+              ))}
+            </ul>
+            <div className="mt-4 flex flex-col items-center w-full px-6">
+              <SearchBar isMobile={true} />
+              <UserNav />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Navbar */}
       <motion.div
-        initial={{ opacity: 0, y: -100 }}
-        animate={{ opacity: showNavbar ? 1 : 0, y: showNavbar ? 0 : -100 }}
+        initial={{ opacity: 0, y: -50 }}
+        animate={{ opacity: showNavbar ? 1 : 0, y: showNavbar ? 0 : -50 }}
         transition={{ duration: 0.3 }}
-        className={`navbar fixed top-0 left-0 right-0 z-40 w-full max-w-7xl mx-auto px-4 py-3 flex items-center justify-between transition-all duration-300 ${isScrolled ? "bg-black bg-opacity-80" : "bg-transparent"}`}
+        className={`fixed top-0 left-0 right-0 z-40 w-full max-w-7xl mx-auto px-4 py-3 flex items-center justify-between transition-all duration-300 ${isScrolled ? "bg-black bg-opacity-80" : "bg-transparent"}`}
       >
         <div className="flex items-center">
-          <Link href="/home" className="w-24">
-            <Image src={Logo} alt="Logo" priority width={60} height={60} />
+          <Link href="/home">
+            <motion.div whileHover={{ scale: 1.5 }}>
+              <Image src={Logo} alt="Logo" priority width={60} height={60} />
+            </motion.div>
           </Link>
-          <ul className="lg:flex gap-x-4 ml-10 hidden">
-            {links.map((link, idx) => (
-              <motion.li key={idx} className="relative group" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link href={link.href} className={`${pathName === link.href ? "text-white font-semibold" : "text-gray-300"} text-xs transition-all duration-300 group-hover:text-white`}>
-                  {link.name}
-                </Link>
-                <span className={`${pathName === link.href ? "w-full" : "w-0"} group-hover:w-full transition-all duration-300 absolute left-0 bottom-0 h-0.5 bg-white`} />
-              </motion.li>
-            ))}
+
+          <ul className="lg:flex gap-x-6 ml-10 hidden">
+            {links.map((link, idx) => {
+              const isActive = pathName === link.href;
+
+              return (
+                <motion.li 
+                  key={idx} 
+                  whileHover={{ scale: 1.1, y: -3 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="relative"
+                >
+                  <Link 
+                    href={link.href} 
+                    className={`text-sm font-light transition-all ${
+                      isActive ? "text-yellow-400" : "text-gray-300"
+                    }`}
+                    style={{
+                      textShadow: isActive 
+                        ? "2px 2px 6px rgba(255, 255, 0, 0.5)" 
+                        : "2px 2px 4px rgba(0, 0, 0, 0.3)",
+                      filter: isActive 
+                        ? "drop-shadow(0px 4px 6px rgba(255, 255, 0, 0.5))" 
+                        : "drop-shadow(0px 4px 6px rgba(255, 255, 255, 0.1))",
+                    }}
+                  >
+                    {link.name}
+                  </Link>
+                </motion.li>
+              );
+            })}
           </ul>
         </div>
+
         <div className="hidden lg:flex items-center gap-x-4">
-          <SearchBar isMobile={false} />  {/* Pass isMobile prop */}
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Bell className="h-4 w-4 text-gray-300 cursor-pointer hover:text-white transition-transform duration-300 transform hover:scale-110" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-52 bg-gray-800 text-white rounded-md shadow-md">
-              <DropdownMenuLabel className="text-xs">Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="p-2 hover:bg-gray-700 text-xs">
-                <p>New films are coming</p>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <SearchBar isMobile={false} />
+          <NotificationDropdown />
           <UserNav />
         </div>
       </motion.div>

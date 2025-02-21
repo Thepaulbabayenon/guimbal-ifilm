@@ -4,37 +4,41 @@ import { FilmCard } from "./FilmComponents/FilmCard";
 import { auth } from "@clerk/nextjs/server";
 import { and, asc, eq, avg } from "drizzle-orm"; // Ensure that avg() is imported
 import { accounts, film, userRatings } from "@/app/db/schema";
+import FilmRelease from "./FilmComponents/FilmRelease";
 
 // Fetch film data and calculate average ratings
 async function getData(userId: string) {
-  // Get films and calculate average rating for each film
-  const userFilms = await db
-    .select({
-      id: film.id,
-      overview: film.overview,
-      title: film.title,
-      WatchList: {
-        userId: accounts.userId,
-        filmId: film.id,
-      },
-      imageString: film.imageString,
-      trailer: film.trailer,
-      age: film.age,
-      release: film.release,
-      duration: film.duration,
-      category: film.category,
-      // Aggregation to calculate average rating using avg()
-      averageRating: avg(userRatings.rating).as('averageRating'), // Using avg() to calculate the average
-    })
-    .from(film)
-    .leftJoin(accounts, eq(accounts.userId, userId))
-    .leftJoin(userRatings, eq(userRatings.filmId, film.id))
-    .groupBy(film.id, accounts.userId) // Group by both film.id and accounts.userId
-    .orderBy(asc(avg(userRatings.rating))) // Order by the calculated average rating
-    .limit(4); // Limit the results to top 4
-
-  return userFilms;
+  try {
+    const userFilms = await db
+      .select({
+        id: film.id,
+        overview: film.overview,
+        title: film.title,
+        WatchList: {
+          userId: accounts.userId,
+          filmId: film.id,
+        },
+        imageString: film.imageString,
+        trailer: film.trailer,
+        age: film.age,
+        release: film.release,
+        duration: film.duration,
+        category: film.category,
+        averageRating: avg(userRatings.rating).as('averageRating'),
+      })
+      .from(film)
+      .leftJoin(accounts, eq(accounts.userId, userId))
+      .leftJoin(userRatings, eq(userRatings.filmId, film.id))
+      .groupBy(film.id, accounts.userId)
+      .orderBy(asc(avg(userRatings.rating)))
+      .limit(4);
+    return userFilms;
+  } catch (error) {
+    console.error("Database error:", error);
+    return [];
+  }
 }
+
 
 export default async function RecentlyAdded() {
   const { userId } = auth(); // Get the user ID from the authentication context

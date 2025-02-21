@@ -88,6 +88,7 @@ const Sidebar = () => {
                 { name: "Upload Film", path: "/admin/upload" },
                 { name: "Edit Film", path: "/admin/edit" },
                 { name: "Delete Film", path: "/admin/delete" },
+                { name: "Announcements", path: "/admin/announcements" },
                 { name: "Manage Admin Users", path: "/admin/users" },
                 { name: "Home", path: "/home" },
               ].map((item) => (

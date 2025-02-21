@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import Image from "next/image";
 import gsap from "gsap";
+import axios from "axios";
 
 interface Film {
   id: number;
@@ -15,7 +16,9 @@ interface Film {
   initialRatings: number;
   category: string;
   imageString: string;
+  averageRating?: number | null; // Allow null values
 }
+
 
 interface FilmLayoutProps {
   title: string;
@@ -26,18 +29,47 @@ interface FilmLayoutProps {
 
 const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error }) => {
   const filmGridRef = useRef<HTMLDivElement | null>(null);
+  const [filmRatings, setFilmRatings] = useState<Record<number, number>>({}); // Store ratings per film
+
+  // Fetch average ratings for all films
+  useEffect(() => {
+    const fetchRatings = async () => {
+      try {
+        const ratingsData: Record<number, number> = {};
+        await Promise.all(
+          films.map(async (film) => {
+            try {
+              const response = await axios.get(`/api/films/${film.id}/average-rating`);
+              if (response.data?.averageRating !== undefined) {
+                ratingsData[film.id] = response.data.averageRating;
+              }
+            } catch (error) {
+              console.error(`Error fetching rating for film ${film.id}:`, error);
+            }
+          })
+        );
+        setFilmRatings(ratingsData);
+      } catch (error) {
+        console.error("Error fetching ratings:", error);
+      }
+    };
+
+    if (films.length > 0) {
+      fetchRatings();
+    }
+  }, [films]);
 
   // GSAP Animation for film cards
   useEffect(() => {
     if (filmGridRef.current) {
       gsap.fromTo(
-        filmGridRef.current.children, 
-        { opacity: 0, y: 50 }, // initial state
+        filmGridRef.current.children,
+        { opacity: 0, y: 50 }, // Initial state
         {
           opacity: 1,
           y: 0,
           duration: 1,
-          stagger: 0.1, // stagger the animations for each film
+          stagger: 0.1, // Stagger animations for each film
           ease: "power3.out",
         }
       );
@@ -69,11 +101,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error })
         className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6"
       >
         {films.map((film) => (
-          <div
-            key={film.id}
-            className="relative h-60"
-            style={{ opacity: 0 }} // Initial opacity set to 0 for animation
-          >
+          <div key={film.id} className="relative h-60" style={{ opacity: 0 }}>
             {/* Film Thumbnail */}
             <Image
               src={film.imageString}
@@ -93,6 +121,8 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error })
                   height={800}
                   className="absolute w-full h-full -z-10 rounded-lg object-cover"
                 />
+
+                {/* Pass average rating */}
                 <FilmCard
                   key={film.id}
                   age={film.age}
@@ -106,6 +136,14 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error })
                   watchList={film.watchList}
                   category={film.category || "Uncategorized"}
                 />
+
+                {/* Display Average Rating */}
+                <div className="absolute bottom-5 left-5 bg-black bg-opacity-70 px-3 py-1 rounded">
+                  <p className="text-white text-sm">
+                    ⭐ Average Rating: {filmRatings[film.id]?.toFixed(2) || "N/A"} / 5
+                  </p>
+                </div>
+
               </div>
             </div>
           </div>

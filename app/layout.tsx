@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import {UpdateProvider} from "@/hooks/updateContext"
 
 
@@ -18,7 +17,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "iFilm",
+  title: "Thebantayanfilmfestival",
   description: "Guimbal iFIlm Society",
 };
 

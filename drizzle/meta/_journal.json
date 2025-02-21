@@ -8,6 +8,27 @@
       "when": 1738854545525,
       "tag": "0000_famous_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1739261643451,
+      "tag": "0001_grey_snowbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1739961912734,
+      "tag": "0002_rainy_mauler",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1739972700878,
+      "tag": "0003_skinny_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

@@ -43,7 +43,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Convert the Date to a Unix timestamp (number)
-    const releaseTimestamp = release.getTime();
+    const releaseTimestamp = Math.floor(release.getTime() / 1000);
 
     // Fetch existing film data to preserve existing file URLs
     const existingFilm = await db.select().from(film).where(eq(film.id, id)).limit(1);
@@ -59,12 +59,19 @@ export async function PUT(req: NextRequest) {
     const trailerFile = formData.get("trailer") as File | null;
 
     // Function to upload files to S3
-    async function uploadToS3(file: File, folder: string): Promise<string> {
-      if (!file) return "";
-
+    async function uploadToS3(file: File | null, folder: string): Promise<string> {
+      if (!file || !(file instanceof File)) return "";
+    
       const fileKey = `film/${folder}/${releaseYear}/${uuidv4()}-${file.name}`;
+    
+      // Ensure the file has an arrayBuffer function before calling it
+      if (typeof file.arrayBuffer !== "function") {
+        console.error("Invalid file type for S3 upload:", file);
+        throw new TypeError("Provided file does not support arrayBuffer()");
+      }
+    
       const buffer = Buffer.from(await file.arrayBuffer());
-
+    
       await s3Client.send(
         new PutObjectCommand({
           Bucket: process.env.AWS_BUCKET_NAME!,
@@ -73,9 +80,10 @@ export async function PUT(req: NextRequest) {
           ContentType: file.type,
         })
       );
-
+    
       return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
     }
+
 
     // Upload new files if provided, otherwise keep the existing ones
     const imageString = imageFile ? await uploadToS3(imageFile, "img") : existingFilm[0].imageString;

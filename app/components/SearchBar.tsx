@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { debounce } from "lodash";
 import gsap from "gsap";
+import { X } from "lucide-react"; // Importing an icon for the close button
 
 interface SearchBarProps {
   isMobile: boolean;
@@ -48,6 +49,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
     }
   };
 
+  const clearSearch = () => {
+    setQuery("");
+    setResults([]);
+    if (inputRef.current) inputRef.current.focus();
+  };
+
   // GSAP animations for input field and results
   useEffect(() => {
     if (inputRef.current) {
@@ -69,15 +76,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
 
   return (
     <div className={`relative max-w-lg ${isMobile ? "mx-auto mt-4 px-6" : ""} bg-transparent`}>
-      <input
-        ref={inputRef}
-        type="text"
-        className="p-3 pl-8 pr-3 text-sm bg-transparent text-white rounded-full shadow-md focus:outline-none transform hover:scale-105 border border-gray-800"
-        placeholder="Search for films..."
-        value={query}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-      />
+      <div className="relative w-full">
+        <input
+          ref={inputRef}
+          type="text"
+          className="p-3 pl-8 pr-10 text-sm bg-transparent text-white rounded-full shadow-md focus:outline-none transform hover:scale-105 border border-gray-800 w-full"
+          placeholder="Search for films..."
+          value={query}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+        />
+        {query && (
+          <button
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+            onClick={clearSearch}
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
       {loading && (
         <div className="absolute top-full left-0 w-full py-2 text-center text-gray-500 opacity-70">
           Loading...

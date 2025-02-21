@@ -1,16 +1,22 @@
+// src/types.ts
 export interface Film {
-    id: number;
-    title: string;
-    age: number;
-    duration: number;
-    imageString: string;
-    overview: string;
-    release: number;
-    videoSource: string;
-    category: string;
-    trailer: string;
-    rank: number;  // External rating
-  }
+  id: number;
+  title: string;
+  overview: string;
+  watchList: boolean;
+  trailerUrl: string;
+  year: number;
+  age: number;
+  time: number;
+  initialRatings: number;
+  category: string;
+  imageString: string;
+  producer: string;
+  director: string;
+  coDirector: string;
+  studio: string;
+  averageRating: number | null;
+}
   
   export interface UserRating {
     userId: string;
@@ -36,4 +42,5 @@ export interface Film {
      email: string;
      isAdmin: boolean; // Add this property
    }
+   
    

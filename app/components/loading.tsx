@@ -12,8 +12,8 @@ export default function LoadingState() {
           </div>
         </div>
         {/* Loading Text */}
-        <p className="text-white text-xl font-semibold tracking-wider">
-          Loading<span className="dot-animate"></span>
+        <p className="text-red-600 text-xl font-semibold tracking-wider">
+          Loading Trailer<span className="dot-animate"></span>
         </p>
       </div>
 
