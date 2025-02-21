@@ -1,9 +1,9 @@
-// components/SimilarFilms.tsx
 'use client';
 import { useState, useEffect } from "react";
 import { db } from "@/app/db/drizzle";
 import { film } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
+import { useRouter } from "next/navigation"; // Import Next.js router
 
 interface SimilarFilmsProps {
   category: string;
@@ -11,6 +11,7 @@ interface SimilarFilmsProps {
 
 export default function SimilarFilms({ category }: SimilarFilmsProps) {
   const [similarFilms, setSimilarFilms] = useState<any[]>([]);
+  const router = useRouter(); // Initialize router
 
   useEffect(() => {
     const fetchSimilarFilms = async () => {
@@ -44,10 +45,7 @@ export default function SimilarFilms({ category }: SimilarFilmsProps) {
               <p className="text-sm text-gray-600 line-clamp-2">{film.overview}</p>
               <button
                 className="mt-2 bg-blue-500 text-white px-3 py-1 text-sm rounded-md"
-                onClick={() => {
-                  // Logic to play or open the Film in another modal
-                  console.log(`Play Film: ${film.title}`);
-                }}
+                onClick={() => router.push(`/home/films/${film.id}`)} // Redirect to film page
               >
                 Watch Now
               </button>

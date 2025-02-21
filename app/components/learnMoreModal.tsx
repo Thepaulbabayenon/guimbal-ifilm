@@ -1,6 +1,16 @@
 "use client";
-import React from 'react';
-import { Modal, Button } from 'react-bootstrap'; // Assuming Bootstrap is used for styling
+
+import React from "react";
+import {
+  MorphingDialog,
+  MorphingDialogTrigger,
+  MorphingDialogContainer,
+  MorphingDialogContent,
+  MorphingDialogClose,
+  MorphingDialogTitle,
+  MorphingDialogDescription,
+} from "@/components/ui/morphing-dialog"; // Adjust path if needed
+import { Button } from "react-bootstrap";
 
 interface FilmDetails {
   title: string;
@@ -19,65 +29,81 @@ interface FilmDetails {
 }
 
 interface LearnMoreModalProps {
-  show: boolean; // Boolean to control modal visibility
-  onHide: () => void; // Function to close the modal
-  film: FilmDetails; // Film details to display in the modal
+  film: FilmDetails; // Film details to display
 }
 
-const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ show, onHide, film }) => {
-  if (!film) {
-    return null; // Ensure the component doesn't break if the film prop is undefined
-  }
+const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
+  if (!film) return null;
 
   return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton className="bg-gray-900 text-white">
-        <Modal.Title className="text-2xl font-semibold">{film.title || "Film Details"}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body className="bg-gray-900 text-white p-6">
-        <div className="film-image mb-6 flex justify-center bg-gray-800 p-4 rounded-xl">
-          <img
-            src={film.imageString}
-            alt={`${film.title} Poster`}
-            className="w-60 h-80 object-cover rounded-xl shadow-lg"
-          />
-        </div>
-        <div className="film-details space-y-4">
-          <p><strong className="font-semibold">Overview:</strong> {film.overview}</p>
-          <p><strong className="font-semibold">Release Year:</strong> {film.release}</p>
-          <p><strong className="font-semibold">Producer:</strong> {film.producer}</p>
-          <p><strong className="font-semibold">Director:</strong> {film.director}</p>
-          <p><strong className="font-semibold">Co-Director:</strong> {film.coDirector}</p>
-          <p><strong className="font-semibold">Studio:</strong> {film.studio}</p>
-          <p><strong className="font-semibold">Age Rating:</strong> {film.age}+</p>
-          <p><strong className="font-semibold">Duration:</strong> {film.duration} minutes</p>
-          <p><strong className="font-semibold">Category:</strong> {film.category}</p>
-          <p><strong className="font-semibold">Rank:</strong> {film.rank}</p>
-        </div>
-        <div className="film-trailer mt-6">
-          <strong className="text-lg font-semibold">Trailer:</strong>
-          <div className="w-full aspect-w-16 aspect-h-9">
-            <iframe
-              width="100%"
-              height="100%"
-              src={`${film.trailer}`}
-              title={`${film.title} Trailer`}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="rounded-xl shadow-md"
+    <MorphingDialog>
+      <MorphingDialogTrigger className="cursor-pointer">
+        <Button variant="primary">Learn More</Button>
+      </MorphingDialogTrigger>
+      <MorphingDialogContainer>
+        <MorphingDialogContent className="bg-gray-900 text-white rounded-xl max-w-md p-6">
+          <MorphingDialogClose className="absolute top-4 right-4 text-white" />
+          <MorphingDialogTitle className="text-2xl font-semibold text-center">
+            {film.title || "Film Details"}
+          </MorphingDialogTitle>
+
+          <div className="flex flex-col items-center mt-4">
+            <img
+              src={film.imageString}
+              alt={`${film.title} Poster`}
+              className="w-40 h-60 object-cover rounded-xl shadow-lg"
             />
           </div>
-        </div>
-      </Modal.Body>
-      <Modal.Footer className="bg-gray-900">
-        <Button variant="secondary" onClick={onHide} className="text-white bg-gray-700 hover:bg-gray-600 rounded-lg">
-          Close
-        </Button>
-      </Modal.Footer>
-    </Modal>
+
+          <MorphingDialogDescription className="space-y-3 mt-4">
+            <p>
+              <strong>Overview:</strong> {film.overview}
+            </p>
+            <p>
+              <strong>Release Year:</strong> {film.release}
+            </p>
+            <p>
+              <strong>Producer:</strong> {film.producer}
+            </p>
+            <p>
+              <strong>Director:</strong> {film.director}
+            </p>
+            <p>
+              <strong>Studio:</strong> {film.studio}
+            </p>
+            <p>
+              <strong>Age Rating:</strong> {film.age}+
+            </p>
+            <p>
+              <strong>Duration:</strong> {film.duration} minutes
+            </p>
+            <p>
+              <strong>Category:</strong> {film.category}
+            </p>
+            <p>
+              <strong>Rank:</strong> {film.rank}
+            </p>
+          </MorphingDialogDescription>
+
+          <div className="mt-4">
+            <strong className="text-lg">Trailer:</strong>
+            <div className="w-full aspect-video mt-2">
+              <iframe
+                width="100%"
+                height="100%"
+                src={film.trailer}
+                title={`${film.title} Trailer`}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="rounded-xl shadow-md"
+              />
+            </div>
+          </div>
+        </MorphingDialogContent>
+      </MorphingDialogContainer>
+    </MorphingDialog>
   );
 };
 
 export default LearnMoreModal;
-

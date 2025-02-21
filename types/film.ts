@@ -16,8 +16,12 @@ export interface Film {
   coDirector: string;
   studio: string;
   averageRating: number | null;
+
+  ageRating?: number;  // Example: 13, 18, etc.
+  duration?: number;   // Example: 120 (minutes)
 }
-  
+
+
   export interface UserRating {
     userId: string;
     filmId: number;

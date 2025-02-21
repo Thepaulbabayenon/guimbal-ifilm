@@ -99,7 +99,7 @@ export default function FilmButtons({
           onMouseLeave={(e) => handleHoverOut(e.currentTarget)}
         >
           <CiCircleInfo className="mr-2 h-8 w-8 transition-all duration-200" />
-          Learn More
+          <LearnMoreModal film={film} />
         </Button>
 
         {/* Volume Icon (No Background) */}
@@ -137,11 +137,7 @@ export default function FilmButtons({
       />
 
       {/* Learn More Modal */}
-      <LearnMoreModal
-        show={isLearnMoreModalOpen} // Updated to 'show' prop
-        onHide={() => setLearnMoreModalOpen(false)} // Close modal
-        film={film} // Pass the complete 'film' object instead of just filmId
-      />
+        
     </>
   );
 }

@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
 import { addToWatchlist } from "@/app/action";
-import FilmRelease from "./FilmRelease";
+
 
 interface FilmCardProps {
   filmId: number;

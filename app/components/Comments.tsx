@@ -31,57 +31,50 @@ export default function Comments({ filmId }: CommentsProps) {
       setError('Comment cannot be empty.');
       return;
     }
-
+  
     if (!filmId) {
       setError('Missing film ID.');
       return;
     }
-
+  
     if (!user) {
       setError('You must be logged in to post a comment.');
       return;
     }
-
-    setError(null); // Reset error state
+  
+    setError(null);
     setLoading(true);
-
-    const commentData = {
-      userId: user.id,
-      filmId,
-      username: user.username || 'Anonymous', // Use Clerk's username or fallback to "Anonymous"
-      content: newComment.trim(),
-      email: user.emailAddresses[0]?.emailAddress || '', // Correctly accessing emailAddresses
-    };
-
-    // Optimistically update UI
-    const optimisticComment: Comment = {
-      id: Date.now(), // Temporary ID for UI rendering
-      userId: user.id,
-      username: commentData.username,
-      content: commentData.content,
-      createdAt: new Date().toISOString(),
-    };
-
-    setCommentsList((prev) => [optimisticComment, ...prev]);
-    setNewComment('');
-
+  
     try {
-      // Insert comment into the database
-      const result = await db.insert(comments).values(commentData);
-      console.log('Comment successfully inserted:', result);
-
-      // Refetch comments to ensure data consistency
-      await fetchComments();
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          filmId,
+          username: user.username || 'Anonymous',
+          content: newComment.trim(),
+          email: user?.emailAddresses?.[0]?.emailAddress || 'no-email@example.com', // Ensure email is always provided
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to add comment.');
+      }
+  
+      await fetchComments(); // Refresh comments after adding
+      setNewComment('');
     } catch (error) {
-      console.error('Error inserting comment:', error);
+      console.error('Error adding comment:', error);
       setError('Failed to add comment. Please try again.');
-
-      // Rollback optimistic update
-      setCommentsList((prev) => prev.filter((comment) => comment.id !== optimisticComment.id));
     } finally {
       setLoading(false);
     }
   };
+  
+  
 
   // Fetch comments from the database
   const fetchComments = async () => {
