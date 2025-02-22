@@ -22,6 +22,7 @@ async function getData(userId: string) {
         trailer: film.trailer,
         watchListId: watchLists.id,
         category: film.category,
+        ratings: film.averageRating, 
       })
       .from(film)
       .leftJoin(watchLists, eq(film.id, watchLists.filmId))
@@ -33,6 +34,7 @@ async function getData(userId: string) {
     throw new Error("Failed to fetch favorites.");
   }
 }
+
 
 export default async function Favorites() {
   try {
@@ -92,19 +94,20 @@ export default async function Favorites() {
                       height={800}
                       className="absolute w-full h-full -z-10 rounded-lg object-cover"
                     />
-                    <FilmCard
-                    key={film.id}
-                    age={film.age}
-                    filmId={film.id}
-                    overview={film.overview}
-                    time={film.duration}
-                    title={film.title}
-                    year={parseInt(film.release.toString())}
-                    trailerUrl={film.trailer}
-                    initialRatings={0}
-                    watchList={false}
-                    category={film.category || "Unknown"}
-                    />
+                   <FilmCard 
+                  filmId={film.id}
+                  title={film.title}
+                  watchList={!!film.watchListId}  // Convert to boolean
+                  watchListId={film.watchListId ? film.watchListId.toString() : undefined} // Convert to string
+                  trailerUrl={film.trailer}  // Correct property name
+                  year={film.release}        // Use 'release' instead of 'year'
+                  age={film.age}
+                  time={film.duration}       // Use 'duration' instead of 'time'
+                  initialRatings={film.ratings ?? 0}  // Default to 0 if null
+                  overview={film.overview}
+                  category={film.category}
+                />
+
                   </div>
                 </div>
               </div>

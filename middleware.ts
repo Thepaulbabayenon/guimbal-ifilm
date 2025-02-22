@@ -20,11 +20,16 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
+    // Exclude known static routes from middleware
+    "/((?!_next|.*\\.(?:html?|css|js|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    
+    // Always run for API routes (authentication-sensitive)
     "/(api|trpc)(.*)",
     "/api/webhooks(.*)",
     "/api/(.*)",
+
+    // Only apply to authenticated routes (excluding statically generated pages)
+    "/admin(.*)",
   ],
 };
+

@@ -1,45 +1,61 @@
-import { NextRequest } from 'next/server';
-import { db } from '@/app/db/drizzle';
-import { watchLists } from '@/app/db/schema';
-import { eq } from 'drizzle-orm';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { getAuth } from "@clerk/nextjs/server";
+import { db } from "@/app/db/drizzle";
+import { watchLists } from "@/app/db/schema";
+import { eq } from "drizzle-orm";
 
-export async function DELETE(req: NextRequest) {
-  const { searchParams } = req.nextUrl;
-  const userId = searchParams.get("userId"); // Extracting userId from query parameters
-  const watchListId = req.nextUrl.pathname.split('/').pop(); // Extracting watchListId from the URL path
+export async function DELETE(req: NextRequest, { params }: { params: { watchListId?: string } }) {
+  console.log("🟢 Received params:", params);
 
-  console.log("Request URL:", req.nextUrl.href); // Logs the full URL for debugging
-  console.log("Search Params:", searchParams.toString()); // Logs the query parameters for debugging
-  console.log("Deleting watchlist entry with userId:", userId, "watchListId:", watchListId); // Debugging log
+  if (!params?.watchListId) {
+    console.error("🔴 Missing watchlistId");
+    return NextResponse.json({ error: "Missing watchlistId" }, { status: 400 });
+  }
 
-  if (!userId || !watchListId) {
-    return NextResponse.json({ message: 'Missing userId or watchListId' }, { status: 400 });
+  const { userId } = getAuth(req);
+  console.log("🟢 Authenticated user:", userId);
+
+  if (!userId) {
+    console.error("🔴 Unauthorized request");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Convert watchlistId to a number
+  const watchListIdNumber = parseInt(params.watchListId, 10);
+  if (isNaN(watchListIdNumber)) {
+    console.error("🔴 Invalid watchlistId:", params.watchListId);
+    return NextResponse.json({ error: "Invalid watchlistId" }, { status: 400 });
   }
 
   try {
-    // Ensure the watchListId is a number (it should be, since it's an integer in the DB)
-    const parsedWatchListId = parseInt(watchListId);
+    console.log(`🟢 User ${userId} is trying to delete watchlist item ${watchListIdNumber}`);
 
-    if (isNaN(parsedWatchListId)) {
-      return NextResponse.json({ message: 'Invalid watchListId' }, { status: 400 });
+    // Fetch the watchlist entry
+    const watchlistItem = await db
+      .select()
+      .from(watchLists)
+      .where(eq(watchLists.id, watchListIdNumber))
+      .limit(1);
+
+    console.log("🟢 Found watchlist item:", watchlistItem);
+
+    if (!watchlistItem.length) {
+      console.error("🔴 Watchlist item not found");
+      return NextResponse.json({ error: "Watchlist item not found" }, { status: 404 });
     }
 
-    // Combine both conditions into one `where` clause using `and`
-    const deletedWatchlist = await db
-      .delete(watchLists)
-      .where(
-        eq(watchLists.id, parsedWatchListId) && eq(watchLists.userId, userId) // Delete if both conditions match
-      )  
-      .returning();
-
-    if (deletedWatchlist.length === 0) {
-      return NextResponse.json({ message: 'Watchlist entry not found or not associated with user' }, { status: 404 });
+    if (watchlistItem[0].userId !== userId) {
+      console.error("🔴 User does not own this watchlist item");
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json({ message: 'Watchlist entry deleted successfully' }, { status: 200 });
+    // Delete the watchlist entry
+    await db.delete(watchLists).where(eq(watchLists.id, watchListIdNumber));
+
+    console.log("🟢 Successfully deleted watchlist item");
+    return NextResponse.json({ message: "Removed from watchlist" }, { status: 200 });
   } catch (error) {
-    console.error('Error deleting watchlist entry:', error);
-    return NextResponse.json({ message: 'Failed to delete from watchlist' }, { status: 500 });
+    console.error("🔴 Internal Server Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

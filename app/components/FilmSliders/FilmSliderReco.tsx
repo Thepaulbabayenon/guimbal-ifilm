@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Carousel,
@@ -12,7 +12,7 @@ import PlayVideoModal from "../PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
 import { CiStar } from "react-icons/ci";
 import { FaHeart, FaPlay } from "react-icons/fa";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 interface Film {
   id: number;
@@ -111,24 +111,38 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
     }
   }, [films, userId]);
 
-  const handleToggleWatchlist = async (filmId: number) => {
+  const handleToggleWatchlist = useCallback(async (filmId: number) => {
     if (!userId) {
       console.warn("Please log in to manage your watchlist.");
       return;
     }
-
-    const isInWatchlist = watchList[filmId];
-    try {
-      if (isInWatchlist) {
-        await axios.delete(`/api/watchlist/${filmId}`, { data: { userId } });
-      } else {
-        await axios.post("/api/watchlist", { filmId, userId });
-      }
-      setWatchList((prev) => ({ ...prev, [filmId]: !isInWatchlist }));
-    } catch (error) {
-      console.error("Error toggling watchlist:", error);
+  
+    if (!filmId) {
+      console.error("Invalid filmId:", filmId);
+      return;
     }
-  };
+  
+    const isInWatchlist = watchList[filmId];
+  
+    try {
+      console.log("Sending to API:", { filmId, userId });
+  
+      if (isInWatchlist) {
+        await axios.delete("/api/watchlist/", { data: { filmId, userId } });
+      } else {
+        await axios.post("/api/watchlist/", { filmId, userId });
+      }
+  
+      setWatchList((prev) => ({
+        ...prev,
+        [filmId]: !isInWatchlist,
+      }));
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError;
+      console.error("Error toggling watchlist:", axiosError.response?.data || axiosError.message);
+    }
+  }, [userId, watchList]);
+  
 
   const handleRatingClick = async (filmId: number, newRating: number) => {
     if (!userId) {

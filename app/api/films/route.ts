@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"; // Forces the API to run on every request
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle"; // Ensure correct import path for drizzle instance
 import { film } from "@/app/db/schema"; // Import your schema for 'film'

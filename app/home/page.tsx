@@ -1,4 +1,6 @@
-import { FilmGrid } from "../components/FilmComponents/FilmGrid";
+export const dynamic = "force-dynamic";
+
+
 import { FilmSlider } from "../components/FilmSliders/FilmSlider";
 import { FilmSliderComedy } from "../components/FilmSliders/FilmSliderComedy";
 import { FilmSliderDrama } from "../components/FilmSliders/FilmSliderDrama";
@@ -8,7 +10,7 @@ import { FilmSliderReco } from "../components/FilmSliders/FilmSliderReco";
 import FilmVideo from "../components/FilmComponents/FilmVideo";
 import RecentlyAdded from "../components/RecentlyAdded";
 import { auth } from "@clerk/nextjs/server";
-import { Suspense } from "react";
+import { TextLoop } from "@/components/ui/text-loop";
 
 export default async function HomePage() {
     const { userId } = await auth();
@@ -29,36 +31,66 @@ export default async function HomePage() {
             </div>
         );
     }
-    
 
     return (
         <div className="pt-[4rem] lg:pt-[5rem] p-5 lg:p-0">
             <FilmVideo />
-            <h1 className="text-3xl font-bold text-gray-400">BEST FILMS</h1>
-            <Suspense fallback={<div className="text-blue-600 animate-spin">Loading...</div>}>
-            <RecentlyAdded />
-            </Suspense>
-            <h1 className="text-3xl font-bold text-gray-400">POPULAR FILMS</h1>
-            <FilmSlider />
-    
-            <h1 className="text-3xl font-bold text-gray-400">COMEDY FILMS</h1>
-            <FilmSliderComedy />
-    
-            <h1 className="text-3xl font-bold text-gray-400">DRAMA FILMS</h1>
-            <FilmSliderDrama />
-    
-            <h1 className="text-3xl font-bold text-gray-400">FOLKLORE FILMS</h1>
-            <FilmSliderFolklore />
-    
-            <h1 className="text-3xl font-bold text-gray-400">HORROR FILMS</h1>
-            <FilmSliderHorror />
-    
-            <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
             
-            <Suspense fallback={<div className="text-blue-600 animate-spin">Loading...</div>}>
-            <FilmSliderReco userId={userId.toString()} />
-            </Suspense>
+            <h1 className="text-3xl font-bold text-gray-400">
+                <TextLoop
+                    className="overflow-y-clip"
+                    transition={{
+                        type: "spring",
+                        stiffness: 900,
+                        damping: 80,
+                        mass: 10,
+                    }}
+                    variants={{
+                        initial: { y: 20, rotateX: 90, opacity: 0, filter: "blur(4px)" },
+                        animate: { y: 0, rotateX: 0, opacity: 1, filter: "blur(0px)" },
+                        exit: { y: -20, rotateX: -90, opacity: 0, filter: "blur(4px)" },
+                    }}
+                >
+                    <span>BEST FILMS</span>
+                    <span>TOP MOVIES</span>
+                    <span>AWARD WINNERS</span>
+                </TextLoop>
+            </h1>
+
+                <RecentlyAdded />
+
+            {[
+                { title: "POPULAR FILMS", component: <FilmSlider /> },
+                { title: "COMEDY FILMS", component: <FilmSliderComedy /> },
+                { title: "DRAMA FILMS", component: <FilmSliderDrama /> },
+                { title: "FOLKLORE FILMS", component: <FilmSliderFolklore /> },
+                { title: "HORROR FILMS", component: <FilmSliderHorror /> },
+                { title: "RECOMMENDED FOR YOU", component: <FilmSliderReco userId={userId.toString()} /> },
+            ].map(({ title, component }) => (
+                <div key={title} className="mt-6">
+                    <h1 className="text-3xl font-bold text-gray-400">
+                        <TextLoop
+                            className="overflow-y-clip"
+                            transition={{
+                                type: "spring",
+                                stiffness: 900,
+                                damping: 80,
+                                mass: 10,
+                            }}
+                            variants={{
+                                initial: { y: 20, rotateX: 90, opacity: 0, filter: "blur(4px)" },
+                                animate: { y: 0, rotateX: 0, opacity: 1, filter: "blur(0px)" },
+                                exit: { y: -20, rotateX: -90, opacity: 0, filter: "blur(4px)" },
+                            }}
+                        >
+                            <span>{title}</span>
+                            <span>{title.replace("FILMS", "MOVIES")}</span>
+                            <span>{title.replace("FILMS", "CINEMA")}</span>
+                        </TextLoop>
+                    </h1>
+                    {component}
+                </div>
+            ))}
         </div>
     );
-    
 }

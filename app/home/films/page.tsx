@@ -1,40 +1,59 @@
-// home/films/page.tsx
-'use client';
+"use client";
+
+import { useEffect, useState } from "react";
 import { getAllFilms } from "@/app/api/getFilms";
 import FilmLayout from "@/app/components/FilmComponents/FilmLayout";
 
-export default async function AllFIlms() {
-  try {
-    const data = await getAllFilms();
+interface Film {
+  watchList: boolean;
+  trailerUrl: string;
+  year: number;
+  time: number;
+  initialRatings: number;
+  id: number;
+  title: string;
+  age: number;
+  duration: number;
+  imageString: string;
+  overview: string;
+  release: number;
+  videoSource: string;
+  category: string;
+  trailer: string;
+  rank: number;
+}
 
-    if (!data || data.length === 0) {
-      return (
-        <div className="items-center justify-center flex flex-col">
-          <h1 className="text-gray-400 text-4xl font-bold underline mt-10 px-5 sm:px-0 pt-9">
-            Films
-          </h1>
-          <p>No films found.</p>
-        </div>
-      );
+export default function AllFilms() {
+  const [films, setFilms] = useState<Film[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // Use null for better handling
+
+  useEffect(() => {
+    async function fetchFilms() {
+      try {
+        const data: Film[] = await getAllFilms();
+        if (data.length === 0) {
+          setFilms([]);
+          setError("No films found.");
+        } else {
+          setFilms(data);
+          setError(null); // Reset error if films exist
+        }
+      } catch (error) {
+        console.error("Error fetching films:", error);
+        setError("Failed to fetch films.");
+      } finally {
+        setLoading(false);
+      }
     }
 
-    return (
-      <FilmLayout
-        title="All Films"
-        films={data}
-        loading={false}
-        error={null}
-      />
-    );
-  } catch (error) {
-    console.error("Error fetching watchlist data:", error);
-    return (
-      <FilmLayout
-        title="Films"
-        films={[]}
-        loading={false}
-        error="Error fetching film data. Please try again later."
-      />
-    );
-  }
+    fetchFilms();
+  }, []);
+
+  return <FilmLayout 
+  title="All Films" 
+  films={films} 
+  loading={loading} 
+  error={error} 
+  />;
 }

@@ -2,6 +2,7 @@ import { db } from "@/app/db/drizzle";
 import { film, userInteractions, watchLists, userRatings, accounts, } from "@/app/db/schema";
 import { eq, and, desc, like, or, sql, inArray, asc, avg } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
 
 
 // Define the Film type (you can adjust fields to match your database schema)

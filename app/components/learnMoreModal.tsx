@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import ReactPlayer from "react-player";
 import {
   MorphingDialog,
   MorphingDialogTrigger,
@@ -11,6 +12,7 @@ import {
   MorphingDialogDescription,
 } from "@/components/ui/morphing-dialog"; // Adjust path if needed
 import { Button } from "react-bootstrap";
+import Image from "next/image";
 
 interface FilmDetails {
   title: string;
@@ -35,27 +37,35 @@ interface LearnMoreModalProps {
 const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
   if (!film) return null;
 
+  const [loading, setLoading] = useState(true);
+
   return (
     <MorphingDialog>
       <MorphingDialogTrigger className="cursor-pointer">
         <Button variant="primary">Learn More</Button>
       </MorphingDialogTrigger>
       <MorphingDialogContainer>
-        <MorphingDialogContent className="bg-gray-900 text-white rounded-xl max-w-md p-6">
-          <MorphingDialogClose className="absolute top-4 right-4 text-white" />
-          <MorphingDialogTitle className="text-2xl font-semibold text-center">
+        <MorphingDialogContent className="bg-gray-900 text-white rounded-xl max-w-sm p-4">
+          <MorphingDialogClose className="absolute top-3 right-3 text-white text-sm" />
+          <MorphingDialogTitle className="text-xl font-semibold text-center">
             {film.title || "Film Details"}
           </MorphingDialogTitle>
 
-          <div className="flex flex-col items-center mt-4">
-            <img
-              src={film.imageString}
+          <div className="flex flex-col items-center mt-3">
+            <Image
+              width={40}
+              height={40}
+              src={
+                film.imageString.startsWith("http")
+                  ? film.imageString
+                  : "/default-placeholder.png"
+              }
               alt={`${film.title} Poster`}
-              className="w-40 h-60 object-cover rounded-xl shadow-lg"
+              className="w-32 h-48 object-cover rounded-lg shadow-md"
             />
           </div>
 
-          <MorphingDialogDescription className="space-y-3 mt-4">
+          <MorphingDialogDescription className="space-y-2 mt-3 text-sm">
             <p>
               <strong>Overview:</strong> {film.overview}
             </p>
@@ -75,7 +85,7 @@ const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
               <strong>Age Rating:</strong> {film.age}+
             </p>
             <p>
-              <strong>Duration:</strong> {film.duration} minutes
+              <strong>Duration:</strong> {film.duration} min
             </p>
             <p>
               <strong>Category:</strong> {film.category}
@@ -85,18 +95,19 @@ const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
             </p>
           </MorphingDialogDescription>
 
-          <div className="mt-4">
-            <strong className="text-lg">Trailer:</strong>
-            <div className="w-full aspect-video mt-2">
-              <iframe
+          <div className="mt-3">
+            <strong className="text-sm">Trailer:</strong>
+            <div className="w-full mt-2 rounded-lg overflow-hidden">
+              <ReactPlayer
+                url={film.trailer}
+                playing
+                controls
                 width="100%"
                 height="100%"
-                src={film.trailer}
-                title={`${film.title} Trailer`}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="rounded-xl shadow-md"
+                onReady={() => setLoading(false)}
+                config={{
+                  file: { attributes: { controlsList: "nodownload" } },
+                }}
               />
             </div>
           </div>

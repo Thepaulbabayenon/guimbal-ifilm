@@ -89,19 +89,19 @@ const addFilmToWatchlist = async (userId: string, filmId: number) => {
 // POST endpoint for adding a film to the watchlist
 export async function POST(request: NextRequest) {
   try {
-    const { filmId, pathname, userId } = await request.json();
+    const { filmId, userId } = await request.json();  // Removed `pathname`
     
     // Log incoming data for debugging
-    console.log("Incoming Data:", { filmId, pathname, userId });
+    console.log("Incoming Data:", { filmId, userId });
 
-    if (!filmId || !pathname || !userId) {
+    if (!filmId || !userId) {
       return NextResponse.json(
-        { error: "Missing required fields: filmId, pathname, or userId" },
+        { error: "Missing required fields: filmId or userId" },
         { status: 400 }
       );
     }
 
-    // Proceed with your business logic (e.g., adding the movie to the watchlist)
+    // Proceed with adding the movie to the watchlist
     const result = await addFilmToWatchlist(userId, filmId);
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
@@ -112,3 +112,64 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
+// Database function to remove a film from the watchlist
+const removeFromWatchlist = async (watchListId: number): Promise<void> => {
+  try {
+    const response = await fetch(`/api/watchlist?watchListId=${watchListId}`, {
+      method: "DELETE",
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to remove from watchlist");
+
+    console.log("Successfully removed from watchlist!");
+  } catch (error) {
+    console.error("Error removing from watchlist:", error);
+    alert("Unable to remove film from watchlist. Please try again later.");
+  }
+};
+
+
+// DELETE endpoint for removing a film from the watchlist
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const watchListIdParam = searchParams.get("watchListId");
+
+    console.log("Received watchListId:", watchListIdParam); // Debugging log
+
+    if (!watchListIdParam) {
+      console.error("Error: watchListId parameter is missing in the request URL");
+      return NextResponse.json({ error: "Missing watchListId" }, { status: 400 });
+    }
+
+    const watchListId = Number(watchListIdParam);
+
+    if (isNaN(watchListId)) {
+      console.error("Error: watchListId is not a valid number:", watchListIdParam);
+      return NextResponse.json({ error: "Invalid watchListId" }, { status: 400 });
+    }
+
+    console.log(`Removing watchlist entry with ID: ${watchListId}`);
+
+    const result = await db
+      .delete(watchLists)
+      .where(eq(watchLists.id, watchListId))
+      .returning();
+
+    if (!result.length) {
+      console.error("Failed to remove from watchlist:", result);
+      return NextResponse.json({ error: "Failed to remove from watchlist" }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+
+

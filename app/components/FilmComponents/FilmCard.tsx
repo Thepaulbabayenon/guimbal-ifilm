@@ -7,6 +7,10 @@ import { usePathname } from "next/navigation";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
 import { addToWatchlist } from "@/app/action";
+import { useAuth } from "@clerk/nextjs"; // ✅ Correct for Client Components
+import { AxiosError } from "axios"; // Import AxiosError
+
+
 
 
 interface FilmCardProps {
@@ -119,6 +123,8 @@ export function FilmCard({
   }, [userRating, filmId, userId]);
 
   // Handle watchlist toggle
+  const { getToken } = useAuth(); // Get the token function from useAuth
+
   const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
   
@@ -128,43 +134,58 @@ export function FilmCard({
     }
   
     setIsSavingWatchlist(true);
+    const previousState = watchList;
   
     try {
-      if (watchList) {
-        // Check if watchListId is defined
+      const token = await getToken();
+  
+      // Optimistic UI update
+      setWatchList(!previousState);
+  
+      if (previousState) {
+        console.log("Attempting to remove from watchlist. Current watchListId:", watchListId);
+  
         if (!watchListId) {
-          console.error("Error: watchListId is missing!");
-          alert("Unable to remove film from watchlist. Please try again later.");
+          console.error("Error: watchListId is missing!", watchListId);
+          alert("Error: Missing watchlist ID");
           return;
         }
   
-        // Ensure the API URL is correct
-        const deleteUrl = `${baseUrl}/api/watchlist/${watchListId}`;
-        console.log("Deleting from watchlist:", deleteUrl);
+        // Convert watchListId to a number before passing it
+        const watchListIdNumber = Number(watchListId);
+        if (isNaN(watchListIdNumber)) {
+          console.error("Invalid watchListId:", watchListId);
+          alert("Error: Invalid watchlist ID");
+          return;
+        }
   
-        // Make the delete request
-        await axios.delete(deleteUrl, {
+        await axios.delete(`${baseUrl}/api/watchlist/${watchListIdNumber}`, {
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${userId}`, // Check if this is the correct auth method
+            Authorization: `Bearer ${token}`,
           },
         });
   
-        setWatchList(false);
-        alert("Film removed from your watchlist.");
       } else {
-        // Add to watchlist
-        await addToWatchlist({ filmId, pathname: pathName, userId });
-        setWatchList(true);
-        alert("Film added to your watchlist!");
+        // Use the server action for adding to watchlist
+        await addToWatchlist({ 
+          filmId, 
+          pathname: pathName, 
+          userId 
+        });
       }
     } catch (error) {
-      console.error("Error toggling watchlist:", error);
-      alert("Something went wrong. Please try again.");
+      // Rollback on error
+      setWatchList(previousState);
+      const axiosError = error as AxiosError;
+      
+      console.error("Watchlist error:", axiosError.response?.data || error);
+      alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
     } finally {
       setIsSavingWatchlist(false);
     }
   };
+  
+
   
 
   // Handle rating click
