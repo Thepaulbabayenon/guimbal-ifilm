@@ -229,9 +229,14 @@ export function FilmCard({
 
       {/* Watchlist Button */}  
       <div className="right-5 top-5 absolute z-10">
-        <Button variant="outline" size="icon" onClick={handleToggleWatchlist} disabled={isSavingWatchlist || loading}>
-          <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : ""}`} />
-        </Button>
+      <Button 
+        variant="outline" 
+        size="icon" 
+        onClick={handleToggleWatchlist} 
+        disabled={isSavingWatchlist || loading}
+      >
+        <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : "text-gray-500"}`} /> {/* Default to gray if not in watchlist */}
+      </Button>
       </div>
 
       {/* Film Details */}

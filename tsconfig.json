@@ -19,11 +19,13 @@
         "name": "next"
       }
     ],
+    
     "paths": {
       "@/*": ["./*"],
       "@/app/*": ["app/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/api/s3-upload/route.js", "types.d.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "typeRoots": ["./node_modules/@types", "./types"]
 }

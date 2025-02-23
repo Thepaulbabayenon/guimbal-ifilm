@@ -84,6 +84,7 @@
     "next-cloudinary": "^6.16.0",
     "next-connect": "^1.0.0-next.4",
     "next-themes": "^0.3.0",
+    "openai": "^4.85.3",
     "pg": "^8.13.1",
     "punycode": "^2.3.1",
     "react": "^18",

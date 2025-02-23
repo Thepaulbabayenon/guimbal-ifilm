@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"; // ✅ Forces all routes under /home to be dynamic
+
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";

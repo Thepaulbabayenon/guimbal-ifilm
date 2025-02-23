@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   if (evt.type === 'user.created') {
     const userData = evt.data as UserJSON; // Type assertion to UserJSON
 
-    const { id, email_addresses, image_url } = userData;
+    const { id, email_addresses, image_url, name } = userData;
 
     // Check if email_addresses exist and has at least one email address
     if (!email_addresses || email_addresses.length === 0) {
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
         id,
         email: email_addresses[0].email_address, // Ensure the correct field name
         image: image_url || '', // Default to empty string if image_url is not provided
+        name: name || '', // Default to empty string if name is not provided
       });
       console.log('New user added to the database with ID:', id);
     } catch (error) {

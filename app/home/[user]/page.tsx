@@ -1,164 +1,216 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getRecommendedFilms } from "@/app/api/getFilms";
-import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
-import Image from "next/image";
+import { db } from "@/app/db/drizzle";
+import { film, watchLists } from "@/app/db/schema";
+import { eq } from "drizzle-orm";
+import { useUser } from "@clerk/nextjs";
+import FilmLayout from "@/app/components/FilmComponents/FilmLayout";
+import PlayVideoModal from "@/app/components/PlayVideoModal";
 import { Logo } from "@/app/components/Logo";
-import { useUser, useClerk } from "@clerk/nextjs";
+import UserProfileDropdown from "@/app/components/ProfileComponents/UserProfileDropdown";
+import axios from "axios";
 
+// Define Film type
 interface Film {
   id: number;
   title: string;
   overview: string;
-  duration: number;
-  release: number;
-  category?: string;
-  imageString?: string;
-  trailer?: string;
+  watchList: boolean;
+  trailerUrl: string;
+  year: number;
   age: number;
-  watchListId?: string | null;
+  time: number;
+  initialRatings: number;
+  category: string;
+  imageString: string;
 }
 
-export default function Profile() {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useClerk();
+// Function to fetch watchlist directly from the database
+async function fetchWatchlist(userId: string) {
+  try {
+    return await db
+      .select({
+        title: film.title,
+        age: film.age,
+        duration: film.duration,
+        imageString: film.imageString,
+        overview: film.overview,
+        release: film.release,
+        id: film.id,
+        trailer: film.trailer,
+        watchListId: watchLists.id,
+        category: film.category,
+        ratings: film.averageRating,
+      })
+      .from(film)
+      .leftJoin(watchLists, eq(film.id, watchLists.filmId))
+      .where(eq(watchLists.userId, userId));
+  } catch (error) {
+    console.error("Error fetching watchlist:", error);
+    throw new Error("Failed to fetch watchlist.");
+  }
+}
 
-  const [userData, setUserData] = useState<any>(null);
+export default function UserHome() {
+  const { user, isLoaded } = useUser();
+  const [watchlist, setWatchlist] = useState<Film[]>([]);
+  const [top10Films, setTop10Films] = useState<Film[]>([]);
   const [recommendedFilms, setRecommendedFilms] = useState<Film[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [profile, setProfile] = useState({
+    id: "",
+    name: "",
+    email: "",
+    imageUrl: "",
+    isAdmin: false,
+  });
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !user) {
-      setError("User not signed in.");
-      setLoading(false);
+    if (isLoaded && user) {
+      setProfile({
+        id: user.id,
+        name: user.fullName || "Unnamed User",
+        email: user.primaryEmailAddress?.emailAddress || "",
+        imageUrl: user.imageUrl || "/default-avatar.png",
+        isAdmin: Boolean(user.publicMetadata?.isAdmin),
+      });
+
+      loadFilms();
+    }
+  }, [isLoaded, user]);
+
+  
+
+  const loadFilms = async () => {
+    if (!user?.id) {
+      console.error("User ID is missing, skipping DB queries.");
       return;
     }
+  
+    console.log("Fetching watchlist for user:", user.id);
+  
+    try {
+      setLoading(true);
+  
+      // Fetch the watchlist directly from the database
+      const watchlistData = await fetchWatchlist(user.id);
+  
+      // Map the fetched data to match the Film interface
+      const formattedWatchlist: Film[] = watchlistData.map((film) => ({
+        id: film.id,
+        title: film.title,
+        overview: film.overview,
+        watchList: film.watchListId !== null,
+        trailerUrl: film.trailer,
+        year: film.release,
+        age: film.age,
+        time: film.duration,
+        initialRatings: film.ratings ?? 0,
+        category: film.category,
+        imageString: film.imageString,
+      }));
+  
+      setWatchlist(formattedWatchlist);
+  
+      // Fetch Top 10 Films from DB
+      const top10Res = await db.select().from(film).limit(10);
+      setTop10Films(
+        top10Res.map((film) => ({
+          id: film.id,
+          title: film.title,
+          overview: film.overview,
+          watchList: false,
+          trailerUrl: film.trailer || "",
+          year: film.release || 0,
+          age: film.age,
+          time: film.duration || 0,
+          initialRatings: film.averageRating ?? 0,
+          category: film.category,
+          imageString: film.imageString,
+        }))
+      );
+  
+      // Fetch recommended films from API (Fix: Pass userId)
+      const recommendedRes = await axios.get(`/api/recommendations`, {
+        params: { userId: user.id }, // ✅ Add userId query parameter
+      });
+  
+      setRecommendedFilms(
+        recommendedRes.data.map((film: any) => ({
+          id: film.id,
+          title: film.title,
+          overview: film.overview,
+          watchList: false,
+          trailerUrl: film.trailer || "",
+          year: film.release || 0,
+          age: film.age,
+          time: film.duration || 0,
+          initialRatings: film.averageRating ?? 0,
+          category: film.category,
+          imageString: film.imageString,
+        }))
+      );
+    } catch (err) {
+      setError("An error occurred while loading films.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  
 
-    const fetchUserData = async () => {
-      try {
-        const email = user.emailAddresses[0]?.emailAddress;
-        if (!email) throw new Error("No email found");
+  const handleUpdateProfile = (updatedUser: { name: string; imageUrl?: string }) => {
+    setProfile((prev) => ({ ...prev, ...updatedUser }));
+  };
 
-        const response = await fetch(`/api/getUserData?email=${encodeURIComponent(email)}`);
-        const data = await response.json();
-
-        if (!response.ok) throw new Error(data.error || "Failed to fetch user data");
-
-        setUserData(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, [isLoaded, isSignedIn, user]);
-
-  useEffect(() => {
-    if (!userData?.userId) return;
-
-    const fetchRecommendedFilms = async () => {
-      try {
-        setLoading(true);
-        const films = await getRecommendedFilms(userData.userId);
-        setRecommendedFilms(films);
-      } catch (err) {
-        setError("Error fetching recommended films");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecommendedFilms();
-  }, [userData]);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen text-white">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex justify-center items-center min-h-screen text-red-500">
-        <p>{error}</p>
-      </div>
-    );
-  }
-
-  if (!userData) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center">
-        <h1 className="text-gray-400 text-4xl font-bold">Profile Not Found</h1>
-        <p>User data could not be fetched. Please try again later.</p>
-      </div>
-    );
-  }
-
-  const { user: profile, watchlist = [], top10 = [], favorites = [] } = userData;
-
-  const renderFilmCards = (films: Film[], options: { watchList?: boolean } = {}) =>
-    films.length ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-        {films.map((film) => (
-          <FilmCard
-            key={film.id}
-            age={film.age}
-            filmId={film.id}
-            overview={film.overview}
-            time={film.duration}
-            title={film.title}
-            watchListId={options.watchList ? film.watchListId?.toString() ?? "" : ""}
-            watchList={options.watchList || false}
-            year={film.release}
-            trailerUrl={film.trailer || film.imageString || ""}
-            initialRatings={0}
-            category={film.category || "Unknown"}
-          />
-        ))}
-      </div>
-    ) : (
-      <p className="text-gray-500">No films available.</p>
-    );
+  const openModal = (film: Film) => {
+    setSelectedFilm(film);
+    setModalOpen(true);
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white px-6 py-10">
+    <div className="min-h-screen bg-black text-white p-6">
       <Logo />
 
-      <div className="flex flex-col items-center justify-center mt-10 px-5 sm:px-0">
-        <div className="flex items-center space-x-4">
-          <Image
-            src={profile.image || "/default-profile.png"}
-            alt="Profile Image"
-            width={100}
-            height={100}
-            className="rounded-full border-2 border-gray-600"
-            priority
-          />
-          <div>
-            <h1 className="text-gray-400 text-4xl font-bold">{profile.name || "Anonymous"}</h1>
-            <p className="text-gray-600">{user?.emailAddresses[0]?.emailAddress}</p>
-          </div>
+      {/* Profile Section */}
+      {isLoaded && user && (
+        <div className="flex flex-col items-center mb-10">
+          <UserProfileDropdown user={profile} onUpdate={handleUpdateProfile} />
         </div>
+      )}
 
-        <h2 className="text-2xl font-semibold mt-10">Your Watchlist</h2>
-        {renderFilmCards(watchlist, { watchList: true })}
+      {/* Watchlist Section */}
+      <FilmLayout title="Your Watchlist" films={watchlist} loading={loading} error={error} />
 
-        <h2 className="text-2xl font-semibold mt-10">Recommended Films</h2>
-        {renderFilmCards(recommendedFilms)}
+      {/* Top 10 Films */}
+      <FilmLayout title="Top 10 Films" films={top10Films} loading={loading} error={error} />
 
-        <button
-          onClick={() => signOut()}
-          className="mt-6 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-800 transition-all"
-        >
-          Sign Out
-        </button>
-      </div>
+      {/* Recommended Films */}
+      <FilmLayout title="Recommended For You" films={recommendedFilms} loading={loading} error={error} />
+
+      {/* Play Video Modal */}
+      {selectedFilm && (
+        <PlayVideoModal
+          title={selectedFilm.title}
+          overview={selectedFilm.overview}
+          trailerUrl={selectedFilm.trailerUrl}
+          state={modalOpen}
+          changeState={setModalOpen}
+          release={selectedFilm.year}
+          age={selectedFilm.age}
+          duration={selectedFilm.time}
+          ratings={selectedFilm.initialRatings}
+          userId={user?.id || ""}
+          filmId={selectedFilm.id}
+          category={selectedFilm.category}
+          setUserRating={() => {}}
+        />
+      )}
     </div>
   );
 }

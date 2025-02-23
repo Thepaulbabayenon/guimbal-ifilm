@@ -3,10 +3,11 @@ import { db } from "@/app/db/drizzle";
 import { FilmCard } from "./FilmComponents/FilmCard";
 import { auth } from "@clerk/nextjs/server";
 import { and, asc, eq, avg } from "drizzle-orm"; // Ensure that avg() is imported
-import { accounts, film, userRatings } from "@/app/db/schema";
-import FilmRelease from "./FilmComponents/FilmRelease";
-
+import { accounts, film, userRatings, watchLists } from "@/app/db/schema";
+import FilmRelease from "./FilmComponents/FilmRelease"
 // Fetch film data and calculate average ratings
+
+
 async function getData(userId: string) {
   try {
     const userFilms = await db
@@ -15,9 +16,10 @@ async function getData(userId: string) {
         overview: film.overview,
         title: film.title,
         WatchList: {
-          userId: accounts.userId,
-          filmId: film.id,
-        },
+          watchListId: watchLists.id,
+          userId: watchLists.userId,
+          filmId: watchLists.filmId,  
+        },        
         imageString: film.imageString,
         trailer: film.trailer,
         age: film.age,
@@ -27,9 +29,9 @@ async function getData(userId: string) {
         averageRating: avg(userRatings.rating).as('averageRating'),
       })
       .from(film)
-      .leftJoin(accounts, eq(accounts.userId, userId))
+      .leftJoin(watchLists, and(eq(watchLists.filmId, film.id), eq(watchLists.userId, userId))) // Ensure user-specific watchlist
       .leftJoin(userRatings, eq(userRatings.filmId, film.id))
-      .groupBy(film.id, accounts.userId)
+      .groupBy(film.id, watchLists.id)
       .orderBy(asc(avg(userRatings.rating)))
       .limit(4);
     return userFilms;
@@ -67,20 +69,19 @@ export default async function RecentlyAdded() {
                   height={800}
                   className="absolute w-full h-full -z-10 rounded-lg object-cover"
                 />
-                <FilmCard
-                  filmId={film.id}
-                  overview={film.overview}
-                  title={film.title}
-                  watchListId={film.WatchList?.filmId.toString() || ""}
-                  trailerUrl={film.trailer}
-                  watchList={film.WatchList?.userId ? parseInt(film.WatchList.userId, 10) > 0 : false}
-                  key={film.id}
-                  age={film.age}
-                  time={film.duration}
-                  year={film.release}
-                  category={film.category}
-                  initialRatings={Number(film.averageRating) || 0} // Ensure that averageRating is always a number
-                />
+              <FilmCard
+                filmId={film.id}
+                overview={film.overview}
+                title={film.title}
+                watchList={!!film.WatchList?.watchListId}  // ✅ Proper boolean check
+                watchListId={film.WatchList?.watchListId ? film.WatchList.watchListId.toString() : undefined}
+                trailerUrl={film.trailer}
+                age={film.age}
+                time={film.duration}
+                year={film.release}
+                category={film.category}
+                initialRatings={Number(film.averageRating) || 0}
+              />
               </div>
             </div>
           </div>

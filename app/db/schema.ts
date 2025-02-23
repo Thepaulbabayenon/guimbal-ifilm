@@ -191,6 +191,22 @@ export const watchLists = pgTable('watchLists', {
   // ... other fields
 });
 
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // ✅ Ensure userId exists
+  favoriteGenres: text("favorite_genres"),
+  preferredMoods: text("preferred_moods"),
+  themes: text("themes"),
+});
+
+
+
+export const playlists = pgTable("playlists", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  isPublic: boolean("is_public").default(true),
+});
 
 // Recommendations Table (New)
 export const filmRecommendations = pgTable('filmRecommendations', {
