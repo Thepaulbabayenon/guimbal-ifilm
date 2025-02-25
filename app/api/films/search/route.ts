@@ -8,37 +8,49 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const query = searchParams.get('query')?.toLowerCase().trim();
+    const query = searchParams.get("query")?.toLowerCase().trim();
+    const year = searchParams.get("year");
+    const category = searchParams.get("category")?.toLowerCase().trim(); // 👈 Get category from search
 
-    if (!query) {
-      return NextResponse.json({ message: 'No query provided', films: [] });
+    if (!query && !year && !category) {
+      return NextResponse.json({ message: "No search criteria provided", films: [] });
     }
 
-    const queryPattern = `%${query}%`;
-    console.log("Query Parameter:", query); // Debug
-    console.log("Query Pattern:", queryPattern); // Debug
+    let films;
 
-    const films = await db
-      .select()
-      .from(film)
-      .where(
-        sql`(${film.title} ILIKE ${queryPattern} OR ${film.overview} ILIKE ${queryPattern})`
-      )
-      .limit(10)
-      .execute();
-
-    console.log("Query Results:", films); // Debug
-
-    if (films.length === 0) {
-      return NextResponse.json({ message: `No films found for query "${query}"`, films: [] });
+    if (year) {
+      films = await db
+        .select()
+        .from(film)
+        .where(sql`${film.release} = ${year}`)
+        .limit(10)
+        .execute();
+    } else if (category) {
+      films = await db
+        .select({ id: film.id, title: film.title, year: film.release, category: film.category }) // 👈 Include category
+        .from(film)
+        .where(sql`${film.category} ILIKE ${"%" + category + "%"}`)
+        .limit(10)
+        .execute();
+    } else {
+      const queryPattern = `%${query}%`;
+      films = await db
+        .select({ id: film.id, title: film.title, year: film.release, category: film.category })
+        .from(film)
+        .where(
+          sql`${film.title} ILIKE ${queryPattern} OR ${film.category} ILIKE ${queryPattern}` // 👈 Search in title & category
+        )
+        .limit(10)
+        .execute();
     }
 
     return NextResponse.json({ films });
   } catch (error) {
-    console.error('Error during search:', error);
+    console.error("Error during search:", error);
     return NextResponse.json(
-      { error: 'An error occurred while fetching films. Please try again later.' },
+      { error: "An error occurred while fetching films. Please try again later." },
       { status: 500 }
     );
   }
 }
+

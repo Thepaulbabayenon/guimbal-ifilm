@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu";
 import ProfileCard from "@/app/components/ProfileComponents/ProfileCard";
 import EditProfileForm from "@/app/components/ProfileComponents/EditProfileForm";
@@ -20,6 +21,19 @@ interface UserProfileDropdownProps {
 
 const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({ user, onUpdate }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      // Call your sign-out API or authentication function
+      await fetch("/api/auth/signout", { method: "POST" });
+
+      // Redirect to login page or home after logout
+      router.push("/login");
+    } catch (error) {
+      console.error("Sign out failed:", error);
+    }
+  };
 
   return (
     <div className="absolute top-4 right-4">
@@ -38,6 +52,17 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({ user, onUpdat
 
           {/* Edit Profile Form */}
           <EditProfileForm user={user} onUpdate={onUpdate} />
+
+          {/* Sign Out Button */}
+          <div className="mt-4">
+            <Button
+              variant="destructive"
+              className="w-full text-white bg-red-600 hover:bg-red-700"
+              onClick={handleSignOut}
+            >
+              Sign Out
+            </Button>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

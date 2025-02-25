@@ -3,7 +3,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { debounce } from "lodash";
 import gsap from "gsap";
-import { X } from "lucide-react"; // Importing an icon for the close button
+import { X } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface SearchBarProps {
   isMobile: boolean;
@@ -17,7 +18,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const resultsRef = React.useRef<HTMLUListElement>(null);
 
-  // Debounced search function
+  const isYear = (input: string) => /^\d{4}$/.test(input);
+
   const handleSearch = debounce(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults([]);
@@ -26,8 +28,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
 
     setLoading(true);
 
+    const searchParams = isYear(searchQuery)
+      ? `year=${searchQuery}`
+      : `query=${searchQuery}&category=${searchQuery}`;
+
     try {
-      const response = await fetch(`/api/films/search?query=${searchQuery}`);
+      const response = await fetch(`/api/films/search?${searchParams}`);
       const data = await response.json();
       setResults(data.films || []);
     } catch (error) {
@@ -55,7 +61,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
     if (inputRef.current) inputRef.current.focus();
   };
 
-  // GSAP animations for input field and results
   useEffect(() => {
     if (inputRef.current) {
       gsap.fromTo(
@@ -80,8 +85,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
         <input
           ref={inputRef}
           type="text"
-          className="p-3 pl-8 pr-10 text-sm bg-transparent text-white rounded-full shadow-md focus:outline-none transform hover:scale-105 border border-gray-800 w-full"
-          placeholder="Search for films..."
+          className="p-3 pl-8 pr-10 text-sm bg-gray-800 text-white rounded-full shadow-md focus:outline-none transform hover:scale-105 border border-gray-700 w-full"
+          placeholder="Search for films by title or year..."
           value={query}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -95,25 +100,58 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
           </button>
         )}
       </div>
+
+      {/* Loading Animation */}
       {loading && (
-        <div className="absolute top-full left-0 w-full py-2 text-center text-gray-500 opacity-70">
-          Loading...
-        </div>
-      )}
-      <div className="absolute top-full left-0 w-full mt-2 border-gray-900 rounded-lg shadow-lg bg-transparent z-10">
-        {results && results.length > 0 ? (
-          <ul ref={resultsRef} className="max-h-64 overflow-y-auto bg-transparent">
-            {results.map((result: any) => (
-              <li
-                key={result.id}
-                className="px-4 py-3 border-b border-gray-900 hover:bg-blue-100 transition-all rounded-md"
-              >
-                <a href={`/home/films/${result.id}`} className="block text-gray-800">
-                  <div className="font-semibold text-lg">{result.title}</div>
-                </a>
-              </li>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="absolute top-full left-0 w-full flex justify-center py-2"
+        >
+          <div className="flex space-x-2">
+            {[...Array(3)].map((_, index) => (
+              <motion.div
+                key={index}
+                className="w-2 h-2 bg-blue-400 rounded-full"
+                animate={{
+                  y: [0, -5, 0],
+                  opacity: [0.6, 1, 0.6],
+                }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 0.6,
+                  delay: index * 0.2,
+                }}
+              />
             ))}
-          </ul>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Search Results */}
+      <div className="absolute top-full left-0 w-full mt-2 rounded-lg shadow-lg bg-gray-900 z-10">
+        {results.length > 0 ? (
+          <motion.ul
+            ref={resultsRef}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="max-h-64 overflow-y-auto bg-gray-900 rounded-lg"
+          >
+            {results.map((result: any) => (
+              <motion.li
+                key={result.id}
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 300 }}
+                className="px-4 py-3 border-b border-gray-700 hover:bg-gray-800 transition-all cursor-pointer"
+                onClick={() => router.push(`/home/films/${result.id}`)}
+              >
+                <div className="text-white text-lg font-semibold">{result.title}</div>
+              </motion.li>
+            ))}
+          </motion.ul>
         ) : query && !loading ? (
           <div className="px-4 py-2 text-center text-gray-500">No results found</div>
         ) : null}

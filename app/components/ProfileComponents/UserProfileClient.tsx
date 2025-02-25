@@ -18,7 +18,7 @@ export default function UserProfileClient({ children }: Props) {
   const staggerDelay = 0.15;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 text-white">
       {React.Children.map(children, (child, index) => (
         <motion.div
           {...animationProps}

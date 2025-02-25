@@ -26,7 +26,7 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ user, onUpdate }) => 
         placeholder="Enter your name"
         value={formData.name}
         onChange={handleChange}
-        className="border p-2 rounded-md"
+        className="border p-2 rounded-md text-black"
       />
       <input
         type="text"
@@ -34,7 +34,7 @@ const EditProfileForm: React.FC<EditProfileFormProps> = ({ user, onUpdate }) => 
         placeholder="Profile image URL"
         value={formData.imageUrl}
         onChange={handleChange}
-        className="border p-2 rounded-md"
+        className="border p-2 rounded-md text-black"
       />
       <button type="submit" className="bg-blue-500 text-white p-2 rounded-md">
         Save Changes
