@@ -135,7 +135,7 @@ export function FilmSlider() {
     if (!userId) return;
 
     try {
-      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
+      await axios.post(`/api/films/${filmId}/watched-films`, { userId });
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
       console.error("Error marking film as watched:", axiosError.response?.data || axiosError.message);
@@ -177,6 +177,20 @@ export function FilmSlider() {
                         <button onClick={() => handleToggleWatchlist(film.id)} className="text-white text-xl">
                           <FaHeart className={watchList[film.id] ? "text-red-500" : ""} />
                         </button>
+                        <div className="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-1 text-center">
+                        <span className="text-xs font-semibold">{film.title}</span>
+                        <div className="flex items-center justify-center mt-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <CiStar
+                              key={star}
+                              className={`w-3 h-3 cursor-pointer ${
+                                userRatings[film.id] >= star ? "text-yellow-400" : "text-gray-400"
+                              }`}
+                              onClick={() => handleRatingClick(film.id, star)}
+                            />
+                          ))}
+                        </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

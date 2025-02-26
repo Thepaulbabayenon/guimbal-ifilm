@@ -9,7 +9,7 @@ const ContinueWatching: FC<ContinueWatchingProps> = ({ userId }) => {
 
   useEffect(() => {
     const fetchFilms = async () => {
-      const response = await fetch(`/api/watched-films?userId=${userId}`);
+      const response = await fetch(`/api/films/watched-films?userId=${userId}`);
       const data = await response.json();
       setFilms(data);
     };
