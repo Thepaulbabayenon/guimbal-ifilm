@@ -1,44 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/app/db/drizzle";
-import { watchedFilms, film, users } from "@/app/db/schema";
-import { eq, and } from "drizzle-orm";
-import { z } from "zod";
+import { db } from "@/app/db/drizzle"; // Adjust the path to your Drizzle database instance
+import { watchedFilms, film, users } from "@/app/db/schema"; // Adjust schema imports as necessary
+import { eq, and } from "drizzle-orm"; // Import comparison helpers
+import { z } from "zod"; // Zod for validation
 
-// Validation schema with default value for watchedDuration
+// Validation schema for the request body
 const watchedFilmsSchema = z.object({
-  userId: z.string().min(1, "User ID is required."), // No UUID restriction, just a non-empty string
-  filmId: z.preprocess((val) => Number(val), z.number().int()),
-  watchedDuration: z.number().min(60, "Watched duration must be at least 60 seconds.").default(60), // Default to 60
+  userId: z.string().uuid(),
+  filmId: z.number().int(),
+  watchedDuration: z.number().min(60, "Watched duration must be at least 60 seconds."),
 });
 
+// Define POST method explicitly
 export async function POST(req: NextRequest) {
   try {
-    // Parse and validate request body
-    const body = await req.json();
-    console.log("🔍 Received request body:", body);
-
+    // Parse and validate the request body
+    const body = await req.json(); // Use `req.json()` to parse body in App Router
     const parsedBody = watchedFilmsSchema.parse(body);
+
     const { userId, filmId, watchedDuration } = parsedBody;
 
-    console.log(`📌 Validated Input -> userId: ${userId}, filmId: ${filmId}, watchedDuration: ${watchedDuration}`);
-
-    // Check if user exists
-    const userExists = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
+    // Fetch user and film in parallel to optimize DB queries
+    const [userExists, filmExists] = await Promise.all([
+      db.query.users.findFirst({ where: eq(users.id, userId) }),
+      db.query.film.findFirst({ where: eq(film.id, filmId) }),
+    ]);
 
     if (!userExists) {
-      console.error("❌ User not found:", userId);
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
-    // Check if film exists
-    const filmExists = await db.query.film.findFirst({
-      where: eq(film.id, filmId),
-    });
-
     if (!filmExists) {
-      console.error("❌ Film not found:", filmId);
       return NextResponse.json({ error: "Film not found." }, { status: 404 });
     }
 
@@ -55,26 +47,23 @@ export async function POST(req: NextRequest) {
         currentTimestamp: watchedDuration,
       });
 
-      console.log("✅ Film successfully added to watched films:", { userId, filmId });
       return NextResponse.json({ message: "Film successfully added to watched films." }, { status: 201 });
     }
 
-    // Update existing record
+    // Update the currentTimestamp if a record already exists
     await db
       .update(watchedFilms)
       .set({ currentTimestamp: watchedDuration })
       .where(and(eq(watchedFilms.userId, userId), eq(watchedFilms.filmId, filmId)));
 
-    console.log("✅ Watched film updated successfully:", { userId, filmId });
     return NextResponse.json({ message: "Watched film updated successfully." });
-
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error("❌ Validation error:", error.errors);
+      // Handle validation errors
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
 
-    console.error("❌ Internal server error:", error);
+    console.error("Error handling watched film:", error);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
