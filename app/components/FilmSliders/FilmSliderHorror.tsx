@@ -132,7 +132,7 @@ export function FilmSliderHorror() {
     if (!userId) return;
 
     try {
-      await axios.post(`/api/films/${filmId}/watched-films`, { userId });
+      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
     } catch (error) {
       console.error("Error marking film as watched:", error);
     }

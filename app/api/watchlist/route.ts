@@ -22,46 +22,31 @@ const getWatchlistForUser = async (userId: string) => {
 
 // GET endpoint for checking if a film is in the user's watchlist
 export async function GET(request: NextRequest) {
-  console.log("Received GET request for watchlist");
-
+  // Use .get() to retrieve query parameters
   const userId = request.nextUrl.searchParams.get('userId');
-  const filmIds = request.nextUrl.searchParams.getAll('filmIds[]'); // Get multiple filmIds
+  const filmId = request.nextUrl.searchParams.get('filmId');
 
-  console.log("User ID:", userId);
-  console.log("Film IDs:", filmIds);
-
-  if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+  if (!userId || !filmId) {
+    return NextResponse.json({ error: "Missing userId or filmId" }, { status: 400 });
   }
 
   try {
-    // Validate and parse film IDs
-    const validFilmIds = filmIds
-      .map((id) => parseInt(id))
-      .filter((id) => !isNaN(id)); // Remove invalid IDs
-
-    if (validFilmIds.length === 0) {
-      return NextResponse.json({ error: "Invalid or missing film IDs" }, { status: 400 });
-    }
-
     // Get the user's watchlist
     const watchlist = await getWatchlistForUser(userId);
 
-    // Check which films are in the watchlist
-    const results = validFilmIds.map((filmId) => ({
-      filmId,
-      isInWatchlist: watchlist.some((item: { filmId: number }) => item.filmId === filmId),
-    }));
+    // Check if the filmId exists in the watchlist
+    const isInWatchlist = watchlist.some((item: { filmId: number }) => item.filmId === Number(filmId));
 
-    return NextResponse.json({ watchlist: results });
+    return NextResponse.json({ isInWatchlist });
   } catch (error) {
     console.error("Error checking watchlist:", error);
     return NextResponse.json({ error: "Failed to check watchlist" }, { status: 500 });
   }
 }
 
-
-
+// Database function to add a film to the watchlist
+// Database function to add a film to the watchlist
+// Database function to add a film to the watchlist
 // Database function to add a film to the watchlist
 const addFilmToWatchlist = async (userId: string, filmId: number) => {
   try {
@@ -129,29 +114,23 @@ export async function POST(request: NextRequest) {
 }
 
 
-// Function to remove a film from the watchlist
+// Database function to remove a film from the watchlist
 const removeFromWatchlist = async (watchListId: number): Promise<void> => {
-  if (!watchListId) {
-    console.error("Error: Missing watchListId");
-    return;
-  }
-
   try {
     const response = await fetch(`/api/watchlist?watchListId=${watchListId}`, {
       method: "DELETE",
     });
 
-    if (!response.ok) {
-      const { error } = await response.json();
-      throw new Error(error || "Failed to remove from watchlist");
-    }
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to remove from watchlist");
 
-    console.log(`Successfully removed watchlist entry with ID: ${watchListId}`);
+    console.log("Successfully removed from watchlist!");
   } catch (error) {
     console.error("Error removing from watchlist:", error);
     alert("Unable to remove film from watchlist. Please try again later.");
   }
 };
+
 
 // DELETE endpoint for removing a film from the watchlist
 export async function DELETE(request: NextRequest) {
@@ -173,10 +152,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Invalid watchListId" }, { status: 400 });
     }
 
-    console.log(`Calling removeFromWatchlist with ID: ${watchListId}`);
+    console.log(`Removing watchlist entry with ID: ${watchListId}`);
 
-    // Call the function instead of handling DB logic directly
-    await removeFromWatchlist(watchListId);
+    const result = await db
+      .delete(watchLists)
+      .where(eq(watchLists.id, watchListId))
+      .returning();
+
+    if (!result.length) {
+      console.error("Failed to remove from watchlist:", result);
+      return NextResponse.json({ error: "Failed to remove from watchlist" }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
@@ -184,3 +170,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+
+

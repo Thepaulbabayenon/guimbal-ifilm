@@ -3,7 +3,6 @@ import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import Image from "next/image";
 import gsap from "gsap";
 import axios from "axios";
-import PlayVideoModal from "@/app/components/PlayVideoModal"; // Import the modal component
 
 interface Film {
   id: number;
@@ -20,36 +19,27 @@ interface Film {
   averageRating?: number | null; // Allow null values
 }
 
+
 interface FilmLayoutProps {
   title: string;
   films: Film[];
   loading: boolean;
   error: string | null;
-  userId?: string; // Add userId prop
 }
 
-const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, userId }) => {
+const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error }) => {
   const filmGridRef = useRef<HTMLDivElement | null>(null);
-  const [filmRatings, setFilmRatings] = useState<Record<number, number>>({});
-  
-  // State for modal control
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
-  const [userRating, setUserRating] = useState<number>(0);
+  const [filmRatings, setFilmRatings] = useState<Record<number, number>>({}); // Store ratings per film
 
   // Fetch average ratings for all films
   useEffect(() => {
     const fetchRatings = async () => {
       try {
-        console.log("Fetching ratings for films:", films);
         const ratingsData: Record<number, number> = {};
-  
         await Promise.all(
           films.map(async (film) => {
             try {
-              console.log(`Fetching rating for film ID: ${film.id}`);
               const response = await axios.get(`/api/films/${film.id}/average-rating`);
-              
               if (response.data?.averageRating !== undefined) {
                 ratingsData[film.id] = response.data.averageRating;
               }
@@ -58,75 +48,33 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, u
             }
           })
         );
-  
-        console.log("Fetched ratings:", ratingsData);
         setFilmRatings(ratingsData);
       } catch (error) {
         console.error("Error fetching ratings:", error);
       }
     };
-  
+
     if (films.length > 0) {
       fetchRatings();
     }
   }, [films]);
-  
+
   // GSAP Animation for film cards
   useEffect(() => {
     if (filmGridRef.current) {
-      console.log("Animating films...");
       gsap.fromTo(
         filmGridRef.current.children,
-        { opacity: 0, y: 50 },
+        { opacity: 0, y: 50 }, // Initial state
         {
           opacity: 1,
           y: 0,
           duration: 1,
-          stagger: 0.1,
+          stagger: 0.1, // Stagger animations for each film
           ease: "power3.out",
         }
       );
     }
   }, [films]);
-  
-  // Handle film click to open modal
-  const handleFilmClick = (film: Film) => {
-    setSelectedFilm(film);
-    setModalOpen(true);
-  };
-
-  // Handle user rating
-  const handleSetUserRating = (rating: number) => {
-    setUserRating(rating);
-    // Save rating to backend
-    if (selectedFilm && userId) {
-      axios.post(`/api/films/${selectedFilm.id}/ratings`, {
-        userId,
-        filmId: selectedFilm.id,
-        rating
-      })
-      .then(() => {
-        // Refresh ratings after submission
-        axios.get(`/api/films/${selectedFilm.id}/average-rating`)
-          .then(response => {
-            if (response.data?.averageRating !== undefined) {
-              setFilmRatings(prev => ({
-                ...prev,
-                [selectedFilm.id]: response.data.averageRating
-              }));
-            }
-          })
-          .catch(error => console.error("Error refreshing rating:", error));
-      })
-      .catch(error => console.error("Error submitting rating:", error));
-    }
-  };
-
-  // Handle marking film as watched
-  const markAsWatched = (userId: string, filmId: number) => {
-    console.log(`Film ${filmId} marked as watched by user ${userId}`);
-    // You could update local state here if needed
-  };
 
   return (
     <div className="recently-added-container mb-20">
@@ -153,12 +101,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, u
         className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6"
       >
         {films.map((film) => (
-          <div 
-            key={film.id} 
-            className="relative h-60 cursor-pointer" 
-            style={{ opacity: 0 }}
-            onClick={() => handleFilmClick(film)}
-          >
+          <div key={film.id} className="relative h-60" style={{ opacity: 0 }}>
             {/* Film Thumbnail */}
             <Image
               src={film.imageString}
@@ -200,31 +143,12 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, u
                     ⭐ Average Rating: {filmRatings[film.id]?.toFixed(2) || "N/A"} / 5
                   </p>
                 </div>
+
               </div>
             </div>
           </div>
         ))}
       </div>
-
-      {/* Video Modal */}
-      {selectedFilm && (
-        <PlayVideoModal
-          title={selectedFilm.title}
-          overview={selectedFilm.overview}
-          trailerUrl={selectedFilm.trailerUrl}
-          state={modalOpen}
-          changeState={setModalOpen}
-          release={selectedFilm.year}
-          age={selectedFilm.age}
-          duration={selectedFilm.time}
-          ratings={filmRatings[selectedFilm.id] || selectedFilm.initialRatings}
-          setUserRating={handleSetUserRating}
-          userId={userId}
-          filmId={selectedFilm.id}
-          markAsWatched={markAsWatched}
-          category={selectedFilm.category}
-        />
-      )}
     </div>
   );
 };
