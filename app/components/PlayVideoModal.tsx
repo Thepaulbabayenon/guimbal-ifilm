@@ -78,7 +78,7 @@ export default function PlayVideoModal({
     if (state && !hasWatched && userId && filmId && markAsWatched) {
       timerRef.current = setTimeout(() => {
         axios
-          .post("/api/films/[filmId]/watchedFilms", { userId, filmId, watchedDuration: 60 })
+          .post("/api/films/[filmId]/watched-films", { userId, filmId, watchedDuration: 60 })
           .then(() => {
             markAsWatched(userId, filmId);
             setHasWatched(true);

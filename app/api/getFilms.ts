@@ -1,5 +1,5 @@
 import { db } from "@/app/db/drizzle";
-import { film, userInteractions, watchLists, userRatings, accounts, } from "@/app/db/schema";
+import { film, userInteractions, watchLists, userRatings, accounts, watchedFilms} from "@/app/db/schema";
 import { eq, and, desc, like, or, sql, inArray, asc, avg } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -348,7 +348,6 @@ export async function fetchCategories() {
   return categories.rows.map((row) => row.category);
 }
 
-
 export async function getRecommendedFilms(userId: string): Promise<Film[]> {
   try {
     const response = await fetch(`http://localhost:3000/api/recommendations?userId=${userId}`);
@@ -373,19 +372,12 @@ export async function getRecommendedFilms(userId: string): Promise<Film[]> {
   }
 }
 
+type FilmId = number;
 
-
-type FilmId = number; // Define FilmId
-/**
- * Collaborative Filtering: Find similar users based on interactions and recommend films.
- * @param userId - The ID of the current user.
- */
 async function collaborativeFiltering(userId: string) {
   try {
     const userInteractionsData = await db
-      .select({
-        filmId: userInteractions.filmId,
-      })
+      .select({ filmId: userInteractions.filmId })
       .from(userInteractions)
       .where(eq(userInteractions.userId, userId));
 
@@ -396,61 +388,43 @@ async function collaborativeFiltering(userId: string) {
 
     const filmIds = userInteractionsData.map((interaction) => interaction.filmId);
     const similarUserFilms = await db
-      .select({
-        filmId: userInteractions.filmId,
-      })
+      .select({ filmId: userInteractions.filmId })
       .from(userInteractions)
       .where(inArray(userInteractions.filmId, filmIds))
-      .limit(8); // Limit to 8
+      .limit(8);
 
     console.log(`Collaborative recommendations for user ${userId}:`, similarUserFilms);
-    return similarUserFilms.map((interaction) => interaction.filmId);
+
+    return similarUserFilms.map((interaction) => ({ id: interaction.filmId }));
   } catch (error) {
     console.error("Error in collaborativeFiltering:", error);
     throw new Error("Failed to fetch collaborative recommendations");
   }
 }
 
-/**
- * Content-Based Filtering: Recommend films similar to those the user interacted with.
- * @param userId - The ID of the current user.
- */
-// Content-Based Filtering: Limit to 8 films
 async function contentBasedFiltering(userId: string) {
   try {
     const userWatchedFilms = await db
-      .select({
-        filmId: watchLists.filmId,
-      })
+      .select({ filmId: watchLists.filmId })
       .from(watchLists)
       .where(eq(watchLists.userId, userId));
 
-    console.log("User's watched films:", userWatchedFilms);
-
     if (userWatchedFilms.length === 0) {
-      console.log(`No watchlist found for user: ${userId}, fetching top-rated films`);
-      const topRated = await getTopRatedFilms();
-      console.log("Top-rated films fetched:", topRated);
-      return topRated.slice(0, 8); // Limit to 8
+      return await getTopRatedFilms();
     }
 
     const categories = await db
-      .select({
-        category: film.category,
-      })
+      .select({ category: film.category })
       .from(film)
       .where(inArray(film.id, userWatchedFilms.map((f) => f.filmId)));
-
-    console.log("Categories fetched:", categories);
 
     const categoryList = categories.map((c) => c.category);
 
     if (categoryList.length === 0) {
-      console.log("No categories found, returning top-rated films as fallback");
       return await getTopRatedFilms();
     }
 
-    const recommendedFilms = await db
+    return await db
       .select({
         id: film.id,
         title: film.title,
@@ -466,80 +440,148 @@ async function contentBasedFiltering(userId: string) {
       })
       .from(film)
       .where(inArray(film.category, categoryList))
-      .orderBy(desc(film.rank)) // Sort by rank
-      .limit(8); // Limit to 8
-
-    console.log(`Content-based recommendations for user ${userId}:`, recommendedFilms);
-    return recommendedFilms;
+      .orderBy(desc(film.rank))
+      .limit(8);
   } catch (error) {
     console.error("Error in contentBasedFiltering:", error);
     throw new Error("Failed to fetch content-based recommendations");
   }
 }
 
-/**
- * Hybrid Recommendation: Combine collaborative and content-based filtering.
- * @param userId - The ID of the current user.
- */
-// Hybrid Recommendation: Combine results and limit to 8 films
 export async function hybridRecommendation(userId: string) {
   try {
-    console.log("Starting hybrid recommendation for userId:", userId);
+    console.log("🔄 Starting hybrid recommendation for user:", userId);
 
-    let collaborativeFilms: FilmId[] = [];
-    let contentFilms: Film[] = [];
+    let collaborativeFilms: { id: number; title?: string }[] = [];
+    let contentFilms: { id: number; title: string }[] = [];
+    let userInteractionsData: { filmId: number; title: string; ratings: number }[] = [];
+    let watchlistFilms: { id: number; title: string }[] = [];
+    let watchedFilmsData: { filmId: number; title: string; timestamp: Date }[] = [];
 
+    // Fetch user interactions (ratings)
+    try {
+      userInteractionsData = await db
+        .select({
+          filmId: userInteractions.filmId,
+          title: sql<string>`COALESCE(${film.title}, '')`,
+          ratings: userInteractions.ratings,
+        })
+        .from(userInteractions)
+        .leftJoin(film, eq(userInteractions.filmId, film.id))
+        .where(eq(userInteractions.userId, userId))
+        .orderBy(desc(userInteractions.timestamp))
+        .limit(1);
+    } catch (error) {
+      console.error("❌ Error fetching user interactions:", error);
+    }
+
+    // Fetch user's watchlist (liked films)
+    try {
+      watchlistFilms = await db
+        .select({
+          id: watchLists.filmId,
+          title: sql<string>`COALESCE(${film.title}, '')`,
+        })
+        .from(watchLists)
+        .leftJoin(film, eq(watchLists.filmId, film.id))
+        .where(eq(watchLists.userId, userId));
+    } catch (error) {
+      console.error("❌ Error fetching watchlist:", error);
+    }
+
+    // Fetch user's watched films (most recent)
+    try {
+      watchedFilmsData = await db
+        .select({
+          filmId: watchedFilms.filmId,
+          title: sql<string>`COALESCE(${film.title}, '')`,
+          timestamp: watchedFilms.timestamp,
+        })
+        .from(watchedFilms)
+        .leftJoin(film, eq(watchedFilms.filmId, film.id))
+        .where(eq(watchedFilms.userId, userId))
+        .orderBy(desc(watchedFilms.timestamp))
+        .limit(1);
+    } catch (error) {
+      console.error("❌ Error fetching watched films:", error);
+    }
+
+    // Fetch collaborative filtering recommendations
     try {
       collaborativeFilms = await collaborativeFiltering(userId);
-      console.log("Collaborative films fetched:", collaborativeFilms);
-    } catch (err) {
-      console.error("Error in collaborativeFiltering:", err);
+    } catch (error) {
+      console.error("❌ Error in collaborativeFiltering:", error);
     }
 
+    // Fetch content-based filtering recommendations
     try {
       contentFilms = await contentBasedFiltering(userId);
-      console.log("Content-based films fetched:", contentFilms);
-    } catch (err) {
-      console.error("Error in contentBasedFiltering:", err);
+    } catch (error) {
+      console.error("❌ Error in contentBasedFiltering:", error);
     }
 
-    const recommendedFilmsIds = new Set<FilmId>([
-      ...collaborativeFilms,
-      ...contentFilms.map((f) => f.id),
-    ]);
-    console.log("Combined film IDs:", Array.from(recommendedFilmsIds));
+    // Combine all recommendations into a set to avoid duplicates
+    const filmMap = new Map<number, { id: number; title?: string }>();
+    collaborativeFilms.forEach((film) => filmMap.set(film.id, film));
+    contentFilms.forEach((film) => filmMap.set(film.id, film));
+    watchlistFilms.forEach((film) => filmMap.set(film.id, film));
 
-    const limitedRecommendations = Array.from(recommendedFilmsIds).slice(0, 8);
-    console.log("Limited recommendations (IDs):", limitedRecommendations);
+    let recommendedFilms = Array.from(filmMap.values());
 
-    const recommendedFilms = await Promise.all(
-      limitedRecommendations.map(async (filmId) => {
-        try {
-          const film = await getFilmById(filmId);
-          console.log(`Fetched details for filmId ${filmId}:`, film);
-          return film;
-        } catch (error) {
-          console.error(`Error fetching details for filmId ${filmId}:`, error);
-          throw error;
-        }
-      })
-    );
+    // Ensure we have at least 32 films, fetching top-rated if needed
+    if (recommendedFilms.length < 32) {
+      const extraFilms = await getTopRatedFilms();
+      recommendedFilms.push(...extraFilms.slice(0, 32 - recommendedFilms.length));
+    }
 
-    console.log("Final recommended films:", recommendedFilms);
-    return recommendedFilms;
+    // Slice to ensure exactly 32 films
+    recommendedFilms = recommendedFilms.slice(0, 32);
+
+    // Generate dynamic reasons for recommendations
+    let reason1 = "Because you liked similar films";
+    let reason2 = "Based on popular films";
+    let reason3 = "Because you saved films to watch later";
+    let reason4 = "Because you recently watched...";
+
+    if (userInteractionsData.length > 0) {
+      const lastInteraction = userInteractionsData[0];
+      if (lastInteraction.ratings >= 4) {
+        reason1 = `You rated "${lastInteraction.title}" highly`;
+      } else {
+        reason1 = `Because you watched "${lastInteraction.title}"`;
+      }
+    }
+
+    if (watchedFilmsData.length > 0) {
+      reason4 = `Because you recently watched "${watchedFilmsData[0].title}"`;
+    }
+
+    // Return structured recommendation response
+    return [
+      {
+        reason: reason1,
+        films: recommendedFilms.slice(0, 8),
+      },
+      {
+        reason: reason2,
+        films: recommendedFilms.slice(8, 16),
+      },
+      {
+        reason: reason3,
+        films: recommendedFilms.slice(16, 24),
+      },
+      {
+        reason: reason4,
+        films: recommendedFilms.slice(24, 32),
+      },
+    ];
   } catch (error) {
-    console.error("Error in hybrid recommendation:", error);
+    console.error("❌ Error in hybrid recommendation:", error);
     throw new Error("Failed to fetch hybrid recommendations");
   }
 }
 
 
-/**
- * API Handler: Provides film recommendations for the given user.
- * @param req - The API request object.
- * @param res - The API response object.
- */
-// API Handler: Provide the recommendations
 export default async function handler(req: any, res: any) {
   const { userId } = req.query;
 
@@ -552,13 +594,12 @@ export default async function handler(req: any, res: any) {
 
     try {
       const collaborativeFilms = await collaborativeFiltering(userId as string);
-      console.log("Collaborative recommendations fetched:", collaborativeFilms);
 
       if (collaborativeFilms.length > 0) {
         recommendations = await Promise.all(
-          collaborativeFilms.map((filmId) => getFilmById(filmId))
+          collaborativeFilms.map((film) => getFilmById(film.id)) // Extract id
         );
-        return res.status(200).json(recommendations.slice(0, 8)); // Limit to 8 films
+        return res.status(200).json(recommendations.slice(0, 8));
       }
     } catch (collabError) {
       console.error("Collaborative filtering failed:", collabError);
@@ -566,11 +607,8 @@ export default async function handler(req: any, res: any) {
 
     try {
       const contentFilms = await contentBasedFiltering(userId as string);
-      console.log("Content-based recommendations fetched:", contentFilms);
-
       if (contentFilms.length > 0) {
-        recommendations = contentFilms.slice(0, 8); // Limit to 8 films
-        return res.status(200).json(recommendations);
+        return res.status(200).json(contentFilms.slice(0, 8));
       }
     } catch (contentError) {
       console.error("Content-based filtering failed:", contentError);
@@ -578,9 +616,7 @@ export default async function handler(req: any, res: any) {
 
     try {
       recommendations = await hybridRecommendation(userId as string);
-      console.log("Hybrid recommendations fetched:", recommendations);
-
-      return res.status(200).json(recommendations.slice(0, 8)); // Limit to 8 films
+      return res.status(200).json(recommendations.slice(0, 8));
     } catch (hybridError) {
       console.error("Hybrid recommendation failed:", hybridError);
     }
