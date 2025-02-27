@@ -81,61 +81,66 @@ const FilmEditModal: React.FC<FilmEditModalProps> = ({ film, onClose }) => {
       <div className="bg-white p-4 rounded-lg shadow-lg w-80 max-h-[80vh] flex flex-col">
         <h2 className="text-lg font-semibold mb-2">Edit Film</h2>
         
-        {/* Scrollable Form */}
-        <div className="overflow-y-auto flex-grow px-1 space-y-2">
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <input name="title" value={formData.title} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Title" />
-            <input name="age" type="number" value={formData.age} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Age Rating" />
-            <input name="duration" type="number" value={formData.duration} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Duration (min)" />
-            <textarea name="overview" value={formData.overview} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Overview"></textarea>
-            <input name="release" type="date" value={formData.release} onChange={handleChange} className="w-full p-2 border rounded text-sm" />
-            <input name="category" value={formData.category} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Category" />
-            <input name="producer" value={formData.producer} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Producer" />
-            <input name="director" value={formData.director} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Director" />
-            <input name="coDirector" value={formData.coDirector} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Co-Director" />
-            <input name="studio" value={formData.studio} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Studio" />
+        {/* Form with ID for reference */}
+        <form id="editFilmForm" onSubmit={handleSubmit} className="space-y-3 overflow-y-auto flex-grow px-1">
+          <input name="title" value={formData.title} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Title" />
+          <input name="age" type="number" value={formData.age} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Age Rating" />
+          <input name="duration" type="number" value={formData.duration} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Duration (min)" />
+          <textarea name="overview" value={formData.overview} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Overview"></textarea>
+          <input name="release" type="date" value={formData.release} onChange={handleChange} className="w-full p-2 border rounded text-sm" />
+          <input name="category" value={formData.category} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Category" />
+          <input name="producer" value={formData.producer} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Producer" />
+          <input name="director" value={formData.director} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Director" />
+          <input name="coDirector" value={formData.coDirector} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Co-Director" />
+          <input name="studio" value={formData.studio} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Studio" />
 
-            {/* Image Upload */}
-            <div>
-              <label className="block text-xs font-medium">Film Poster:</label>
-              {image ? (
-                <img src={URL.createObjectURL(image)} alt="Selected" className="w-20 h-20 object-cover mt-1" />
-              ) : film.imageString ? (
-                <img src={film.imageString} alt="Current" className="w-20 h-20 object-cover mt-1" />
-              ) : null}
-              <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, "image")} className="mt-1 text-xs" />
-            </div>
+          {/* Image Upload */}
+          <div>
+            <label className="block text-xs font-medium">Film Poster:</label>
+            {image ? (
+              <img src={URL.createObjectURL(image)} alt="Selected" className="w-20 h-20 object-cover mt-1" />
+            ) : formData.imageString ? (
+              <img src={formData.imageString} alt="Current" className="w-20 h-20 object-cover mt-1" />
+            ) : null}
+            <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, "image")} className="mt-1 text-xs" />
+          </div>
 
-            {/* Video Upload */}
-            <div>
-              <label className="block text-xs font-medium">Film Video:</label>
-              {video ? (
-                <p className="text-xs">{video.name}</p>
-              ) : film.videoSource ? (
-                <p className="text-xs">Current: {film.videoSource}</p>
-              ) : null}
-              <input type="file" accept="video/*" onChange={(e) => handleFileChange(e, "video")} className="mt-1 text-xs" />
-            </div>
+          {/* Video Upload */}
+          <div>
+            <label className="block text-xs font-medium">Film Video:</label>
+            {video ? (
+              <p className="text-xs">{video.name}</p>
+            ) : formData.videoSource ? (
+              <p className="text-xs">Current: {formData.videoSource}</p>
+            ) : null}
+            <input type="file" accept="video/*" onChange={(e) => handleFileChange(e, "video")} className="mt-1 text-xs" />
+          </div>
 
-            {/* Trailer Upload */}
-            <div>
-              <label className="block text-xs font-medium">Trailer:</label>
-              {trailer ? (
-                <p className="text-xs">{trailer.name}</p>
-              ) : film.trailer ? (
-                <p className="text-xs">Current: {film.trailer}</p>
-              ) : null}
-              <input type="file" accept="video/*" onChange={(e) => handleFileChange(e, "trailer")} className="mt-1 text-xs" />
-            </div>
-          </form>
-        </div>
+          {/* Trailer Upload */}
+          <div>
+            <label className="block text-xs font-medium">Trailer:</label>
+            {trailer ? (
+              <p className="text-xs">{trailer.name}</p>
+            ) : formData.trailer ? (
+              <p className="text-xs">Current: {formData.trailer}</p>
+            ) : null}
+            <input type="file" accept="video/*" onChange={(e) => handleFileChange(e, "trailer")} className="mt-1 text-xs" />
+          </div>
+        </form>
 
         {/* Footer (Buttons & Message) */}
         <div className="mt-3">
-          {message && <p className="text-xs text-center text-red-500">{message}</p>}
+          {message && <p className={`text-xs text-center ${message.includes("success") ? "text-green-500" : "text-red-500"}`}>{message}</p>}
           <div className="flex justify-end space-x-2 mt-2">
             <button type="button" onClick={onClose} className="px-3 py-1 bg-gray-300 text-sm rounded">Cancel</button>
-            <button type="submit" disabled={loading} className="px-3 py-1 bg-blue-500 text-white text-sm rounded">{loading ? "Updating..." : "Update"}</button>
+            <button 
+              type="submit" 
+              form="editFilmForm" 
+              disabled={loading} 
+              className="px-3 py-1 bg-blue-500 text-white text-sm rounded"
+            >
+              {loading ? "Updating..." : "Update"}
+            </button>
           </div>
         </div>
       </div>
