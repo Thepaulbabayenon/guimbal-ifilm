@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { userRoles } from "@/app/db/schema";
 import { z } from "zod";
-import crypto from "crypto";
 import { redisClient } from "@/redis/redis";
 
 // Seven days in seconds
@@ -144,7 +143,7 @@ export async function createUserSession(
 ): Promise<void> {
   try {
     console.log("createUserSession called for user ID:", user.id);
-    const sessionId = crypto.randomBytes(32).toString("hex");
+    const sessionId = await generateUUID();
     console.log(`Generated new session ID: ${sessionId}`);
 
     // Ensure user data is correctly passed
@@ -154,7 +153,7 @@ export async function createUserSession(
     };
 
     const validatedSession = sessionSchema.parse(userSession);
-    await redisClient.set(`session:${sessionId}`, validatedSession, {
+    await redisClient.set(`session:${sessionId}`, JSON.stringify(validatedSession), {
       ex: SESSION_EXPIRATION_SECONDS,
     });
     console.log("User session created and stored in Redis");
@@ -193,7 +192,7 @@ export async function updateUserSessionExpiration(
       return;
     }
 
-    await redisClient.set(`session:${sessionId}`, user, {
+    await redisClient.set(`session:${sessionId}`, JSON.stringify(user), {
       ex: SESSION_EXPIRATION_SECONDS,
     });
     console.log("Session expiration updated in Redis");
@@ -274,4 +273,29 @@ async function getUserSessionById(sessionId: string): Promise<UserSession | null
     console.error("Error fetching user session:", error);
     return null;
   }
+}
+
+// Function to generate UUID using Web Crypto API instead of Node.js crypto
+async function generateUUID(): Promise<string> {
+  // Generate 16 random bytes (128 bits) for UUID
+  const buffer = new Uint8Array(16);
+  crypto.getRandomValues(buffer);
+  
+  // Set version (4) and variant (RFC4122)
+  buffer[6] = (buffer[6] & 0x0f) | 0x40;
+  buffer[8] = (buffer[8] & 0x3f) | 0x80;
+  
+  // Convert to hex string with dashes inserted at standard positions
+  const hexCodes = [...buffer].map(value => {
+    const hexCode = value.toString(16);
+    return hexCode.padStart(2, '0');
+  });
+  
+  return [
+    hexCodes.slice(0, 4).join(''),
+    hexCodes.slice(4, 6).join(''),
+    hexCodes.slice(6, 8).join(''),
+    hexCodes.slice(8, 10).join(''),
+    hexCodes.slice(10, 16).join('')
+  ].join('-');
 }
