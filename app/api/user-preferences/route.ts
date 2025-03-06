@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { userPreferences } from "@/app/db/schema";
-import { eq } from "drizzle-orm"; // ✅ Import `eq`
+import { eq } from "drizzle-orm"; 
 
-// ✅ Save user preferences (POST)
 export async function POST(req: Request) {
   try {
     const { userId, preferences } = await req.json();
@@ -13,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     await db.insert(userPreferences).values({
-      userId, // ✅ Must be correctly defined in schema.ts
+      userId, 
       favoriteGenres: preferences.genres.join(","),
       preferredMoods: preferences.moods.join(","),
       themes: preferences.themes.join(","),
@@ -26,7 +25,7 @@ export async function POST(req: Request) {
   }
 }
 
-// ✅ Fetch user preferences (GET)
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -36,7 +35,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Missing userId" }, { status: 400 });
     }
 
-    // ✅ Use `eq()` to properly filter by userId
+
     const userPrefs = await db
       .select()
       .from(userPreferences)

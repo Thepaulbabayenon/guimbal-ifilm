@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+
+
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle"; 
 import { announcements } from "@/app/db/schema";
@@ -23,15 +26,14 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const page = Number(searchParams.get("page")) || 1; // Default to page 1
-    const limit = Number(searchParams.get("limit")) || 10; // Default limit is 10
+    const page = Number(searchParams.get("page")) || 1; 
+    const limit = Number(searchParams.get("limit")) || 10; 
     const offset = (page - 1) * limit;
 
-    // Get total count of announcements
     const totalAnnouncements = await db.select().from(announcements);
     const total = totalAnnouncements.length;
 
-    // Fetch paginated announcements
+  
     const latestAnnouncements = await db
       .select()
       .from(announcements)

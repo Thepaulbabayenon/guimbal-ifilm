@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic"; // Forces the API to run on every request
 
 import { useState, useEffect } from "react";
 import FilmEditModal from "@/app/components/VideoUpload/FilmEditModal";
@@ -6,7 +7,7 @@ import FilmEditModal from "@/app/components/VideoUpload/FilmEditModal";
 interface Film {
   id: number;
   title: string;
-  age: number;
+  ageRating: number;
   duration: number;
   overview: string;
   release: string;

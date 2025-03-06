@@ -22,6 +22,7 @@ export default function FilmQueryPage() {
   const [film, setFilm] = useState<Film | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false); // ✅ Control PlayVideoModal state
 
   useEffect(() => {
     console.log("Film ID from URL:", filmId);
@@ -42,9 +43,9 @@ export default function FilmQueryPage() {
           setFilms(
             data.films.map((film: Film) => ({
               ...film,
-              watchList: film.watchList ?? false, // ✅ Default to false
+              watchList: film.watchList ?? false,
             }))
-          );
+          );          
         } else if (filmId) {
           // ✅ Film details API
           console.log(`Fetching details for filmId: ${filmId}`);
@@ -52,11 +53,16 @@ export default function FilmQueryPage() {
           if (!response.ok) throw new Error("Failed to fetch film details.");
           const data = await response.json();
           console.log("Fetched Film Data:", data);
-
-          setFilm({
-            ...data.film,
-            watchList: data.film.watchList ?? false, // ✅ Default to false
-          });
+          setFilms(
+            data.films.map((film: Film) => ({
+              ...film,
+              watchList: film.watchList ?? false,
+              producer: film.producer ?? "Unknown",
+              director: film.director ?? "Unknown",
+              coDirector: film.coDirector ?? "N/A",
+              studio: film.studio ?? "Unknown",
+            }))
+          );        
         }
       } catch (err) {
         console.error("API Fetch Error:", err);
@@ -92,17 +98,17 @@ export default function FilmQueryPage() {
                   <FilmLayout title={film.title} films={[film]} loading={false} error={null} />
                 </div>
                 <div className="flex w-full md:w-1/2">
-                  <FilmDetails
-                    filmId={film.id}
-                    title={film.title}
-                    overview={film.overview}
-                    producer={film.producer}
-                    director={film.director}
-                    coDirector={film.coDirector}
-                    studio={film.studio}
-                    averageRating={film.averageRating}
-                    trailerUrl={film.trailerUrl ?? ""}
-                  />
+                <FilmDetails
+                  filmId={film.id}
+                  title={film.title}
+                  overview={film.overview}
+                  producer={film.producer ?? "Unknown"} // ✅ Ensure a string is always passed
+                  director={film.director ?? "Unknown"}
+                  coDirector={film.coDirector ?? "N/A"}
+                  studio={film.studio ?? "Unknown"}
+                  averageRating={film.averageRating}
+                  trailerUrl={film.trailerUrl ?? ""} // ✅ Ensure an empty string is used instead of undefined
+                />
                 </div>
               </div>
             ))}
@@ -111,7 +117,7 @@ export default function FilmQueryPage() {
       ) : film ? (
         <>
           <h1 className="text-4xl font-bold text-gray-800">{film.title}</h1>
-          <img src={film.imageString} alt={film.title} className="mt-6 rounded-lg w-full max-w-lg" />
+          <img src={film.imageUrl} alt={film.title} className="mt-6 rounded-lg w-full max-w-lg" />
           <p className="mt-4 text-gray-700">{film.overview}</p>
           <div className="mt-4">
             <p><strong>Director:</strong> {film.director}</p>
@@ -120,14 +126,35 @@ export default function FilmQueryPage() {
             <p><strong>Release Year:</strong> {film.year}</p>
             <p><strong>Rating:</strong> {film.averageRating ?? "N/A"}</p>
           </div>
-          <a 
-            href={film.trailerUrl} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="mt-6 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Watch Trailer
-          </a>
+
+          {/* ✅ Play Trailer Button */}
+          {film.trailerUrl && (
+            <button 
+              onClick={() => setOpen(true)} 
+              className="mt-6 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Watch Trailer
+            </button>
+          )}
+
+          {/* ✅ PlayVideoModal Implementation */}
+          <PlayVideoModal
+      trailerUrl={film.trailerUrl ?? ""}
+      key={filmId}
+      title={film.title}
+      overview={film.overview}
+      state={open}
+      changeState={setOpen}
+      age={film.ageRating ?? 0} 
+      duration={film.duration ?? 0}
+      release={film.year}
+      ratings={film.averageRating ?? 0} 
+      setUserRating={() => {}}
+      userId={""} 
+      filmId={film.id ? Number(film.id) : 0} 
+      markAsWatched={() => {}} 
+      category={film.category || "Uncategorized"} 
+    />
         </>
       ) : (
         <div className="text-center text-gray-800 mt-10">No films found.</div>

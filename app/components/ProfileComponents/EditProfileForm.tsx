@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 interface EditProfileFormProps {
-  user: { name?: string; email: string; imageUrl?: string };
+  user: { name?: string; imageUrl?: string };
   onUpdate: (updatedUser: { name: string; imageUrl?: string }) => void;
 }
 

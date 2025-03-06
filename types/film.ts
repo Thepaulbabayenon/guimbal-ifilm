@@ -10,15 +10,14 @@ export interface Film {
   time: number;
   initialRatings: number;
   category: string;
-  imageString: string;
-  producer: string;
-  director: string;
-  coDirector: string;
-  studio: string;
+  imageUrl: string;
+  producer?: string;
+  director?: string;
+  coDirector?: string;
+  studio?: string;
   averageRating: number | null;
-
-  ageRating?: number;  // Example: 13, 18, etc.
-  duration?: number;   // Example: 120 (minutes)
+  ageRating?: number;  
+  duration?: number;  
 }
 
 
@@ -34,10 +33,11 @@ export interface Film {
   }
   
   export interface LastWatchedTime {
-    userId: string;
-    filmId: number;
-    time: number;
-  }
+  userId: string;
+  filmId: number;
+  time: number;
+}
+
   
    export // Example: Update the UserResource type to include isAdmin
    interface UserResource {

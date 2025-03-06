@@ -1,41 +1,22 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useUser } from '@clerk/clerk-react';
+import { useAuth } from '@/app/auth/nextjs/useUser';
 import FilmLayout from '@/app/components/FilmComponents/FilmLayout';
 import { Logo } from '@/app/components/Logo';
 import { AlertCircle } from 'lucide-react';
-
-// Define typed interfaces for better type safety
-interface Film {
-  id: number;
-  title: string;
-  overview: string;
-  watchList: boolean;
-  trailerUrl: string;
-  year: number;
-  age: number;
-  time: number;
-  initialRatings: number;
-  category: string;
-  imageString: string;
-}
+import { Film } from '@/types/film'; // Import your actual Film type
 
 interface RecommendationSection {
   reason: string;
   films: Film[];
 }
 
-/**
- * Fetches film recommendations for a specific user
- * @param userId - The ID of the user to fetch recommendations for
- * @returns Promise containing recommendation sections
- */
 async function fetchRecommendedFilms(userId: string): Promise<RecommendationSection[]> {
   try {
     const response = await axios.get<RecommendationSection[]>(`/api/recommendations`, {
       params: { userId },
-      timeout: 10000, // 10 second timeout
+      timeout: 10000,
     });
     
     if (!Array.isArray(response.data)) {
@@ -47,7 +28,6 @@ async function fetchRecommendedFilms(userId: string): Promise<RecommendationSect
   } catch (error) {
     if (axios.isAxiosError(error)) {
       console.error(`API error (${error.code || 'unknown'}): ${error.message}`);
-      
       if (error.response) {
         console.error(`Status: ${error.response.status}, Data:`, error.response.data);
       }
@@ -58,7 +38,6 @@ async function fetchRecommendedFilms(userId: string): Promise<RecommendationSect
   }
 }
 
-// Skeleton loader with proper animation
 const FilmSkeleton: React.FC = () => (
   <div className="bg-gray-800/40 animate-pulse rounded-lg overflow-hidden w-48 h-72 flex-shrink-0">
     <div className="bg-gray-700/60 h-40 w-full"></div>
@@ -70,7 +49,6 @@ const FilmSkeleton: React.FC = () => (
   </div>
 );
 
-// Skeleton section with labeled props
 interface SkeletonSectionProps {
   title: string;
   count?: number;
@@ -87,7 +65,6 @@ const SkeletonSection: React.FC<SkeletonSectionProps> = ({ title, count = 6 }) =
   </div>
 );
 
-// Empty state component
 const EmptyState: React.FC = () => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
     <div className="bg-gray-800/50 p-6 rounded-lg max-w-md">
@@ -99,7 +76,6 @@ const EmptyState: React.FC = () => (
   </div>
 );
 
-// Error component with retry functionality
 interface ErrorStateProps {
   message: string;
   onRetry: () => void;
@@ -121,65 +97,60 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
   </div>
 );
 
-/**
- * RecommendedPage component that displays film recommendations for the signed-in user
- */
 const RecommendedPage: React.FC = () => {
-  const { user, isLoaded, isSignedIn } = useUser();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [recommendations, setRecommendations] = useState<RecommendationSection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Function to fetch data that can be called for initial load and retries
- // In fetchData function within RecommendedPage component
-const fetchData = async () => {
-  if (!isLoaded || !isSignedIn || !user) return;
-  
-  setLoading(true);
-  setError(null);
-  
-  try {
-    const data = await fetchRecommendedFilms(user.id);
-    setRecommendations(data);
-  } catch (error) {
-    let errorMessage = 'Failed to load recommended films';
+  const displayName = user?.name || user?.email?.split('@')[0] || 'User';
+
+  const fetchData = async () => {
+    if (!user?.id || !isAuthenticated) return;
     
-    if (axios.isAxiosError(error)) {
-      if (error.code === 'ECONNABORTED') {
-        errorMessage = 'Request timed out. Please check your connection and try again.';
-      } else if (error.response?.status === 404) {
-        errorMessage = 'Recommendation service not found.';
-      } else if (error.response?.status === 401) {
-        errorMessage = 'Authentication error. Please sign in again.';
-      } else if (error.response?.status && error.response.status >= 500) {
-        errorMessage = 'Server error. Our team has been notified.';
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = await fetchRecommendedFilms(user.id);
+      setRecommendations(data);
+    } catch (error) {
+      let errorMessage = 'Failed to load recommended films';
+      
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNABORTED') {
+          errorMessage = 'Request timed out. Please check your connection and try again.';
+        } else if (error.response?.status === 404) {
+          errorMessage = 'Recommendation service not found.';
+        } else if (error.response?.status === 401) {
+          errorMessage = 'Authentication error. Please sign in again.';
+        } else if (error.response?.status && error.response.status >= 500) {
+          errorMessage = 'Server error. Our team has been notified.';
+        }
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (isAuthenticated && user) {
+        fetchData();
+      } else {
+        setLoading(false);
+        setError('Please sign in to view recommendations');
       }
     }
-    
-    setError(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  }, [isLoading, isAuthenticated, user]);
 
-  // Effect to load data when user is authenticated
-  useEffect(() => {
-    if (isLoaded && isSignedIn && user) {
-      fetchData();
-    } else if (isLoaded && !isSignedIn) {
-      setLoading(false);
-      setError('Please sign in to view recommendations');
-    }
-  }, [isLoaded, isSignedIn, user]);
-
-  // Loading state
   if (loading) {
     return (
       <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
         <Logo />
-        <h1 className="text-3xl font-bold mb-6 items-center">Recommended for {user?.firstName}</h1>
-
-        {/* Skeleton sections with descriptive titles */}
+        <h1 className="text-3xl font-bold mb-6 items-center">Recommended for {displayName}</h1>
         <SkeletonSection title="Based on Your Recent Watches" />
         <SkeletonSection title="Popular in Your Favorite Genres" />
         <SkeletonSection title="Because You Saved" />
@@ -187,33 +158,30 @@ const fetchData = async () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
         <Logo />
-        <h1 className="text-3xl font-bold mb-6 text-center justify-center">Recommended for {user?.firstName}</h1>
+        <h1 className="text-3xl font-bold mb-6 text-center justify-center">Recommended for {displayName}</h1>
         <ErrorState message={error} onRetry={fetchData} />
       </div>
     );
   }
 
-  // Empty state
   if (recommendations.length === 0) {
     return (
       <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
         <Logo />
-        <h1 className="text-3xl font-bold mb-6">Recommended for {user?.firstName}</h1>
+        <h1 className="text-3xl font-bold mb-6">Recommended for {displayName}</h1>
         <EmptyState />
       </div>
     );
   }
 
-  // Content state
   return (
     <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
       <Logo />
-      <h1 className="text-3xl font-bold mb-6">Recommended for {user?.firstName}</h1>
+      <h1 className="text-3xl font-bold mb-6">Recommended for {displayName}</h1>
 
       {recommendations.map((section, index) => (
         <div key={index} className="mb-10">

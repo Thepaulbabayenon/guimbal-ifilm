@@ -6,9 +6,9 @@ import { z } from "zod";
 
 // Validation schema with default value for watchedDuration
 const watchedFilmsSchema = z.object({
-  userId: z.string().min(1, "User ID is required."), // No UUID restriction, just a non-empty string
+  userId: z.string().min(1, "User ID is required."),
   filmId: z.preprocess((val) => Number(val), z.number().int()),
-  watchedDuration: z.number().min(60, "Watched duration must be at least 60 seconds.").default(60), // Default to 60
+  watchedDuration: z.number().min(60, "Watched duration must be at least 60 seconds.").default(60), 
 });
 
 export async function POST(req: NextRequest) {

@@ -19,20 +19,20 @@ export async function PUT(req: NextRequest) {
   try {
     const formData = await req.formData();
     
-    // Extract and type-cast fields correctly
-    const id = Number(formData.get("id")); // Ensure id is a number
+    
+    const id = Number(formData.get("id")); 
     const title = formData.get("title") as string;
-    const age = Number(formData.get("age"));
+    const ageRating = Number(formData.get("age"));
     const duration = Number(formData.get("duration"));
     const overview = formData.get("overview") as string;
-    const release = new Date(formData.get("release") as string); // Ensure release is a Date
+    const release = new Date(formData.get("release") as string); 
 
-    // Declare missing fields to avoid TypeScript errors
-    const category = formData.get("category") as string; // Initialize category
-    const producer = formData.get("producer") as string; // Initialize producer
-    const director = formData.get("director") as string; // Initialize director
-    const coDirector = formData.get("coDirector") as string; // Initialize coDirector
-    const studio = formData.get("studio") as string; // Initialize studio
+   
+    const category = formData.get("category") as string; 
+    const producer = formData.get("producer") as string; 
+    const director = formData.get("director") as string; 
+    const coDirector = formData.get("coDirector") as string; 
+    const studio = formData.get("studio") as string; 
 
     if (isNaN(id)) {
       return NextResponse.json({ error: "Invalid Film ID" }, { status: 400 });
@@ -42,10 +42,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Invalid release date" }, { status: 400 });
     }
 
-    // Convert the Date to a Unix timestamp (number)
+
     const releaseTimestamp = Math.floor(release.getTime() / 1000);
 
-    // Fetch existing film data to preserve existing file URLs
+
     const existingFilm = await db.select().from(film).where(eq(film.id, id)).limit(1);
     if (existingFilm.length === 0) {
       return NextResponse.json({ error: "Film not found" }, { status: 404 });
@@ -53,18 +53,18 @@ export async function PUT(req: NextRequest) {
     
     const releaseYear = release.getFullYear();
 
-    // Extract files from formData
+
     const imageFile = formData.get("image") as File | null;
     const videoFile = formData.get("video") as File | null;
     const trailerFile = formData.get("trailer") as File | null;
 
-    // Function to upload files to S3
+  
     async function uploadToS3(file: File | null, folder: string): Promise<string> {
       if (!file || !(file instanceof File)) return "";
     
       const fileKey = `film/${folder}/${releaseYear}/${uuidv4()}-${file.name}`;
     
-      // Ensure the file has an arrayBuffer function before calling it
+   
       if (typeof file.arrayBuffer !== "function") {
         console.error("Invalid file type for S3 upload:", file);
         throw new TypeError("Provided file does not support arrayBuffer()");
@@ -85,28 +85,28 @@ export async function PUT(req: NextRequest) {
     }
 
 
-    // Upload new files if provided, otherwise keep the existing ones
-    const imageString = imageFile ? await uploadToS3(imageFile, "img") : existingFilm[0].imageString;
+   
+    const imageUrl = imageFile ? await uploadToS3(imageFile, "img") : existingFilm[0].imageUrl;
     const videoSource = videoFile ? await uploadToS3(videoFile, "videos") : existingFilm[0].videoSource;
-    const trailerSource = trailerFile ? await uploadToS3(trailerFile, "trailers") : existingFilm[0].trailer;
+    const trailerUrl = trailerFile ? await uploadToS3(trailerFile, "trailers") : existingFilm[0].trailerUrl;
 
-    // Update film metadata in the database
+  
     await db
       .update(film)
       .set({
         title,
-        age,
+        ageRating,
         duration,
         overview,
-        release: releaseTimestamp, // Use releaseTimestamp (number)
-        category, // Use category (initialized)
-        producer, // Use producer (initialized)
-        director, // Use director (initialized)
-        coDirector, // Use coDirector (initialized)
-        studio, // Use studio (initialized)
-        imageString,
+        releaseYear: releaseTimestamp,
+        category, 
+        producer,
+        director,
+        coDirector, 
+        studio,
+        imageUrl,
         videoSource,
-        trailer: trailerSource,
+        trailerUrl: trailerUrl,
       })
       .where(eq(film.id, id));
 

@@ -1,10 +1,56 @@
-"use server"; // ✅ Ensure it's server-only
+import { useUser } from "../auth/nextjs/useUser";
 
-import { clerkClient, currentUser } from "@clerk/nextjs/server";
-
+/**
+ * Check if the current user has a specific role
+ * @param role The role to check for
+ * @returns Boolean indicating if user has the role
+ */
 export async function checkRole(role: string): Promise<boolean> {
-  const user = await currentUser();
-  if (!user) return false; // No user logged in
+  try {
+    const currentUser = await useUser(); 
+    
+    if (!currentUser?.user) {
+      return false;
+    }
+    
+    return currentUser.user.role === role; 
+  } catch (error) {
+    console.error("Error checking user role:", error);
+    return false;
+  }
+}
 
-  return user.publicMetadata?.role === role; // Check role from Clerk metadata
+/**
+ * Helper function to verify if a user is an admin
+ * Can be used in middleware or server components
+ * @returns Boolean indicating if current user is an admin
+ */
+export async function isAdmin(): Promise<boolean> {
+  return checkRole("admin");
+}
+
+/**
+ * Check if current user can manage a specific user
+ * An admin can manage any user except themselves
+ * @param userId The ID of the user to manage
+ * @returns Boolean indicating if current user can manage the specified user
+ */
+export async function canManageUser(userId: string): Promise<boolean> {
+  try {
+    const currentUser = await useUser(); // Replacing `getCurrentUser` with `useUser`
+    
+    if (!currentUser?.user) {
+      return false;
+    }
+    
+    // Admin can manage any user except themselves
+    if (currentUser.user.role === "admin" && currentUser.user.id !== userId) {
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Error checking user management permission:", error);
+    return false;
+  }
 }

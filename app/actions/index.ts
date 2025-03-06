@@ -7,6 +7,15 @@ import { film } from '@/app/db/schema'; // Adjust import for your films table sc
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+import { resetTokens } from "@/app/db/schema"
+import crypto from "crypto"
+import { Resend } from "resend"
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+
+
+
 
 // Initialize S3 client from AWS SDK v3
 const s3Client = new S3Client({
@@ -17,69 +26,6 @@ const s3Client = new S3Client({
   },
 });
 
-// Helper function to generate signed upload URL for S3
-async function generateSignedUploadUrl(fileName: string, fileType: string) {
-  const params = {
-    Bucket: process.env.AWS_BUCKET_NAME!,
-    Key: `${fileName}`, // Correct path for files
-    ContentType: fileType,
-    ACL: 'public-read' as const, // Set ACL to make the file publicly readable
-  };
-
-  const command = new PutObjectCommand(params);
-  const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 60 });
-
-  return signedUrl;
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const {
-      fileNameImage, fileTypeImage, fileNameVideo, fileTypeVideo,
-      id, title, age, duration, overview, release, category,
-      producer, director, coDirector, studio,
-    } = await req.json();
-
-    // Validate the required fields
-    if (!fileNameImage || !fileTypeImage || !fileNameVideo || !fileTypeVideo) {
-      return NextResponse.json({ error: 'File information is missing.' }, { status: 400 });
-    }
-
-    // Generate signed URLs for image and video
-    const uploadURLImage = await generateSignedUploadUrl(fileNameImage, fileTypeImage);
-    const uploadURLVideo = await generateSignedUploadUrl(fileNameVideo, fileTypeVideo);
-
-    // Save Film Metadata into NeonDB
-    await db.insert(film).values({
-      id,
-      imageString: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/film/img/${fileNameImage}`,
-      title,
-      age,
-      duration,
-      overview,
-      release,
-      category,
-      videoSource: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/film/video/${fileNameVideo}`,
-      trailer: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/film/video/${fileNameVideo}`, // You can adjust this for trailer or leave it empty for now
-      producer,
-      director,
-      coDirector,
-      studio,
-      createdAt: new Date(),
-    });
-
-    // Return the response with the signed URLs
-    return NextResponse.json({
-      uploadURLImage,
-      uploadURLVideo,
-      message: 'Film metadata and files uploaded successfully.',
-    }, { status: 200 });
-
-  } catch (error) {
-    console.error('Error uploading files or saving metadata to the database:', error);
-    return NextResponse.json({ error: 'Error uploading files or saving data to the database.' }, { status: 500 });
-  }
-}
 interface AddToWatchlistData {
   filmId: number;
   pathname: string;
@@ -153,3 +99,35 @@ export const fetchAverageRating = async (filmId: number) => {
     throw error;
   }
 };
+
+
+export async function sendPasswordReset(email: string) {
+  try {
+    // Generate a secure reset token
+    const token = crypto.randomBytes(32).toString("hex")
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60) // Token valid for 1 hour
+
+    // Store reset token in DB
+    await db.insert(resetTokens).values({ email, token, expiresAt })
+
+    // Generate reset link
+    const resetLink = `https://thebantayanfilmfestival.com/reset-password?token=${token}&email=${encodeURIComponent(email)}`
+
+    // Send email
+    await resend.emails.send({
+      from: "noreply@thebantayanfilmfestival.com",
+      to: email,
+      subject: "Password Reset Request",
+      html: `
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetLink}">Reset Password</a>
+        <p>This link is valid for 1 hour.</p>
+      `,
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error sending password reset email:", error)
+    return { success: false, error: "Failed to send reset email" }
+  }
+}

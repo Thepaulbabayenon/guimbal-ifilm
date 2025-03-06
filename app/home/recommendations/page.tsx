@@ -4,23 +4,23 @@ export const dynamic = "force-dynamic";
 
 
 import { useRecommendations } from "@/hooks/useRecommendations";
-import { useUser } from "@clerk/nextjs"; // Import Clerk's useUser
+import { useUser } from "@/app/auth/nextjs/useUser";
 import { useEffect, useState } from "react";
 
 const RecommendationsPage = () => {
-  const { user, isLoaded } = useUser(); // Get user from Clerk
+  const { user, isAuthenticated } = useUser();
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isLoaded && user?.id) {
+    if (isAuthenticated && user?.id) {
       setUserId(user.id);
     }
-  }, [isLoaded, user]);
+  }, [isAuthenticated, user]);
 
   // Only call useRecommendations if userId is available
   const { recommendations, loading } = useRecommendations(userId ?? ""); // Use empty string as fallback
 
-  if (!isLoaded) {
+  if (!isAuthenticated) {
     return <p className="text-white p-6">Loading user...</p>;
   }
 

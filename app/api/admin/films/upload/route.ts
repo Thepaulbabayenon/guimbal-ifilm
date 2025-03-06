@@ -25,10 +25,10 @@ export async function POST(req: NextRequest) {
       fileTypeTrailer,
       id,
       title,
-      age,
+      ageRating,
       duration,
       overview,
-      release, // Assuming 'release' is a Date object or a string that can be parsed into a Date
+      release,
       category,
       producer,
       director,
@@ -37,20 +37,19 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Extract the year from the release date
-    const releaseYear = new Date(release).getFullYear(); // Or: const releaseYear = new Date(Date.parse(release)).getFullYear(); if 'release' is a string
+    const releaseYear = new Date(release).getFullYear(); 
     if (isNaN(releaseYear)) {
       return NextResponse.json({ error: 'Invalid release date' }, { status: 400 });
     }
 
-    // Construct S3 keys with the year folder
+   
     const imageKey = `film/img/${releaseYear}/${fileNameImage}`;
     const videoKey = `film/videos/${releaseYear}/${fileNameVideo}`;
     const trailerKey = `film/trailers/${releaseYear}/${fileNameTrailer}`;
 
-    // Log input data to check
     console.log('Received file data:', { fileNameImage, fileTypeImage, fileNameVideo, fileTypeVideo, fileNameTrailer, fileTypeTrailer, releaseYear });
 
-    // Generate signed URLs
+  
     const imageParams = {
       Bucket: process.env.AWS_BUCKET_NAME!,
       Key: imageKey,
@@ -75,38 +74,43 @@ export async function POST(req: NextRequest) {
     const uploadURLVideo = await getSignedUrl(s3Client, videoCommand, { expiresIn: 60 });
     const uploadURLTrailer = await getSignedUrl(s3Client, trailerCommand, { expiresIn: 60 });
 
-    // Log the generated signed URLs
+  
     console.log('Generated signed URLs:', { uploadURLImage, uploadURLVideo, uploadURLTrailer });
 
-    // Check if URLs are generated (important!)
+
     if (!uploadURLImage || !uploadURLVideo || !uploadURLTrailer) {
       console.error('Error: One or more upload URLs are not generated.');
       return NextResponse.json({ error: 'Error generating upload URLs' }, { status: 500 });
     }
 
-    // Construct the S3 paths for database storage, including the year
+    if (!ageRating) {
+      return NextResponse.json({ error: 'Age rating is required' }, { status: 400 });
+    }
+    
+
+  
     const imageString = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imageKey}`;
     const videoSource = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${videoKey}`;
     const trailerSource = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${trailerKey}`;
 
-    // Insert film metadata into NeonDB
     await db.insert(film).values({
-      id,
-      imageString,
       title,
-      age,
       duration,
       overview,
-      release,
+      releaseYear,
       category,
+      ageRating,
+      imageUrl: imageString, 
       videoSource,
-      trailer: trailerSource,
+      trailerUrl: trailerSource,
       producer,
       director,
       coDirector,
       studio,
       createdAt: new Date(),
     });
+    
+    
 
     return NextResponse.json({ uploadURLImage, uploadURLVideo, uploadURLTrailer });
   } catch (err) {

@@ -1,14 +1,34 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { db } from "@/app/db/drizzle";
 import { FilmCard } from "./FilmComponents/FilmCard";
-import { auth } from "@clerk/nextjs/server";
-import { and, asc, eq, avg } from "drizzle-orm"; // Ensure that avg() is imported
-import { accounts, film, userRatings, watchLists } from "@/app/db/schema";
-import FilmRelease from "./FilmComponents/FilmRelease"
+import { useUser } from "@/app/auth/nextjs/useUser";
+import { and, asc, eq, avg, sql } from "drizzle-orm";
+import { film, userRatings, watchLists } from "@/app/db/schema";
+
+// Define a TypeScript interface for the film data
+interface FilmData {
+  id: number;
+  overview: string;
+  title: string;
+  WatchList?: {
+    watchListId?: number;
+    userId: string;
+    filmId: number;
+  } | null; 
+  imageString: string;
+  trailer: string;
+  age: number;
+  release: number;
+  duration: number;
+  category: string;
+  averageRating: number | null;
+}
+
 // Fetch film data and calculate average ratings
-
-
-async function getData(userId: string) {
+async function getData(userId: string): Promise<FilmData[]> {
   try {
     const userFilms = await db
       .select({
@@ -16,24 +36,28 @@ async function getData(userId: string) {
         overview: film.overview,
         title: film.title,
         WatchList: {
-          watchListId: watchLists.id,
+          watchListId: watchLists.filmId,
           userId: watchLists.userId,
-          filmId: watchLists.filmId,  
-        },        
-        imageString: film.imageString,
-        trailer: film.trailer,
-        age: film.age,
-        release: film.release,
+          filmId: watchLists.filmId,
+        },
+        imageString: film.imageUrl,
+        trailer: film.trailerUrl,
+        age: film.ageRating,
+        release: film.releaseYear,
         duration: film.duration,
         category: film.category,
-        averageRating: avg(userRatings.rating).as('averageRating'),
+        averageRating: sql<number>`AVG(${userRatings.rating})`.as("averageRating"),
       })
       .from(film)
-      .leftJoin(watchLists, and(eq(watchLists.filmId, film.id), eq(watchLists.userId, userId))) // Ensure user-specific watchlist
+      .leftJoin(
+        watchLists,
+        and(eq(watchLists.filmId, film.id), eq(watchLists.userId, userId))
+      )
       .leftJoin(userRatings, eq(userRatings.filmId, film.id))
-      .groupBy(film.id, watchLists.id)
+      .groupBy(film.id, watchLists.filmId)
       .orderBy(asc(avg(userRatings.rating)))
       .limit(4);
+
     return userFilms;
   } catch (error) {
     console.error("Database error:", error);
@@ -41,12 +65,18 @@ async function getData(userId: string) {
   }
 }
 
+export default function RecentlyAdded() {
+  const { user, isAuthenticated, isLoading } = useUser(); 
+  const [data, setData] = useState<FilmData[]>([]); 
 
-export default async function RecentlyAdded() {
-  const { userId } = auth(); // Get the user ID from the authentication context
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      getData(user.id).then(setData);
+    }
+  }, [user, isAuthenticated]);
 
-  // Get films with their average ratings in ascending order
-  const data = await getData(userId as string);
+  if (isLoading) return <p>Loading...</p>;
+  if (!isAuthenticated) return <p>Please sign in to view recently added films.</p>;
 
   return (
     <div className="recently-added-container mb-20">
@@ -69,19 +99,19 @@ export default async function RecentlyAdded() {
                   height={800}
                   className="absolute w-full h-full -z-10 rounded-lg object-cover"
                 />
-              <FilmCard
-                filmId={film.id}
-                overview={film.overview}
-                title={film.title}
-                watchList={!!film.WatchList?.watchListId}  // ✅ Proper boolean check
-                watchListId={film.WatchList?.watchListId ? film.WatchList.watchListId.toString() : undefined}
-                trailerUrl={film.trailer}
-                age={film.age}
-                time={film.duration}
-                year={film.release}
-                category={film.category}
-                initialRatings={Number(film.averageRating) || 0}
-              />
+                <FilmCard
+                  filmId={film.id}
+                  overview={film.overview}
+                  title={film.title}
+                  watchList={!!film.WatchList?.watchListId} 
+                  watchListId={film.WatchList?.watchListId?.toString() ?? ""}
+                  trailerUrl={film.trailer}
+                  age={film.age}
+                  time={film.duration}
+                  year={film.release}
+                  category={film.category}
+                  initialRatings={Number(film.averageRating) || 0}
+                />
               </div>
             </div>
           </div>

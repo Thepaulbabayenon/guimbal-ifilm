@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("query")?.toLowerCase().trim();
     const year = searchParams.get("year");
-    const category = searchParams.get("category")?.toLowerCase().trim(); // 👈 Get category from search
+    const category = searchParams.get("category")?.toLowerCase().trim();
 
     if (!query && !year && !category) {
       return NextResponse.json({ message: "No search criteria provided", films: [] });
@@ -22,12 +22,12 @@ export async function GET(req: NextRequest) {
       films = await db
         .select()
         .from(film)
-        .where(sql`${film.release} = ${year}`)
+        .where(sql`${film.releaseYear} = ${year}`)
         .limit(10)
         .execute();
     } else if (category) {
       films = await db
-        .select({ id: film.id, title: film.title, year: film.release, category: film.category }) // 👈 Include category
+        .select({ id: film.id, title: film.title, year: film.releaseYear, category: film.category }) 
         .from(film)
         .where(sql`${film.category} ILIKE ${"%" + category + "%"}`)
         .limit(10)
@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
     } else {
       const queryPattern = `%${query}%`;
       films = await db
-        .select({ id: film.id, title: film.title, year: film.release, category: film.category })
+        .select({ id: film.id, title: film.title, year: film.releaseYear, category: film.category })
         .from(film)
         .where(
-          sql`${film.title} ILIKE ${queryPattern} OR ${film.category} ILIKE ${queryPattern}` // 👈 Search in title & category
+          sql`${film.title} ILIKE ${queryPattern} OR ${film.category} ILIKE ${queryPattern}`
         )
         .limit(10)
         .execute();

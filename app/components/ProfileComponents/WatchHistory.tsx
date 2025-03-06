@@ -1,8 +1,10 @@
-// components/WatchHistory.tsx
-import { auth } from "@clerk/nextjs/server";  // This is valid only in Server Components
+"use client"; // Ensure it's a Client Component
+
+import { useEffect, useState } from "react";
 import { db } from "@/app/db/drizzle";
 import { eq } from "drizzle-orm";
 import { watchedFilms, film } from "@/app/db/schema";
+import { useAuth } from "@/app/auth/nextjs/useUser"; // Import useAuth hook
 
 type WatchHistoryEntry = {
   filmId: number;
@@ -14,17 +16,30 @@ type WatchHistoryEntry = {
   };
 };
 
-export async function WatchHistory() {
-  const { userId } = auth();  // Ensure auth() is called in a Server Component context
-  if (!userId) return null;
+export default function WatchHistory() {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [history, setHistory] = useState<WatchHistoryEntry[]>([]);
 
-  const history: WatchHistoryEntry[] = await db.query.watchedFilms.findMany({
-    where: eq(watchedFilms.userId, userId),
-    with: {
-      film: true,
-    },
-    orderBy: (watchedFilms, { desc }) => [desc(watchedFilms.timestamp)],
-  });
+  useEffect(() => {
+    async function fetchHistory() {
+      if (!user || !isAuthenticated) return;
+
+      try {
+        const response = await fetch(`/api/watch-history?userId=${user.id}`);
+        if (!response.ok) throw new Error("Failed to fetch watch history");
+
+        const data: WatchHistoryEntry[] = await response.json();
+        setHistory(data);
+      } catch (error) {
+        console.error("Error fetching watch history:", error);
+      }
+    }
+
+    fetchHistory();
+  }, [user, isAuthenticated]);
+
+  if (isLoading) return <p>Loading...</p>;
+  if (!isAuthenticated) return <p>Please sign in to view your watch history.</p>;
 
   return (
     <section>
@@ -33,7 +48,7 @@ export async function WatchHistory() {
         {history.map((entry) => (
           <div key={entry.filmId} className="relative">
             <img
-              src={entry.film.imageString || '/default-image.jpg'}
+              src={entry.film.imageString || "/default-image.jpg"}
               alt={entry.film.title}
               className="rounded-lg"
             />

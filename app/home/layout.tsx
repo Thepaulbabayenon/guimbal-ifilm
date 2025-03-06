@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic"; // ✅ Forces all routes under /home to be dynamic
-
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
-import { currentUser } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
+import Navbar from "@/app/components/Navbar";
+import Footer from "@/app/components/Footer";
+import { getUserFromSession, COOKIE_SESSION_KEY } from "@/app/auth/core/session"; 
 import { CategoryProvider } from "../context/categoryContext";
+
+export const dynamic = "force-dynamic"; 
 
 export default async function HomeLayout({
   children,
@@ -13,8 +14,17 @@ export default async function HomeLayout({
   children: ReactNode;
 }) {
   try {
-    const user = await currentUser();
+    // Get cookies using the next/headers API
+    const cookieStore = cookies();
+    const sessionCookie = cookieStore.get(COOKIE_SESSION_KEY);
     
+    // Create a cookie object to pass to getUserFromSession
+    const cookiesObj = {
+      [COOKIE_SESSION_KEY]: sessionCookie?.value || "",
+    };
+    
+    const user = await getUserFromSession(cookiesObj);
+
     if (!user) {
       console.log("User not found, redirecting...");
       return redirect("/sign-in");
@@ -36,4 +46,3 @@ export default async function HomeLayout({
     return redirect("/sign-in");
   }
 }
-

@@ -1,20 +1,32 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { dismissedAnnouncements } from "@/app/db/schema";
-import { getUser } from "@/app/db/auth"; 
+import { getUserFromSession, CookiesHandler } from "@/app/auth/core/session"; 
 
-export async function POST(req: Request) { 
+export async function POST(req: NextRequest) { 
   try {
-    const user = await getUser(); 
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { announcementId } = await req.json(); // ✅ Fix: Changed to announcementId
-    if (!announcementId) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    const cookiesObject: Record<string, string> = Object.fromEntries(
+      req.cookies.getAll().map((cookie) => [cookie.name, cookie.value])
+    );
+    
 
-    // Store dismissed announcement
+ 
+    const user = await getUserFromSession(cookiesObject);
+    
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { announcementId } = await req.json();
+    
+    if (!announcementId || isNaN(Number(announcementId))) {
+      return NextResponse.json({ error: "Invalid announcementId" }, { status: 400 });
+    }
+
     await db.insert(dismissedAnnouncements).values({
       userId: user.id,
-      announcementId, // ✅ Fix: Changed notificationId to announcementId
+      announcementId: Number(announcementId),
     });
 
     return NextResponse.json({ success: true });

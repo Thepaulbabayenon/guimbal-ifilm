@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getUserData } from "@/app/api/getUser"; // Ensure this path is correct
+import { getUserData } from "@/app/api/getUser"; 
 
 
-export const dynamic = "force-dynamic"; // Prevents static generation
+export const dynamic = "force-dynamic";
   
 export async function GET(req: Request) {
   try {

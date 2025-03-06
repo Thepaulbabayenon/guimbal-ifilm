@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getUsersByName } from './getUser'; // Adjust the import path as needed
+import { getUsersByName } from './getUser'; 
 import { createServer } from 'http';
 
 const app = new Hono();

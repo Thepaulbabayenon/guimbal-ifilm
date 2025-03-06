@@ -27,11 +27,11 @@ export default function FilmForm({ initialData }: FilmFormProps) {
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     overview: initialData?.overview || '',
-    age: initialData?.age || 0,
+    age: initialData?.ageRating || 0,
     duration: initialData?.duration || 0,
     category: initialData?.category || 'film',
     videoSource: initialData?.videoSource || '',
-    trailer: initialData?.trailer || '',
+    trailer: initialData?.trailerUrl || '',
     producer: initialData?.producer || '',
     director: initialData?.director || '',
     studio: initialData?.studio || '',
@@ -51,7 +51,7 @@ export default function FilmForm({ initialData }: FilmFormProps) {
     setIsUploading(true)
     
     try {
-      let imageUrl = initialData?.imageString
+      let imageUrl = initialData?.imageUrl
       
       if (imageFile) {
         const uploadUrl = await generateUploadUrl(imageFile.name)

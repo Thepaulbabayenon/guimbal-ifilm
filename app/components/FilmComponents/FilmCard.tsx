@@ -2,16 +2,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CiHeart, CiPlay1, CiStar } from "react-icons/ci";
-import PlayVideoModal from "../PlayVideoModal";
 import { usePathname } from "next/navigation";
 import axios from "axios";
-import { useUser } from "@clerk/nextjs";
 import { addToWatchlist } from "@/app/action";
-import { useAuth } from "@clerk/nextjs"; // ✅ Correct for Client Components
-import { AxiosError } from "axios"; // Import AxiosError
-
-
-
+import { AxiosError } from "axios"; 
+import { useAuth } from "@/app/auth/nextjs/useUser";
 
 interface FilmCardProps {
   filmId: number;
@@ -25,6 +20,7 @@ interface FilmCardProps {
   time: number;
   initialRatings: number;
   category: string;
+  onOpenModal?: () => void; // New prop for handling modal opening
 }
 
 export function FilmCard({
@@ -39,9 +35,12 @@ export function FilmCard({
   time,
   initialRatings,
   category,
+  onOpenModal, // Add this to the function parameters
 }: FilmCardProps) {
-  const { user } = useUser();
-  const userId = user?.id;
+  // Use the auth hook and safely access its properties
+  const auth = useAuth();
+  const userId = auth?.user?.id;
+  const getToken = auth?.getToken;
 
   const [open, setOpen] = useState(false);
   const [watchList, setWatchList] = useState(initialWatchList);
@@ -71,7 +70,10 @@ export function FilmCard({
 
   // Fetch user rating and average rating when the component mounts
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
     const fetchRatings = async () => {
       try {
@@ -122,9 +124,6 @@ export function FilmCard({
     saveUserRating();
   }, [userRating, filmId, userId]);
 
-  // Handle watchlist toggle
-  const { getToken } = useAuth(); // Get the token function from useAuth
-
   const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
   
@@ -137,7 +136,12 @@ export function FilmCard({
     const previousState = watchList;
   
     try {
-      const token = await getToken();
+      // Make sure getToken exists before calling it
+      const token = getToken ? await getToken() : null;
+      
+      if (!token) {
+        throw new Error("Failed to get authentication token");
+      }
   
       // Optimistic UI update
       setWatchList(!previousState);
@@ -184,9 +188,6 @@ export function FilmCard({
       setIsSavingWatchlist(false);
     }
   };
-  
-
-  
 
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
@@ -221,22 +222,29 @@ export function FilmCard({
 
   return (
     <>
-    
-      {/* Removed onClick from the button */}
-      <button onClick={() => setOpen(true)} className="-mt-14">
-      <CiPlay1 className="h-20 w-20 transition-colors duration-300 hover:text-red-500" /> {/* Apply hover color change */}
+      {/* Play button with modified handler to use the callback */}
+      <button 
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(true);
+          if (onOpenModal) onOpenModal(); // Call the parent's handler
+        }} 
+        className="-mt-14"
+      >
+        <CiPlay1 className="h-20 w-20 transition-colors duration-300 hover:text-red-500" />
       </button>
 
       {/* Watchlist Button */}  
       <div className="right-5 top-5 absolute z-10">
-      <Button 
-        variant="outline" 
-        size="icon" 
-        onClick={handleToggleWatchlist} 
-        disabled={isSavingWatchlist || loading}
-      >
-        <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : "text-gray-500"}`} /> {/* Default to gray if not in watchlist */}
-      </Button>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={handleToggleWatchlist} 
+          disabled={isSavingWatchlist || loading}
+        >
+          <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : "text-gray-500"}`} />
+        </Button>
       </div>
 
       {/* Film Details */}
@@ -260,7 +268,6 @@ export function FilmCard({
           </div>
         ) : (
           <>
-           
             <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
             <div className="flex gap-x-2 items-center">
               <p className="font-normal text-sm">{year}</p>
@@ -283,25 +290,6 @@ export function FilmCard({
           </>
         )}
       </div>
-
-      {/* PlayVideoModal */}
-      <PlayVideoModal
-        trailerUrl={trailerUrl}
-        key={filmId}
-        title={title}
-        overview={overview}
-        state={open}
-        changeState={setOpen}
-        age={age}
-        duration={time}
-        release={year}
-        ratings={userRating}
-        setUserRating={setUserRating}
-        userId={userId || ""}
-        filmId={filmId}
-        markAsWatched={markAsWatched}
-        category={category}
-      />
     </>
   );
 }

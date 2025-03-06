@@ -5,7 +5,7 @@ import { desc, eq, and, like } from "drizzle-orm";
 export async function getUserData(userEmail: string) {
   console.log("Fetching data for user email:", userEmail);
 
-  // Fetch the user ID based on the email
+
   const userIdData = await db
     .select({ id: users.id })
     .from(users)
@@ -32,14 +32,14 @@ export async function getUserData(userEmail: string) {
   const watchlistData = await db
     .select({
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       id: film.id,
-      trailer: film.trailer,
-      watchListId: watchLists.id,
+      trailer: film.trailerUrl,
+      watchListId: watchLists.userId,
       category: film.category
     })
     .from(film)
@@ -49,26 +49,26 @@ export async function getUserData(userEmail: string) {
   const top10Data = await db
     .select({
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       id: film.id,
       category: film.category
     })
     .from(film)
-    .orderBy(desc(film.release))
+    .orderBy(desc(film.releaseYear))
     .limit(10);
 
   const favoritesData = await db
     .select({
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       id: film.id,
       category: film.category
     })
@@ -92,7 +92,7 @@ export async function getUserData(userEmail: string) {
 export async function getUsersByName(userName: string) {
   console.log("Searching for users with name:", userName);
 
-  // Fetch users whose names contain the search term (case-insensitive)
+
   const usersData = await db
     .select({
       id: users.id,

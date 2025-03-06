@@ -1,10 +1,9 @@
-// UserNav.tsx
-"use client"; // Ensure this is present if using Next.js 13 with the app directory
+'use client';
 
 import React from "react";
 import Link from "next/link";
-import { useUser, useClerk } from "@clerk/nextjs";
-import { Loader2 } from "lucide-react"; // Loading spinner
+import { useUser } from "@/app/auth/nextjs/useUser"; // Updated import path
+import { Loader2 } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -19,15 +18,18 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { LogOutButton } from "../auth/nextjs/components/LogOutButton";
 
 const UserNav = () => {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useClerk();
-  
-  // Example: Check if user is an admin
-  const isAdmin = user?.publicMetadata?.role === "admin"; // Ensure Clerk stores role data
+  const { user, isLoading, isAuthenticated } = useUser();
 
-  if (!isLoaded) {
+      console.log("User data:", user); 
+
+  
+
+  const isAdmin = user?.role === "admin";
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-4">
         <Loader2 className="animate-spin text-black" />
@@ -38,14 +40,14 @@ const UserNav = () => {
   return (
     <nav className="flex items-center justify-between p-4 bg-transparent shadow text-muted-foreground">
       <div>
-        {isSignedIn && user ? (
+        {isAuthenticated && user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-sm">
                 <Avatar className="h-10 w-10 rounded-sm">
-                  <AvatarImage src={user?.imageUrl || ""} alt={user.fullName || "User"} />
+                  <AvatarImage src={user?.imageUrl || ""} alt={user.name || "User"} />
                   <AvatarFallback className="rounded-sm">
-                    {user.fullName ? user.fullName[0] : "U"}
+                    {user.name ? user.name[0] : "U"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -55,11 +57,11 @@ const UserNav = () => {
                 <div className="flex flex-col space-y-1">
                   <Link href="/home/user">
                     <p className="text-sm font-medium leading-none">
-                      {user.fullName || "User Name"}
+                      {user.name || "User Name"}
                     </p>
                   </Link>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user.emailAddresses?.[0]?.emailAddress || "user@example.com"}
+                    {user.email || "user@example.com"}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -76,7 +78,9 @@ const UserNav = () => {
                   <DropdownMenuItem className="text-red-500">Admin</DropdownMenuItem>
                 </Link>
               )}
-              <DropdownMenuItem onClick={() => signOut()}>Sign out</DropdownMenuItem>
+              <DropdownMenuItem >
+                <LogOutButton />
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (

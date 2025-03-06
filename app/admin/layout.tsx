@@ -1,10 +1,14 @@
+// app/admin/layout.tsx
+export const dynamic = "force-dynamic";
+
+
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import { checkRole } from '@/app/action';
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-
+  // Fix: pass the required role as an argument
   if (!(await checkRole('admin'))) {
     redirect('/');
   }
@@ -21,4 +25,3 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     </div>
   );
 }
-

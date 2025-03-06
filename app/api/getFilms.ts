@@ -1,30 +1,11 @@
 import { db } from "@/app/db/drizzle";
-import { film, userInteractions, watchLists, userRatings, accounts, watchedFilms} from "@/app/db/schema";
+import { film, userInteractions, watchLists, userRatings, watchedFilms} from "@/app/db/schema";
 import { eq, and, desc, like, or, sql, inArray, asc, avg } from "drizzle-orm";
+import { Film } from "@/types/film";
 
 export const dynamic = "force-dynamic";
 
 
-// Define the Film type (you can adjust fields to match your database schema)
-interface Film {
-  id: number;
-  title: string;
-  age: number;
-  duration: number;
-  imageString: string;
-  overview: string;
-  release: number;
-  videoSource: string;
-  category: string;
-  trailer: string;
-  rank: number;
-  userId?: string;
-  createdAt?: string;
-  producer?: string;
-  director?: string;
-  coDirector?: string;
-  studio?: string;
-}
 
 
 /**
@@ -37,27 +18,27 @@ export async function getAllFilms() {
     .select({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
+      trailer: film.trailerUrl,
       rank: film.rank,
     })
     .from(film)
-    .orderBy(desc(film.release)); // Sort by release date in descending order
+    .orderBy(desc(film.releaseYear)); 
 
   // Map data to match the expected Film structure
   const films = filmsData.map((film) => ({
     ...film,
-    watchList: false,            // Default value for watchList
-    trailerUrl: film.trailer,    // Map the trailer directly
-    year: new Date(film.release).getFullYear(), // Extract year from release date
-    time: film.duration,         // Map the duration as the time in minutes
-    initialRatings: 0,           // Default value for initial ratings
+    watchList: false,            
+    trailerUrl: film.trailer,    
+    year: new Date(film.release).getFullYear(), 
+    time: film.duration,       
+    initialRatings: 0,         
   }));
 
   return films;
@@ -75,14 +56,14 @@ export async function getFilmById(filmId: number) {
     .select({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
+      trailer: film.trailerUrl,
       rank: film.rank,
     })
     .from(film)
@@ -107,14 +88,14 @@ export async function searchFilms(searchTerm: string) {
     .select({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
+      trailer: film.trailerUrl,
       rank: film.rank,
     })
     .from(film)
@@ -124,7 +105,7 @@ export async function searchFilms(searchTerm: string) {
         like(film.category, `%${searchTerm}%`)
       )
     )
-    .orderBy(desc(film.release)); // Sort by release date in descending order
+    .orderBy(desc(film.releaseYear)); 
 
   return filmsData;
 }
@@ -140,18 +121,18 @@ export async function getTopRatedFilms() {
     .select({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
+      trailer: film.trailerUrl,
       rank: film.rank,
     })
     .from(film)
-    .orderBy(desc(film.rank)) // Sort by rank in descending order
+    .orderBy(desc(film.rank))
     .limit(10);
 
   return topRatedFilmsData;
@@ -168,19 +149,19 @@ export async function getHorrorFilms() {
     .select({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
+      trailer: film.trailerUrl,
       rank: film.rank,
     })
     .from(film)
-    .where(eq(film.category, 'Horror')) // Filter by category "Horror"
-    .orderBy(desc(film.release)); // Sort by release date in descending order
+    .where(eq(film.category, 'Horror')) 
+    .orderBy(desc(film.releaseYear)); 
 
   return horrorFilmsData;
 }
@@ -193,24 +174,27 @@ export async function getRecentlyAdded(userId: string) {
         overview: film.overview,
         title: film.title,
         WatchList: {
-          userId: accounts.userId,
+          userId: watchLists.userId,
           filmId: film.id,
         },
-        imageString: film.imageString,
-        trailer: film.trailer,
-        age: film.age,
-        release: film.release,
+        imageString: film.imageUrl,
+        trailer: film.trailerUrl,
+        age: film.ageRating,
+        release: film.releaseYear,
         duration: film.duration,
         category: film.category,
         // Aggregation to calculate average rating using avg()
         averageRating: avg(userRatings.rating).as('averageRating'),
       })
       .from(film)
-      .leftJoin(accounts, eq(accounts.userId, userId))
+      .leftJoin(watchLists, and(
+        eq(watchLists.filmId, film.id),
+        eq(watchLists.userId, userId)
+      ))
       .leftJoin(userRatings, eq(userRatings.filmId, film.id))
-      .groupBy(film.id, accounts.userId) // Group by both film.id and accounts.userId
-      .orderBy(asc(avg(userRatings.rating))) // Order by the calculated average rating
-      .limit(4); // Limit the results to top 4
+      .groupBy(film.id, watchLists.userId) 
+      .orderBy(asc(avg(userRatings.rating))) 
+      .limit(4); 
 
     return userFilms;
   } catch (error) {
@@ -231,19 +215,19 @@ export async function getFolkloreFilms() {
     .select({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
+      trailer: film.trailerUrl,
       rank: film.rank,
     })
     .from(film)
-    .where(eq(film.category, 'Folklore')) // Filter by category "Folklore"
-    .orderBy(desc(film.release)); // Sort by release date in descending order
+    .where(eq(film.category, 'Folklore')) 
+    .orderBy(desc(film.releaseYear));
 
   return folkloreFilmsData;
 }
@@ -252,7 +236,7 @@ export async function getFilmsByCategory(category: string) {
   try {
     const response = await fetch(`/api/films?category=${category}`);
     const data = await response.json();
-    return data.films || []; // Ensure we return an empty array if no films are found
+    return data.films || []; 
   } catch (error) {
     console.error("Error fetching films by category:", error);
     return [];
@@ -270,38 +254,37 @@ export async function getComedyFilms() {
     .select({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
+      trailer: film.trailerUrl,
       rank: film.rank,
     })
     .from(film)
-    .where(eq(film.category, 'Comedy')) // Filter by category "Comedy"
-    .orderBy(desc(film.release)); // Sort by release date in descending order
+    .where(eq(film.category, 'Comedy')) 
+    .orderBy(desc(film.releaseYear)); 
 
   return comedyFilmsData;
 }
 
 export async function getAllFilmsWithDetails(userId: string): Promise<Film[]> {
-  // Fetch films and additional data in parallel
+ 
   const filmsResponse = await fetch("http://localhost:3000/api/films");
   const films: Film[] = await filmsResponse.json();
 
   const userWatchlistResponse = await fetch(`http://localhost:3000/api/watchlist?userId=${userId}`);
-  const userWatchlist: number[] = await userWatchlistResponse.json(); // Array of film IDs in watchlist
+  const userWatchlist: number[] = await userWatchlistResponse.json(); 
 
   const userRatingsResponse = await fetch(`http://localhost:3000/api/user-ratings?userId=${userId}`);
-  const userRatings: Record<number, number> = await userRatingsResponse.json(); // Map of film ID to user rating
+  const userRatings: Record<number, number> = await userRatingsResponse.json(); 
 
   const averageRatingsResponse = await fetch(`http://localhost:3000/api/average-ratings`);
-  const averageRatings: Record<number, number> = await averageRatingsResponse.json(); // Map of film ID to average rating
+  const averageRatings: Record<number, number> = await averageRatingsResponse.json();
 
-  // Merge additional data into films
   return films.map((film: Film) => ({
     ...film,
     inWatchlist: userWatchlist.includes(film.id),
@@ -321,30 +304,30 @@ export async function getDramaFilms() {
     .select({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
+      trailer: film.trailerUrl,
       rank: film.rank
     })
     .from(film)
-    .where(eq(film.category, 'Drama')) // Filter by category "Drama"
-    .orderBy(desc(film.release)); // Sort by release date in descending order
+    .where(eq(film.category, 'Drama')) 
+    .orderBy(desc(film.releaseYear)); 
 
   return dramaFilmsData;
 }
 
 export async function fetchCategories() {
-  // Define the expected type for the rows
+
   const categories = await db.execute<{ category: string }>(
     sql`SELECT DISTINCT "category" FROM film`
   );
 
-  // Map the rows safely with TypeScript knowing the structure
+ 
   return categories.rows.map((row) => row.category);
 }
 
@@ -356,15 +339,15 @@ export async function getRecommendedFilms(userId: string): Promise<Film[]> {
     return data.films.map((film: any) => ({
       id: film.id,
       title: film.title,
-      age: film.age,
+      age: film.ageRating,
       duration: film.duration,
-      imageString: film.imageString,
+      imageString: film.imageUrl,
       overview: film.overview,
-      release: film.release,
+      release: film.releaseYear,
       videoSource: film.videoSource,
       category: film.category,
-      trailer: film.trailer,
-      rank: film.rank, // External rating
+      trailer: film.trailerUrl,
+      rank: film.rank,
     }));
   } catch (error) {
     console.error("Error fetching recommended films:", error);
@@ -428,14 +411,14 @@ async function contentBasedFiltering(userId: string) {
       .select({
         id: film.id,
         title: film.title,
-        age: film.age,
+        age: film.ageRating,
         duration: film.duration,
-        imageString: film.imageString,
+        imageString: film.imageUrl,
         overview: film.overview,
-        release: film.release,
+        release: film.releaseYear,
         videoSource: film.videoSource,
         category: film.category,
-        trailer: film.trailer,
+        trailer: film.trailerUrl,
         rank: film.rank,
       })
       .from(film)
@@ -456,9 +439,9 @@ export async function hybridRecommendation(userId: string) {
     let contentFilms: { id: number; title: string }[] = [];
     let userInteractionsData: { filmId: number; title: string; ratings: number }[] = [];
     let watchlistFilms: { id: number; title: string }[] = [];
-    let watchedFilmsData: { filmId: number; title: string; timestamp: Date }[] = [];
+    let watchedFilmsData: { filmId: number; title: string; currentTimestamp: Date }[] = [];
 
-    // Fetch user interactions (ratings)
+    
     try {
       userInteractionsData = await db
         .select({
@@ -475,7 +458,7 @@ export async function hybridRecommendation(userId: string) {
       console.error("❌ Error fetching user interactions:", error);
     }
 
-    // Fetch user's watchlist (liked films)
+    
     try {
       watchlistFilms = await db
         .select({
@@ -489,38 +472,40 @@ export async function hybridRecommendation(userId: string) {
       console.error("❌ Error fetching watchlist:", error);
     }
 
-    // Fetch user's watched films (most recent)
-    try {
-      watchedFilmsData = await db
-        .select({
-          filmId: watchedFilms.filmId,
-          title: sql<string>`COALESCE(${film.title}, '')`,
-          timestamp: watchedFilms.timestamp,
-        })
-        .from(watchedFilms)
-        .leftJoin(film, eq(watchedFilms.filmId, film.id))
-        .where(eq(watchedFilms.userId, userId))
-        .orderBy(desc(watchedFilms.timestamp))
-        .limit(1);
-    } catch (error) {
-      console.error("❌ Error fetching watched films:", error);
-    }
 
-    // Fetch collaborative filtering recommendations
+// Fetch user's watched films (most recent)
+try {
+  watchedFilmsData = await db
+    .select({
+      filmId: watchedFilms.filmId,
+      title: sql<string>`COALESCE(${film.title}, '')`,
+      currentTimestamp: sql<Date>`TO_TIMESTAMP(${watchedFilms.currentTimestamp})`,
+    })
+    .from(watchedFilms)
+    .leftJoin(film, eq(watchedFilms.filmId, film.id))
+    .where(eq(watchedFilms.userId, userId))
+    .orderBy(desc(watchedFilms.currentTimestamp))
+    .limit(1);
+} catch (error) {
+  console.error("❌ Error fetching watched films:", error);
+}
+
+
+ 
     try {
       collaborativeFilms = await collaborativeFiltering(userId);
     } catch (error) {
       console.error("❌ Error in collaborativeFiltering:", error);
     }
 
-    // Fetch content-based filtering recommendations
+    
     try {
       contentFilms = await contentBasedFiltering(userId);
     } catch (error) {
       console.error("❌ Error in contentBasedFiltering:", error);
     }
 
-    // Combine all recommendations into a set to avoid duplicates
+ 
     const filmMap = new Map<number, { id: number; title?: string }>();
     collaborativeFilms.forEach((film) => filmMap.set(film.id, film));
     contentFilms.forEach((film) => filmMap.set(film.id, film));
@@ -528,16 +513,16 @@ export async function hybridRecommendation(userId: string) {
 
     let recommendedFilms = Array.from(filmMap.values());
 
-    // Ensure we have at least 32 films, fetching top-rated if needed
+ 
     if (recommendedFilms.length < 32) {
       const extraFilms = await getTopRatedFilms();
       recommendedFilms.push(...extraFilms.slice(0, 32 - recommendedFilms.length));
     }
 
-    // Slice to ensure exactly 32 films
+  
     recommendedFilms = recommendedFilms.slice(0, 32);
 
-    // Generate dynamic reasons for recommendations
+   
     let reason1 = "Because you liked similar films";
     let reason2 = "Based on popular films";
     let reason3 = "Because you saved films to watch later";
@@ -556,7 +541,7 @@ export async function hybridRecommendation(userId: string) {
       reason4 = `Because you recently watched "${watchedFilmsData[0].title}"`;
     }
 
-    // Return structured recommendation response
+ 
     return [
       {
         reason: reason1,
@@ -597,7 +582,7 @@ export default async function handler(req: any, res: any) {
 
       if (collaborativeFilms.length > 0) {
         recommendations = await Promise.all(
-          collaborativeFilms.map((film) => getFilmById(film.id)) // Extract id
+          collaborativeFilms.map((film) => getFilmById(film.id))
         );
         return res.status(200).json(recommendations.slice(0, 8));
       }

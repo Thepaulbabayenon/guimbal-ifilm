@@ -1,105 +1,298 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { setRole, removeRole } from "@/app/action";
-import { checkRole } from "@/app/utils/roles";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-interface User {
+type User = {
   id: string;
-  firstName?: string;
-  lastName?: string;
-  emailAddresses?: { emailAddress: string }[];
-  role?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  emailAddresses: { emailAddress: string }[];
+  role: "admin" | "user";
+  name?: string;
+};
+
+interface UserManagementClientProps {
+  users: User[];
+  currentUserId: string;
+  isAdmin: boolean;
 }
 
 const UserManagementClient = ({ 
-  users = [], 
+  users, 
   currentUserId, 
-  isAdmin // ✅ Pass as a prop instead of using useState
-}: { 
-  users?: User[], 
-  currentUserId: string, 
-  isAdmin: boolean 
-}) => {
-  const [userList, setUserList] = useState<User[]>(users || []);
-  const [loadingActions, setLoadingActions] = useState<{ [key: string]: boolean }>({});
+  isAdmin 
+}: UserManagementClientProps) => {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isUpdateUserModalOpen, setIsUpdateUserModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleRoleChange = async (userId: string, role?: string) => {
-    if (!isAdmin) {
-      alert("You are not authorized to change roles.");
-      return;
-    }
-  
-    setLoadingActions((prev) => ({ ...prev, [userId]: true }));
-  
-    // ✅ Ensure FormData is properly created
-    const formData = new FormData();
-    formData.append("id", userId);
-    if (role) formData.append("role", role);
-  
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push(`/admin/users?search=${encodeURIComponent(searchQuery)}`);
+  };
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setIsUpdateUserModalOpen(true);
+  };
+
+  const handleDeletePrompt = (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    
+    setIsLoading(true);
     try {
-      if (role) {
-        await setRole(formData); // ✅ Pass correct FormData
-      } else {
-        await removeRole(formData); // ✅ Pass correct FormData
+      const response = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete user');
       }
-  
-      // Update UI optimistically
-      setUserList((prevUsers) =>
-        prevUsers.map((user) =>
-          user.id === userId ? { ...user, role: role ?? undefined } : user
-        )
-      );
+      
+      // Refresh the page to update the user list
+      router.refresh();
+      setIsDeleteModalOpen(false);
     } catch (error) {
-      console.error("Error updating role:", error);
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user. Please try again.');
     } finally {
-      setLoadingActions((prev) => ({ ...prev, [userId]: false }));
+      setIsLoading(false);
     }
   };
-  
+
+  const handleUpdateRole = async (userId: string, newRole: "admin" | "user") => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update user role');
+      }
+      
+      // Refresh the page to update the user list
+      router.refresh();
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      alert('Failed to update user role. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateUser = async (updatedUser: Partial<User>) => {
+    if (!selectedUser) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedUser),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update user');
+      }
+      
+      // Refresh the page to update the user list
+      router.refresh();
+      setIsUpdateUserModalOpen(false);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('Failed to update user. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div>
-      <h2 className="text-2xl font-semibold mb-4">User Management</h2>
-      {userList.length === 0 ? (
-        <p>No users found.</p>
-      ) : (
-        <div className="grid gap-4">
-          {userList.map((user) => (
-            <div key={user.id} className="p-4 border rounded-lg flex justify-between">
-              <div>
-                <h3 className="font-medium">
-                  {user.firstName ?? "Unknown"} {user.lastName ?? "User"}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {user.emailAddresses?.[0]?.emailAddress ?? "No Email"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Role: <span className={user.role === "admin" ? "text-red-500 font-semibold" : ""}>
-                    {user.role ?? "User"}
-                  </span>
-                </p>
-              </div>
-              {isAdmin && user.id !== currentUserId && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleRoleChange(user.id, "admin")}
-                    className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                    disabled={loadingActions[user.id]}
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6">User Management</h1>
+      
+      <form onSubmit={handleSearch} className="mb-6 flex">
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          className="px-4 py-2 border rounded-l w-full"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <button 
+          type="submit"
+          className="bg-blue-500 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
+        >
+          Search
+        </button>
+      </form>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="py-2 px-4 border text-left">Name</th>
+              <th className="py-2 px-4 border text-left">Email</th>
+              <th className="py-2 px-4 border text-left">Role</th>
+              <th className="py-2 px-4 border text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((user) => (
+              <tr key={user.id} className={user.id === currentUserId ? "bg-blue-50" : ""}>
+                <td className="py-2 px-4 border">
+                  {user.firstName} {user.lastName}
+                </td>
+                <td className="py-2 px-4 border">
+                  {user.email || user.emailAddresses[0]?.emailAddress}
+                </td>
+                <td className="py-2 px-4 border">
+                  <select
+                    value={user.role}
+                    onChange={(e) => handleUpdateRole(user.id, e.target.value as "admin" | "user")}
+                    disabled={user.id === currentUserId || isLoading}
+                    className="border rounded py-1 px-2 w-full"
                   >
-                    {loadingActions[user.id] ? "Processing..." : "Make Admin"}
-                  </button>
-                  <button
-                    onClick={() => handleRoleChange(user.id)}
-                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                    disabled={loadingActions[user.id]}
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </td>
+                <td className="py-2 px-4 border flex gap-2">
+                  <button 
+                    className="text-blue-500 hover:text-blue-700 px-2 py-1"
+                    onClick={() => handleEditUser(user)}
+                    disabled={isLoading}
                   >
-                    {loadingActions[user.id] ? "Processing..." : "Remove Role"}
+                    Edit
                   </button>
-                </div>
-              )}
+                  {user.id !== currentUserId && (
+                    <button 
+                      className="text-red-500 hover:text-red-700 px-2 py-1"
+                      onClick={() => handleDeletePrompt(user)}
+                      disabled={isLoading}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-4 px-4 border text-center text-gray-500">
+                  No users found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Confirm Deletion</h3>
+            <p className="mb-4">
+              Are you sure you want to delete the user <span className="font-semibold">{selectedUser.firstName} {selectedUser.lastName}</span>?
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"
+                onClick={handleDeleteUser}
+                disabled={isLoading}
+              >
+                {isLoading ? "Deleting..." : "Delete User"}
+              </button>
             </div>
-          ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {isUpdateUserModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Edit User</h3>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const updatedUser = {
+                  name: formData.get('name') as string,
+                  email: formData.get('email') as string,
+                };
+                handleUpdateUser(updatedUser);
+              }}
+            >
+              <div className="mb-4">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  defaultValue={selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}
+                  className="w-full px-3 py-2 border rounded-md"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  defaultValue={selectedUser.email || selectedUser.emailAddresses[0]?.emailAddress}
+                  className="w-full px-3 py-2 border rounded-md"
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+                  onClick={() => setIsUpdateUserModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

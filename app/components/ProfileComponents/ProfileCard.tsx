@@ -4,7 +4,6 @@ interface ProfileCardProps {
   user: {
     id: string;
     name?: string;
-    email: string;
     imageUrl?: string;
     isAdmin?: boolean;
   };
@@ -21,7 +20,6 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ user }) => {
         className="rounded-full mb-4"
       />
       <h2 className="text-xl font-semibold text-black">{user.name || "Unnamed User"}</h2>
-      <p className="text-gray-500">{user.email}</p>
       {user.isAdmin && <span className="text-sm text-red-500 font-bold">Admin</span>}
     </div>
   );

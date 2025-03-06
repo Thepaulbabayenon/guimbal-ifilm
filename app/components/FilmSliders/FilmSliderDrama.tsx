@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import PlayVideoModal from "../PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/app/auth/nextjs/useUser";
 import { CiStar } from "react-icons/ci";
 import { FaHeart, FaPlay } from 'react-icons/fa';
 import axios, { AxiosError } from "axios";
@@ -36,19 +36,29 @@ export function FilmSliderDrama() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
 
-  useEffect(() => {
-    const fetchFilms = async () => {
-      try {
-        const filmsData = await getDramaFilms();
-        setFilms(filmsData);
-      } catch (error) {
-        console.error("Error fetching films:", error);
-      } finally {
-        setIsLoading(false);
+   useEffect(() => {
+      async function fetchFilms() {
+        try {
+          const filmsData = await getDramaFilms();
+          const formattedFilms = filmsData.map((film) => ({
+            ...film,
+            age: film.age !== null ? Number(film.age) : 0, // Convert to number or default to 0
+            trailer: film.trailer ?? "", // Ensure trailer is a string
+            rank: film.rank ?? 0, // Default rank to 0 if null
+          }));
+      
+          setFilms(formattedFilms);
+          setIsLoading(false);
+        } catch (error) {
+          console.error("Error fetching films:", error);
+          setIsLoading(false);
+        }
       }
-    };
-    fetchFilms();
-  }, []);
+      
+      
+    
+      fetchFilms();
+    }, []);
 
   useEffect(() => {
     if (userId && films.length > 0) {
@@ -132,7 +142,7 @@ export function FilmSliderDrama() {
     if (!userId) return;
 
     try {
-      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
+      await axios.post(`/api/films/${filmId}/watched-films`, { userId });
     } catch (error) {
       console.error("Error marking film as watched:", error);
     }

@@ -1,4 +1,6 @@
 'use client';
+export const dynamic = "force-dynamic"; // Forces the API to run on every request
+
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
@@ -21,12 +23,17 @@ export default function Announcements() {
   useEffect(() => {
     async function fetchAnnouncements() {
       try {
-        const res = await fetch(`/api/admin/announcements?page=${page}&limit=${PAGE_SIZE}`);
+        const res = await fetch(`/api/admin/announcements?page=${page}&limit=${PAGE_SIZE}`, {
+          credentials: "include", // Ensures cookies are sent
+        });
+  
+        if (!res.ok) throw new Error("Failed to fetch announcements");
+  
         const { data, total } = await res.json();
-
+  
         if (Array.isArray(data)) {
           setAnnouncements(data);
-          setTotalPages(Math.ceil(total / PAGE_SIZE)); // Calculate total pages
+          setTotalPages(Math.ceil(total / PAGE_SIZE));
         } else {
           setAnnouncements([]);
         }
@@ -34,9 +41,10 @@ export default function Announcements() {
         console.error("Error fetching announcements:", error);
       }
     }
+  
     fetchAnnouncements();
-  }, [page]); // Fetch data when `page` changes
-
+  }, [page]);
+  
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Announcements</h1>

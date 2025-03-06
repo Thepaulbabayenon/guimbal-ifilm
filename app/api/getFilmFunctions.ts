@@ -1,6 +1,6 @@
 import { db } from '@/app/db/drizzle'; 
 import { userRatings, film, watchLists } from '@/app/db/schema'; 
-import { eq } from 'drizzle-orm/expressions';  // Correct import for eq
+import { eq } from 'drizzle-orm/expressions'; 
 
 export async function getUserRatings(userId: string) {
   const ratings = await db
@@ -9,7 +9,7 @@ export async function getUserRatings(userId: string) {
       rating: userRatings.rating,
     })
     .from(userRatings)
-    .where(eq(userRatings.userId, userId));  // Corrected query syntax
+    .where(eq(userRatings.userId, userId));
 
   return ratings.reduce((acc, { filmId, rating }) => {
     acc[filmId] = rating;
@@ -24,10 +24,10 @@ export async function getWatchlistStatus(userId: string) {
       isFavorite: watchLists.isFavorite,
     })
     .from(watchLists)
-    .where(eq(watchLists.userId, userId));  // Corrected query syntax
+    .where(eq(watchLists.userId, userId)); 
 
   return watchlistStatus.reduce((acc, { filmId, isFavorite }) => {
-    acc[filmId] = isFavorite ?? false;  // Handle null by defaulting to false
+    acc[filmId] = isFavorite ?? false;
     return acc;
   }, {} as Record<string, boolean>);
 }

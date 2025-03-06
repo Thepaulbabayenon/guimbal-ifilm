@@ -1,18 +1,44 @@
-// components/UserRatings.tsx
-import { auth } from "@clerk/nextjs/server";  // This is valid only in Server Components
+"use client"; // Ensure this is a Client Component
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/app/auth/nextjs/useUser";
 import { db } from "@/app/db/drizzle";
 import { eq } from "drizzle-orm";
 import { userRatings, film } from "@/app/db/schema";
 
-export async function UserRatings() {
-  const { userId } = auth();  // Ensure auth() is called in a Server Component context
-  if (!userId) return null;
+type UserRatingEntry = {
+  filmId: number;
+  rating: number;
+  timestamp: Date;
+  film: {
+    title: string;
+  };
+};
 
-  const ratings = await db.query.userRatings.findMany({
-    where: eq(userRatings.userId, userId),
-    with: { film: true },
-    orderBy: (ratings, { desc }) => [desc(ratings.timestamp)],
-  });
+export default function UserRatings() {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [ratings, setRatings] = useState<UserRatingEntry[]>([]);
+
+  useEffect(() => {
+    async function fetchRatings() {
+      if (!user || !isAuthenticated) return;
+
+      try {
+        const response = await fetch(`/api/user-ratings?userId=${user.id}`);
+        if (!response.ok) throw new Error("Failed to fetch ratings");
+
+        const data: UserRatingEntry[] = await response.json();
+        setRatings(data);
+      } catch (error) {
+        console.error("Error fetching user ratings:", error);
+      }
+    }
+
+    fetchRatings();
+  }, [user, isAuthenticated]);
+
+  if (isLoading) return <p>Loading...</p>;
+  if (!isAuthenticated) return <p>Please sign in to view your ratings.</p>;
 
   return (
     <section>

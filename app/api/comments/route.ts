@@ -35,12 +35,11 @@ export async function POST(req: Request) {
 
     // Insert comment into the database
     await db.insert(comments).values({ 
-      userId: userIdFormatted, // Ensure it's a string
+      userId: userIdFormatted, 
       filmId, 
-      username, 
-      content, 
-      email 
+      content 
     });
+    
 
     console.log('Comment successfully added for user:', userIdFormatted);
 

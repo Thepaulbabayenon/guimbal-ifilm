@@ -1,137 +1,142 @@
-// /app/db/schema.ts  
+import { relations, sql } from "drizzle-orm";
 import {
+  boolean,
+  doublePrecision,
+  integer,
+  pgEnum,
   pgTable,
+  primaryKey,
+  real,
   serial,
   text,
-  varchar,
-  integer,
   timestamp,
-  doublePrecision,
-  primaryKey,
-  boolean,
   uuid,
-  real,
-} from 'drizzle-orm/pg-core';
-import { relations, sql } from 'drizzle-orm';
-import z from 'zod';
+  varchar,
+} from "drizzle-orm/pg-core";
+import z from "zod";
 
-export interface UserJSON {
-  id: string;
-  email_addresses: { email_address: string }[]; // Assuming email_addresses is an array of objects
-  image_url?: string; // Optional as it may not always be present
-  name?: string; // If name is available
-  isAdmin?: boolean; //
-}
+// ===== Enums =====
+export const userRoles = ["admin", "user"] as const;
+export type UserRole = (typeof userRoles)[number];
+export const userRoleEnum = pgEnum("user_roles", userRoles);
 
-// Users Table
-export const users = pgTable('user', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text('name'),
-  email: text('email').notNull().unique(),
-  emailVerified: timestamp('emailVerified', { mode: 'date' }),
-  image: text('image'),
-  isAdmin: boolean('isAdmin').default(false),
+export const oAuthProviders = ["discord", "github", "google"] as const;
+export type OAuthProvider = (typeof oAuthProviders)[number];
+export const oAuthProviderEnum = pgEnum("oauth_providers", oAuthProviders);
+
+// ===== User Tables =====
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  password: text("password"),
+  username: text("username"),
+  salt: text("salt"),
+  role: userRoleEnum("role").notNull().default("user"),
+  emailVerified: timestamp("email_verified", { withTimezone: true }),
+  image: text("image"),
+  // Add 2FA fields
+  twoFactorSecret: text("two_factor_secret"),
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  twoFactorBackupCodes: text("two_factor_backup_codes").array(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
-// Accounts Table
-export const accounts = pgTable(
-  'account',
+export const userOAuthAccounts = pgTable(
+  "user_oauth_accounts",
   {
-    userId: text('userId')
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    provider: text('provider').notNull(),
-    providerAccountId: text('providerAccountId').notNull(),
-    refresh_token: text('refresh_token'),
-    access_token: text('access_token'),
-    expires_at: integer('expires_at'),
-    token_type: text('token_type'),
-    scope: text('scope'),
-    id_token: text('id_token'),
-    session_state: text('session_state'),
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: oAuthProviderEnum("provider").notNull(),
+    providerAccountId: text("provider_account_id").notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: text("token_type"),
+    scope: text("scope"),
+    id_token: text("id_token"),
+    session_state: text("session_state"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
-  (account) => ({
-    compoundKey: primaryKey({
-      columns: [account.provider, account.providerAccountId],
-    }),
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.provider, t.providerAccountId] }),
   })
 );
 
-// Sessions Table
-export const sessions = pgTable('session', {
-  sessionToken: text('sessionToken').primaryKey(),
-  userId: text('userId')
+// Add a new table for 2FA sessions
+export const twoFactorSessions = pgTable("two_factor_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  expires: timestamp('expires', { mode: 'date' }).notNull(),
+    .references(() => users.id, { onDelete: "cascade" }),
+  verified: boolean("verified").notNull().default(false),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// VerificationTokens Table
+export const sessions = pgTable("sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sessionToken: text("session_token").notNull().unique(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expires: timestamp("expires", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const verificationTokens = pgTable(
-  'verificationToken',
+  "verificationToken",
   {
-    identifier: text('identifier').notNull(),
-    token: text('token').notNull(),
-    expires: timestamp('expires', { mode: 'date' }).notNull(),
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: timestamp("expires", { withTimezone: true }).notNull(),
   },
   (verificationToken) => ({
-    compositePk: primaryKey({
+    primaryKey: primaryKey({
       columns: [verificationToken.identifier, verificationToken.token],
     }),
   })
 );
 
-// Authenticators Table
-export const authenticators = pgTable(
-  'authenticator',
-  {
-    credentialID: text('credentialID').notNull().unique(),
-    userId: text('userId')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    providerAccountId: text('providerAccountId').notNull(),
-    credentialPublicKey: text('credentialPublicKey').notNull(),
-    counter: integer('counter').notNull(),
-    credentialDeviceType: text('credentialDeviceType').notNull(),
-    credentialBackedUp: boolean('credentialBackedUp').notNull(),
-    transports: text('transports'),
-  },
-  (authenticator) => ({
-    compositePK: primaryKey({
-      columns: [authenticator.userId, authenticator.credentialID],
-    }),
-  })
-);
-
-// Film Table
-export const film = pgTable('film', {
-  id: serial('id').primaryKey(),
-  imageString: varchar('imageString').notNull(),
-  title: varchar('title').notNull(),
-  age: integer('age').notNull(),
-  duration: doublePrecision('duration').notNull(),
-  overview: text('overview').notNull(),
-  release: integer('release').notNull(),
-  videoSource: varchar('videoSource').notNull(),
-  category: varchar('category').notNull(),
-  trailer: varchar('trailer').notNull(),
-  createdAt: timestamp('createdAt').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
-  producer: varchar('producer').notNull(),
-  director: varchar('director').notNull(),
-  coDirector: varchar('coDirector').notNull(),
-  studio: varchar('studio').notNull(),
-  rank: integer('rank').default(sql`0`).notNull(),  // Default rank
-  averageRating: real('averageRating'),
+// ===== Content Tables =====
+export const film = pgTable("films", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  imageUrl: varchar("image_url", { length: 1000 }).notNull(),
+  overview: text("overview").notNull(),
+  duration: doublePrecision("duration").notNull(), 
+  releaseYear: integer("release_year").notNull(),
+  ageRating: integer("age_rating").notNull(),
+  videoSource: varchar("video_source", { length: 1000 }).notNull(),
+  trailerUrl: varchar("trailer_url", { length: 1000 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  director: varchar("director", { length: 255 }),
+  coDirector: varchar("co_director", { length: 255 }),
+  producer: varchar("producer", { length: 255 }),
+  studio: varchar("studio", { length: 255 }),
+  rank: integer("rank").default(0),
+  averageRating: real("average_rating"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 // UserInteractions Table (Existing)
 export const userInteractions = pgTable(
   'userInteractions',
   {
-    userId: text('userId')
+    userId: uuid('userId')  // Changed text to uuid to match users.id type
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     filmId: integer('filmId')
@@ -147,191 +152,274 @@ export const userInteractions = pgTable(
   })
 );
 
-//announcement table
-export const announcements = pgTable("announcements", {
+export const genres = pgTable("genres", {
   id: serial("id").primaryKey(),
-  adminId: text("adminId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }), // References the user (admin)
-  title: varchar("title", { length: 255 }).notNull(),
-  content: text("content").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().$onUpdate(() => new Date()),
+  name: varchar("name", { length: 100 }).notNull().unique(),
 });
 
-
-// WatchedFilms Table (Updated)
-export const watchedFilms = pgTable(
-  'watchedFilms',
+export const filmGenres = pgTable(
+  "film_genres", 
   {
-    userId: text('userId')
+    filmId: integer("film_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    filmId: integer('filmId')
+      .references(() => film.id, { onDelete: "cascade" }),
+    genreId: integer("genre_id")
       .notNull()
-      .references(() => film.id, { onDelete: 'cascade' }),
-    timestamp: timestamp('timestamp').defaultNow().notNull(),  // Time when the film was marked as watched
-    currentTimestamp: doublePrecision('currentTimestamp').default(0),  // Last played timestamp (in seconds or milliseconds)
+      .references(() => genres.id, { onDelete: "cascade" }),
   },
-  (watchedFilms) => ({
-    primaryKey: primaryKey({
-      columns: [watchedFilms.userId, watchedFilms.filmId],
-    }),
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.filmId, t.genreId] }),
   })
 );
 
-
-
-// WatchLists Table
-export const watchLists = pgTable('watchLists', {
-  id: serial('id').primaryKey(), // Auto-incremented INTEGER
-  userId: text('userId').notNull(),
-  filmId: integer('filmId').notNull(),
-  isFavorite: boolean('isFavorite').default(false),
-  // ... other fields
-});
-
-export const userPreferences = pgTable("user_preferences", {
-  id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(), // ✅ Ensure userId exists
-  favoriteGenres: text("favorite_genres"),
-  preferredMoods: text("preferred_moods"),
-  themes: text("themes"),
-});
-
-
-
-export const playlists = pgTable("playlists", {
-  id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(),
-  title: text("title").notNull(),
-  isPublic: boolean("is_public").default(true),
-});
-
-// Recommendations Table (New)
-export const filmRecommendations = pgTable('filmRecommendations', {
-  userId: text('userId')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),  // User receiving the recommendation
-  filmId: integer('filmId')
-    .notNull()
-    .references(() => film.id, { onDelete: 'cascade' }),  // Film being recommended
-  recommendedBy: text('recommendedBy')
-    .notNull() // User who recommended the film
-    .references(() => users.id, { onDelete: 'cascade' }),
-  timestamp: timestamp('timestamp').defaultNow().notNull(),  // When the recommendation was made
-});
-
-
-
-// UserRatings Table (New)
+// ===== User Interaction Tables =====
 export const userRatings = pgTable(
-  'userRatings',
+  "user_ratings",
   {
-    id: serial('id'), // Regular column, not a primary key
-    userId: text('userId')
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    filmId: integer('filmId')
+      .references(() => users.id, { onDelete: "cascade" }),
+    filmId: integer("film_id")
       .notNull()
-      .references(() => film.id, { onDelete: 'cascade' }),
-    rating: integer('rating').notNull(),
-    timestamp: timestamp('timestamp').defaultNow().notNull(),
+      .references(() => film.id, { onDelete: "cascade" }),
+    rating: integer("rating").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
-  (userRatings) => ({
-    primaryKey: primaryKey({
-      columns: [userRatings.userId, userRatings.filmId],
-    }),
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.userId, t.filmId] }),
   })
 );
 
-// File table
-export const filesTable = pgTable("files", {
-  id: serial("id").primaryKey(),
-  fileName: varchar("file_name", { length: 255 }),
-  s3Url: varchar("s3_url", { length: 500 }),
-  uploadDate: varchar("upload_date", { length: 50 }),
-});
-
-// Zod Schema for Inserting Films
-export const insertFilmSchema = z.object({
-  imageString: z.string().min(1),
-  title: z.string().min(1),
-  age: z.number().int().positive(),
-  duration: z.number().positive(),
-  overview: z.string().min(1),
-  release: z.number().int().positive(),
-  videoSource: z.string().min(1),
-  category: z.string().min(1),
-  trailerString: z.string().min(1),
-  rank: z.number().int().positive(),
-});
-
-// Comments Table (New)
-export const comments = pgTable(
-  'comments',
+export const watchedFilms = pgTable(
+  "watched_films",
   {
-    id: serial('id').primaryKey(),  // Unique comment ID
-    userId: text('userId')
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),  // Reference to the user
-    filmId: integer('filmId')
+      .references(() => users.id, { onDelete: "cascade" }),
+    filmId: integer("film_id")
       .notNull()
-      .references(() => film.id, { onDelete: 'cascade' }),  // Reference to the film
-    content: text('content').notNull(),  // The comment's content
-    username: varchar('username', { length: 255 }),
-    email: varchar('email', { length: 255 }).notNull(), // New field for user email
-    thumbsUp: integer('thumbsUp').default(0).notNull(), // New field for thumbs up
-    thumbsDown: integer('thumbsDown').default(0).notNull(), // New field for thumbs down
-    createdAt: timestamp('createdAt').defaultNow().notNull(),  // Timestamp for when the comment was made
-  }
+      .references(() => film.id, { onDelete: "cascade" }),
+    watchedAt: timestamp("watched_at", { withTimezone: true }).notNull().defaultNow(),
+    currentTimestamp: doublePrecision("current_timestamp").default(0), // Last played position in seconds
+    completedWatching: boolean("completed_watching").default(false),
+  },
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.userId, t.filmId] }),
+  })
 );
 
+export const watchLists = pgTable(
+  "watch_lists",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    filmId: integer("film_id")
+      .notNull()
+      .references(() => film.id, { onDelete: "cascade" }),
+    isFavorite: boolean("is_favorite").default(false),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.userId, t.filmId] }),
+  })
+);
 
-
-export const dismissedAnnouncements = pgTable("dismissed_announcements", {
+export const comments = pgTable("comments", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(),
-  announcementId: integer("announcement_id").notNull(),
-  dismissedAt: timestamp("dismissed_at").defaultNow(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  filmId: integer("film_id")
+    .notNull()
+    .references(() => film.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
+
+
+const emailSchema = z.string().email("Invalid email format").regex(
+  /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+  "Invalid email address"
+);
+
+export const signInSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, "Password is required"),
+});
+
+export const signUpSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: emailSchema,
+  username: z.string().min(1, "Username is required"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[@#$%^&*!]/, "Password must contain at least one special character (@#$%^&*!)"),
+});
+
+export const resetTokens = pgTable("reset_tokens", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`), // ✅ Generate UUID
+  email: text("email").notNull(),
+  token: text("token").unique().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+})
 
 
 export const commentVotes = pgTable(
-  'commentVotes',
+  "comment_votes",
   {
-    id: serial('id').primaryKey(),
-    userId: text('userId')
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    commentId: integer('commentId')
+      .references(() => users.id, { onDelete: "cascade" }),
+    commentId: integer("comment_id")
       .notNull()
-      .references(() => comments.id, { onDelete: 'cascade' }),
-    voteType: varchar('voteType', { length: 10 }).notNull(), // 'up' or 'down'
-    filmId: integer('filmId') // Add this line to include filmId
-      .notNull() // Ensure it is not null
-      .references(() => film.id, { onDelete: 'cascade' }), // Assuming films table exists
-  }
+      .references(() => comments.id, { onDelete: "cascade" }),
+    voteType: varchar("vote_type", { length: 10 }).notNull(), // 'up' or 'down'
+  },
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.userId, t.commentId] }),
+  })
 );
 
+export const playlists = pgTable("playlists", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  isPublic: boolean("is_public").default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
 
+export const playlistItems = pgTable(
+  "playlist_items",
+  {
+    playlistId: integer("playlist_id")
+      .notNull()
+      .references(() => playlists.id, { onDelete: "cascade" }),
+    filmId: integer("film_id")
+      .notNull()
+      .references(() => film.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.playlistId, t.filmId] }),
+  })
+);
 
+export const userPreferences = pgTable("user_preferences", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  favoriteGenres: text("favorite_genres"), // Stored as comma-separated values or JSON
+  preferredMoods: text("preferred_moods"),
+  themes: text("themes"),
+  updateAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
 
+// ===== Admin Features =====
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
 
-export const watchHistory = pgTable('watchHistory', {
-  id: serial('id').primaryKey(),
-  userId: varchar('userId').notNull(),
-  filmId: varchar('filmId').notNull(),
-  watchedDuration: integer('watchedDuration').default(0),
-  createdAt: timestamp('createdAt').defaultNow(),
+  adminId: uuid("admin_id") // ✅ New column for tracking admin who created the announcement
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  isActive: boolean("is_active").default(true),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 
+export const dismissedAnnouncements = pgTable(
+  "dismissed_announcements",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    announcementId: integer("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.userId, t.announcementId] }),
+  })
+);
 
-// Relations Definitions
-export const accountRelations = relations(accounts, ({ one }) => ({
+// ===== File Storage =====
+export const files = pgTable("files", {
+  id: serial("id").primaryKey(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  s3Url: varchar("s3_url", { length: 500 }).notNull(),
+  uploadDate: timestamp("upload_date", { withTimezone: true }).notNull().defaultNow(),
+  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+  fileSize: integer("file_size"), // in bytes
+  mimeType: varchar("mime_type", { length: 100 }),
+});
+
+// ===== Zod Schemas =====
+export const insertFilmSchema = z.object({
+  title: z.string().min(1),
+  imageUrl: z.string().min(1),
+  overview: z.string().min(1),
+  duration: z.number().positive(),
+  releaseYear: z.number().int().positive(),
+  ageRating: z.string().optional(),
+  videoSource: z.string().min(1),
+  trailerUrl: z.string().optional(),
+  category: z.string().min(1),
+  director: z.string().optional(),
+  coDirector: z.string().optional(),
+  producer: z.string().optional(),
+  studio: z.string().optional(),
+  rank: z.number().int().positive().optional(),
+});
+
+// ===== Relations =====
+export const userRelations = relations(users, ({ many }) => ({
+  oAuthAccounts: many(userOAuthAccounts),
+  sessions: many(sessions),
+  ratings: many(userRatings),
+  watchedFilms: many(watchedFilms),
+  watchLists: many(watchLists),
+  comments: many(comments),
+  commentVotes: many(commentVotes),
+  playlists: many(playlists),
+  createdAnnouncements: many(announcements),  // Simplified relation without relationName
+  dismissedAnnouncements: many(dismissedAnnouncements),
+  uploadedFiles: many(files, { relationName: "uploadedFiles" }),
+}));
+
+export const userOAuthAccountRelations = relations(userOAuthAccounts, ({ one }) => ({
   user: one(users, {
-    fields: [accounts.userId],
+    fields: [userOAuthAccounts.userId],
     references: [users.id],
   }),
 }));
@@ -343,49 +431,31 @@ export const sessionRelations = relations(sessions, ({ one }) => ({
   }),
 }));
 
-export const userRelations = relations(users, ({ many }) => ({
-  accounts: many(accounts),
-  sessions: many(sessions),
-  authenticators: many(authenticators),
-  watchLists: many(watchLists),
-  userRatings: many(userRatings), // New relation
-}));
-
 export const filmRelations = relations(film, ({ many }) => ({
-  watchLists: many(watchLists),
-  userRatings: many(userRatings), // New relation
+  genres: many(filmGenres),
+  ratings: many(userRatings),
+  watchedBy: many(watchedFilms),
+  inWatchLists: many(watchLists),
+  comments: many(comments),
+  inPlaylists: many(playlistItems),
 }));
 
-export const userInteractionRelations = relations(userInteractions, ({ one }) => ({
-  user: one(users, {
-    fields: [userInteractions.userId],
-    references: [users.id],
-  }),
+export const genreRelations = relations(genres, ({ many }) => ({
+  films: many(filmGenres),
+}));
+
+export const filmGenreRelations = relations(filmGenres, ({ one }) => ({
   film: one(film, {
-    fields: [userInteractions.filmId],
+    fields: [filmGenres.filmId],
     references: [film.id],
   }),
-}));
-
-export const watchListRelations = relations(watchLists, ({ one }) => ({
-  film: one(film, {
-    fields: [watchLists.filmId],
-    references: [film.id],
-  }),
-  user: one(users, {
-    fields: [watchLists.userId],
-    references: [users.id],
+  genre: one(genres, {
+    fields: [filmGenres.genreId],
+    references: [genres.id],
   }),
 }));
 
-export const authenticatorRelations = relations(authenticators, ({ one }) => ({
-  user: one(users, {
-    fields: [authenticators.userId],
-    references: [users.id],
-  }),
-}));
-
-export const userRatingsRelations = relations(userRatings, ({ one }) => ({
+export const userRatingRelations = relations(userRatings, ({ one }) => ({
   user: one(users, {
     fields: [userRatings.userId],
     references: [users.id],
@@ -396,8 +466,29 @@ export const userRatingsRelations = relations(userRatings, ({ one }) => ({
   }),
 }));
 
-// Comments Relations
-export const commentsRelations = relations(comments, ({ one }) => ({
+export const watchedFilmRelations = relations(watchedFilms, ({ one }) => ({
+  user: one(users, {
+    fields: [watchedFilms.userId],
+    references: [users.id],
+  }),
+  film: one(film, {
+    fields: [watchedFilms.filmId],
+    references: [film.id],
+  }),
+}));
+
+export const watchListRelations = relations(watchLists, ({ one }) => ({
+  user: one(users, {
+    fields: [watchLists.userId],
+    references: [users.id],
+  }),
+  film: one(film, {
+    fields: [watchLists.filmId],
+    references: [film.id],
+  }),
+}));
+
+export const commentRelations = relations(comments, ({ one, many }) => ({
   user: one(users, {
     fields: [comments.userId],
     references: [users.id],
@@ -406,12 +497,69 @@ export const commentsRelations = relations(comments, ({ one }) => ({
     fields: [comments.filmId],
     references: [film.id],
   }),
+  votes: many(commentVotes),
 }));
 
-
-export const announcementRelations = relations(announcements, ({ one }) => ({
-  admin: one(users, {
-    fields: [announcements.adminId],
+export const commentVoteRelations = relations(commentVotes, ({ one }) => ({
+  user: one(users, {
+    fields: [commentVotes.userId],
     references: [users.id],
+  }),
+  comment: one(comments, {
+    fields: [commentVotes.commentId],
+    references: [comments.id],
+  }),
+}));
+
+export const playlistRelations = relations(playlists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [playlists.userId],
+    references: [users.id],
+  }),
+  items: many(playlistItems),
+}));
+
+export const playlistItemRelations = relations(playlistItems, ({ one }) => ({
+  playlist: one(playlists, {
+    fields: [playlistItems.playlistId],
+    references: [playlists.id],
+  }),
+  film: one(film, {
+    fields: [playlistItems.filmId],
+    references: [film.id],
+  }),
+}));
+
+export const userPreferenceRelations = relations(userPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+export const announcementRelations = relations(announcements, ({ one, many }) => ({
+  admin: one(users, { 
+    fields: [announcements.adminId],  
+    references: [users.id],
+  }),
+  dismissedBy: many(dismissedAnnouncements),
+}));
+
+export const dismissedAnnouncementRelations = relations(dismissedAnnouncements, ({ one }) => ({
+  user: one(users, {
+    fields: [dismissedAnnouncements.userId],
+    references: [users.id],
+  }),
+  announcement: one(announcements, {
+    fields: [dismissedAnnouncements.announcementId],
+    references: [announcements.id],
+  }),
+}));
+
+export const fileRelations = relations(files, ({ one }) => ({
+  uploader: one(users, {
+    fields: [files.uploadedBy],
+    references: [users.id],
+    relationName: "uploadedFiles",
   }),
 }));

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import PlayVideoModal from "../PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/app/auth/nextjs/useUser";
 import { CiStar } from "react-icons/ci";
 import { FaHeart, FaPlay } from 'react-icons/fa';
 import axios, { AxiosError } from "axios";
@@ -37,18 +37,28 @@ export function FilmSliderFolklore() {
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
 
   useEffect(() => {
-    const fetchFilms = async () => {
-      try {
-        const filmsData = await getFolkloreFilms();
-        setFilms(filmsData);
-      } catch (error) {
-        console.error("Error fetching films:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchFilms();
-  }, []);
+     async function fetchFilms() {
+       try {
+         const filmsData = await getFolkloreFilms();
+         const formattedFilms = filmsData.map((film) => ({
+           ...film,
+           age: film.age !== null ? Number(film.age) : 0, // Convert to number or default to 0
+           trailer: film.trailer ?? "", // Ensure trailer is a string
+           rank: film.rank ?? 0, // Default rank to 0 if null
+         }));
+     
+         setFilms(formattedFilms);
+         setIsLoading(false);
+       } catch (error) {
+         console.error("Error fetching films:", error);
+         setIsLoading(false);
+       }
+     }
+     
+     
+   
+     fetchFilms();
+   }, []);
 
   useEffect(() => {
     if (userId && films.length > 0) {
@@ -132,7 +142,7 @@ export function FilmSliderFolklore() {
     if (!userId) return;
 
     try {
-      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
+      await axios.post(`/api/films/${filmId}/watched-films`, { userId });
     } catch (error) {
       console.error("Error marking film as watched:", error);
     }

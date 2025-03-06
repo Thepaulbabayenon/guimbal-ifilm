@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs'; // Import useUser from Clerk
+import { useUser } from '../auth/nextjs/useUser'; // Import your hook
 import { db } from '@/app/db/drizzle';
-import { comments } from '@/app/db/schema';
+import { comments, users } from '@/app/db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 interface CommentsProps {
@@ -19,7 +19,9 @@ interface Comment {
 }
 
 export default function Comments({ filmId }: CommentsProps) {
-  const { user } = useUser(); // Get the current user from Clerk
+  // Use the hook at the top level of your component
+  const { user: currentUser, isLoading: userLoading } = useUser();
+  
   const [commentsList, setCommentsList] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,39 +33,39 @@ export default function Comments({ filmId }: CommentsProps) {
       setError('Comment cannot be empty.');
       return;
     }
-  
+
     if (!filmId) {
       setError('Missing film ID.');
       return;
     }
-  
-    if (!user) {
+
+    if (!currentUser) {
       setError('You must be logged in to post a comment.');
       return;
     }
-  
+
     setError(null);
     setLoading(true);
-  
+
     try {
       const response = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: currentUser.id,
           filmId,
-          username: user.username || 'Anonymous',
+          username: currentUser.name || 'Anonymous',
           content: newComment.trim(),
-          email: user?.emailAddresses?.[0]?.emailAddress || 'no-email@example.com', // Ensure email is always provided
+          email: currentUser.email || 'no-email@example.com',
         }),
       });
-  
+
       const data = await response.json();
-  
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to add comment.');
       }
-  
+
       await fetchComments(); // Refresh comments after adding
       setNewComment('');
     } catch (error) {
@@ -73,8 +75,6 @@ export default function Comments({ filmId }: CommentsProps) {
       setLoading(false);
     }
   };
-  
-  
 
   // Fetch comments from the database
   const fetchComments = async () => {
@@ -90,11 +90,12 @@ export default function Comments({ filmId }: CommentsProps) {
         .select({
           id: comments.id,
           userId: comments.userId,
-          username: comments.username,
           content: comments.content,
           createdAt: comments.createdAt,
+          username: users.name, // Join users table to get the username
         })
         .from(comments)
+        .innerJoin(users, eq(comments.userId, users.id)) // Join with users table
         .where(eq(comments.filmId, filmId))
         .orderBy(desc(comments.createdAt));
 
@@ -102,7 +103,7 @@ export default function Comments({ filmId }: CommentsProps) {
       const formattedComments = fetchedComments.map((comment) => ({
         ...comment,
         createdAt: comment.createdAt.toISOString(),
-        username: comment.username || 'Anonymous',
+        username: comment.username || 'Anonymous', // Ensure username fallback
       }));
 
       setCommentsList(formattedComments);
@@ -126,7 +127,7 @@ export default function Comments({ filmId }: CommentsProps) {
       {error && <p className="text-red-500 mb-2">{error}</p>}
 
       {/* Input for adding a comment */}
-      {user ? (
+      {currentUser ? (
         <div className="mb-4">
           <textarea
             value={newComment}

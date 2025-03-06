@@ -5,7 +5,7 @@ import { getAllFilms } from "../../api/getFilms"; // Ensure this API function ex
 import { Card, CardContent } from "@/components/ui/card";
 import PlayVideoModal from "../PlayVideoModal";
 import { FaHeart, FaPlay } from "react-icons/fa";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/app/auth/nextjs/useUser";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -15,16 +15,19 @@ export function FilmGrid() {
   interface Film {
     id: number;
     title: string;
-    age: number;
+    age: number | null; // Allow null
     duration: number;
     imageString: string;
     overview: string;
     release: number;
     videoSource: string;
     category: string;
-    trailer: string;
-    rank: number;
+    trailer: string | null; // Allow null
+    rank: number | null; // Allow null
   }
+  
+  
+  
 
   const { user } = useUser();
   const userId = user?.id;
@@ -39,17 +42,26 @@ export function FilmGrid() {
     async function fetchFilms() {
       try {
         const filmsData = await getAllFilms();
-        setFilms(filmsData);
-        setLoading(false); // Set loading to false after films are fetched
+        const formattedFilms = filmsData.map((film) => ({
+          ...film,
+          age: film.age !== null ? Number(film.age) : 0, // Convert to number or default to 0
+          trailer: film.trailer ?? "", // Ensure trailer is a string
+          rank: film.rank ?? 0, // Default rank to 0 if null
+        }));
+    
+        setFilms(formattedFilms);
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching films:", error);
-        setLoading(false); // Ensure loading state is stopped even if an error occurs
+        setLoading(false);
       }
     }
-
+    
+    
+  
     fetchFilms();
   }, []);
-
+  
   useEffect(() => {
     if (userId && films.length > 0) {
       films.forEach((film) => {
@@ -103,7 +115,7 @@ export function FilmGrid() {
     }
 
     try {
-      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
+      await axios.post(`/api/films/${filmId}/watched-films`, { userId });
       toast.success("Marked as watched!");
     } catch (error) {
       console.error("Error marking film as watched:", error);
@@ -157,20 +169,20 @@ export function FilmGrid() {
       )}
 
       {selectedFilm && (
-        <PlayVideoModal
-          changeState={setModalOpen}
-          overview={selectedFilm.overview}
-          state={modalOpen}
-          title={selectedFilm.title}
-          trailerUrl={selectedFilm.trailer}
-          age={selectedFilm.age}
-          duration={selectedFilm.duration}
-          release={selectedFilm.release}
-          ratings={selectedFilm.rank}
-          setUserRating={() => {}} // Implement this function if needed
-          markAsWatched={() => markAsWatched(selectedFilm.id)} // Pass markAsWatched here
-          category={selectedFilm.category}
-        />
+       <PlayVideoModal
+       changeState={setModalOpen}
+       overview={selectedFilm.overview}
+       state={modalOpen}
+       title={selectedFilm.title}
+       trailerUrl={selectedFilm.trailer ?? ""} // Ensure it's a string
+       age={selectedFilm.age ?? 0} // Default age to 0
+       duration={selectedFilm.duration}
+       release={selectedFilm.release}
+       ratings={selectedFilm.rank ?? 0} // Default rank to 0
+       setUserRating={() => {}} // Implement this function if needed
+       markAsWatched={() => markAsWatched(selectedFilm.id)}
+       category={selectedFilm.category}
+     />     
       )}
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic"; // Forces the API to run on every request
+
 import { useEffect, useState } from "react";
 
 interface Film {

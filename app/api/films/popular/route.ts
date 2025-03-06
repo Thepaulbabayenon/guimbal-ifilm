@@ -7,8 +7,8 @@ export async function GET() {
   try {
     const popularFilms = await db.select()
       .from(film)
-      .orderBy(asc(film.rank)) // Use the `asc` helper function for ordering
-      .limit(10); // Limit to top 10 films
+      .orderBy(asc(film.rank)) 
+      .limit(10); 
 
     return NextResponse.json({ success: true, films: popularFilms });
   } catch (error) {

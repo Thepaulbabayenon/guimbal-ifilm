@@ -4,7 +4,7 @@ import { db } from "@/app/db/drizzle";
 import { film } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
-// Initialize S3 Client
+
 const s3Client = new S3Client({
   region: process.env.AWS_REGION!,
   credentials: {
@@ -23,34 +23,34 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Film ID is required" }, { status: 400 });
     }
 
-    // Fetch film metadata from DB
+ 
     const filmData = await db.select().from(film).where(eq(film.id, id));
     if (!filmData.length) {
       return NextResponse.json({ error: "Film not found" }, { status: 404 });
     }
 
-    const { imageString, videoSource, trailer } = filmData[0];
+    const { imageUrl, videoSource, trailerUrl } = filmData[0];
 
-    // Extract S3 keys from URLs
+  
     const extractKey = (url: string) => {
       return url ? url.split(".com/")[1]?.split("?")[0] : null;
     };
 
-    const imageKey = extractKey(imageString);
+    const imageKey = extractKey(imageUrl);
     const videoKey = extractKey(videoSource);
-    const trailerKey = extractKey(trailer);
+    const trailerKey = extractKey(trailerUrl);
 
     console.log("Files to delete:", { imageKey, videoKey, trailerKey });
 
-    // Function to check and delete file from S3
+
     const deleteFile = async (key: string | null) => {
       if (!key) return;
 
       try {
-        // Check if the file exists in S3 before deleting
+     
         await s3Client.send(new HeadObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME!, Key: key }));
 
-        // Proceed with deletion
+     
         const deleteResponse = await s3Client.send(new DeleteObjectCommand({ 
           Bucket: process.env.AWS_BUCKET_NAME!, 
           Key: key 
@@ -66,10 +66,10 @@ export async function DELETE(req: NextRequest) {
       }
     };
 
-    // Delete all files asynchronously
+
     await Promise.all([deleteFile(imageKey), deleteFile(videoKey), deleteFile(trailerKey)]);
 
-    // Delete film from the database
+  
     await db.delete(film).where(eq(film.id, id));
 
     return NextResponse.json({ message: "Film deleted successfully" });

@@ -6,12 +6,11 @@ import { db } from "@/app/db/drizzle";
 import { users } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
-// GET request for recommendations
 export async function GET(req: Request) {
     console.log("📢 Received request:", req.url);
 
     try {
-        // Extract userId from the query parameters
+      
         const { searchParams } = new URL(req.url);
         const userId = searchParams.get('userId');
 
@@ -22,7 +21,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "User ID is required" }, { status: 400 });
         }
 
-        // Check if the user exists in the database
+    
         console.log("🛠 Checking user existence in the database...");
         const userExists = await db.query.users.findFirst({
             where: eq(users.id, userId),
@@ -41,7 +40,7 @@ export async function GET(req: Request) {
 
         if (!recommendations || recommendations.length === 0) {
             console.warn("⚠️ No recommendations found for user:", userId);
-            return NextResponse.json([], { status: 200 }); // Return empty array instead of 404
+            return NextResponse.json([], { status: 200 });
         }
 
         console.log("✅ Fetched recommendations:", recommendations);

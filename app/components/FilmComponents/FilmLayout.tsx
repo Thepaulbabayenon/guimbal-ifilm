@@ -4,21 +4,7 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import PlayVideoModal from "@/app/components/PlayVideoModal";
-
-interface Film {
-  id: number;
-  title: string;
-  overview: string;
-  watchList: boolean;
-  trailerUrl: string;
-  year: number;
-  age: number;
-  time: number;
-  initialRatings: number;
-  category: string;
-  imageString: string;
-  averageRating?: number | null;
-}
+import { Film } from "@/types/film";
 
 interface FilmLayoutProps {
   title: string;
@@ -72,7 +58,7 @@ const FilmItem = memo(({
     >
       {/* Film Thumbnail */}
       <Image
-        src={film.imageString}
+        src={film.imageUrl}
         alt={film.title}
         width={500}
         height={400}
@@ -89,7 +75,7 @@ const FilmItem = memo(({
       >
         <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center">
           <Image
-            src={film.imageString}
+            src={film.imageUrl}
             alt={film.title}
             width={800}
             height={800}
@@ -109,6 +95,7 @@ const FilmItem = memo(({
             initialRatings={film.initialRatings}
             watchList={film.watchList}
             category={film.category || "Uncategorized"}
+            onOpenModal={() => onClick()} // Pass the onClick handler to the FilmCard
           />
 
           {/* Display Average Rating */}
@@ -285,7 +272,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, u
         ))}
       </motion.div>
 
-      {/* Video Modal */}
+      {/* Single Video Modal controlled at the layout level */}
       {selectedFilm && (
         <PlayVideoModal
           title={selectedFilm.title}

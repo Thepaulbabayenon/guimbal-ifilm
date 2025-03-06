@@ -1,11 +1,11 @@
-export const dynamic = "force-dynamic"; // Forces the API to run on every request
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/app/db/drizzle"; // Ensure correct import path for drizzle instance
-import { film } from "@/app/db/schema"; // Import your schema for 'film'
-import { eq, sql } from "drizzle-orm"; // Import necessary operators
+import { db } from "@/app/db/drizzle";
+import { film } from "@/app/db/schema"; 
+import { eq, sql } from "drizzle-orm";
 
-// Define the film type based on your schema
+
 export type Film = {
   id: number;
   imageString: string;
@@ -17,11 +17,10 @@ export type Film = {
   videoSource: string;
   category: string;
   trailer: string;
-  createdAt: string; // Expecting a string for createdAt
+  createdAt: string;
   rank: number;
 };
 
-// GET: Retrieve all films or filter by query parameters
 export async function GET(req: NextRequest) {
   const title = req.nextUrl.searchParams.get("title");
   const year = req.nextUrl.searchParams.get("year");
@@ -32,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     // Add filters based on query parameters
     if (title) filters.push(sql`lower(${film.title}) like ${'%' + title.toLowerCase() + '%'}`);
-    if (year) filters.push(eq(film.release, parseInt(year)));
+    if (year) filters.push(eq(film.releaseYear, parseInt(year)));
     if (rating) filters.push(eq(film.rank, parseInt(rating)));
 
     // Query the database with filters if any are provided
@@ -47,14 +46,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: "No films found" }, { status: 404 });
     }
 
-    return NextResponse.json({ rows: filmsData }); // Return films as JSON
+    return NextResponse.json({ rows: filmsData }); 
   } catch (error) {
     console.error("Error fetching films:", error);
     return NextResponse.json({ message: 'Error fetching films' }, { status: 500 });
   }
 }
-
-// POST: Retrieve a specific film by ID
 export async function POST(req: NextRequest) {
   try {
     // Parse the JSON body to extract the film ID
@@ -71,7 +68,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Film not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ rows: filmData }); // Return the film as JSON
+    return NextResponse.json({ rows: filmData });
   } catch (error) {
     console.error("Error fetching film by ID:", error);
     return NextResponse.json({ message: 'Error fetching film by ID' }, { status: 500 });

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import PlayVideoModal from "@/app/components/PlayVideoModal";
 import Autoplay from "embla-carousel-autoplay";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/app/auth/nextjs/useUser";
 import { CiStar } from "react-icons/ci";
 import { FaHeart, FaPlay } from "react-icons/fa";
 import axios, { AxiosError } from "axios";
@@ -37,17 +37,26 @@ export function FilmSlider() {
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
 
   useEffect(() => {
-    const fetchFilms = async () => {
+    async function fetchFilms() {
       try {
         const filmsData = await getAllFilms();
-        setFilms(filmsData);
-      } catch (error: unknown) {
-        const axiosError = error as AxiosError;
-        console.error("Error fetching films:", axiosError.response?.data || axiosError.message);
-      } finally {
+        const formattedFilms = filmsData.map((film) => ({
+          ...film,
+          age: film.age !== null ? Number(film.age) : 0, // Convert to number or default to 0
+          trailer: film.trailer ?? "", // Ensure trailer is a string
+          rank: film.rank ?? 0, // Default rank to 0 if null
+        }));
+    
+        setFilms(formattedFilms);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error fetching films:", error);
         setIsLoading(false);
       }
-    };
+    }
+    
+    
+  
     fetchFilms();
   }, []);
 
@@ -135,7 +144,7 @@ export function FilmSlider() {
     if (!userId) return;
 
     try {
-      await axios.post(`/api/films/${filmId}/watchedFilms`, { userId });
+      await axios.post(`/api/films/${filmId}/watched-films`, { userId });
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
       console.error("Error marking film as watched:", axiosError.response?.data || axiosError.message);

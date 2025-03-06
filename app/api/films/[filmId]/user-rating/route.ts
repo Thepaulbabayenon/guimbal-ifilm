@@ -3,23 +3,32 @@ import { userRatings, users } from "@/app/db/schema";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-// Helper function to validate film IDs
+/**
+ * Validates and converts film IDs into an array of numbers.
+ *
+ * @param filmIds - A single film ID (string), an array of film IDs (strings), or null.
+ * @returns An array of valid numeric film IDs.
+ */
 const validateFilmIds = (filmIds: string[] | string | null): number[] => {
   if (!filmIds) return [];
-  if (typeof filmIds === "string") filmIds = [filmIds]; // Ensure array format
-  return filmIds
-    .map((id) => parseInt(id))
-    .filter((id) => !isNaN(id)); // Filter valid numbers
+
+
+  const idsArray = Array.isArray(filmIds) ? filmIds : [filmIds];
+
+  return idsArray
+    .map((id) => Number(id))
+    .filter((id) => !isNaN(id) && id > 0);
 };
 
-// GET request to fetch user ratings for multiple films
+
+
 export async function GET(req: Request) {
   console.log("Received GET request for user ratings");
 
   try {
     const url = new URL(req.url);
     const userId = url.searchParams.get("userId");
-    const filmIdsParam = url.searchParams.getAll("filmIds[]"); // Ensure this works with your query format
+    const filmIdsParam = url.searchParams.getAll("filmIds[]");
 
     console.log("User ID:", userId);
     console.log("Raw Film IDs:", filmIdsParam);
@@ -40,7 +49,7 @@ export async function GET(req: Request) {
     // Validate filmIds
     const validFilmIds = filmIdsParam
       .map((id) => Number(id))
-      .filter((id) => !isNaN(id)); // Ensure all IDs are valid numbers
+      .filter((id) => !isNaN(id)); 
 
     if (validFilmIds.length === 0) {
       return NextResponse.json({
@@ -58,7 +67,7 @@ export async function GET(req: Request) {
       .where(
         and(
           eq(userRatings.userId, userId),
-          inArray(userRatings.filmId, validFilmIds) // Use inArray instead of sql string
+          inArray(userRatings.filmId, validFilmIds)
         )
       );
 
@@ -113,7 +122,9 @@ export async function POST(req: Request) {
 
       if (existingRating) {
         // Update existing rating
-        await db.update(userRatings).set({ rating }).where(eq(userRatings.id, existingRating.id));
+        await db.update(userRatings)
+        .set({ rating })
+        .where(and(eq(userRatings.userId, userId), eq(userRatings.filmId, filmId)));
       } else {
         // Insert new rating
         await db.insert(userRatings).values({ userId, filmId: parseInt(filmId), rating });

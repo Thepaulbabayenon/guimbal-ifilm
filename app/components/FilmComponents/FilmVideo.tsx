@@ -4,21 +4,22 @@ import { db } from "@/app/db/drizzle";
 import { film } from "@/app/db/schema";
 import { desc } from "drizzle-orm";
 import FilmButtons from "./FilmButtons";
-import LoadingState from "../loading"; // Import the loading state component
+import LoadingState from "../loading"; 
+import { useUser } from "@/app/auth/nextjs/useUser";
 
 interface Film {
   id: number;
-  imageString: string;
+  imageUrl: string;
   title: string;
-  age: number;
+  ageRating: number;
   duration: number;
   overview: string;
-  release: number;
+  releaseYear: number;
   videoSource: string;
   category: string;
-  trailer: string;
+  trailerUrl: string;
   createdAt: Date;
-  rank: number;
+  rank: number | null;
 }
 
 // Function to fetch recommended films
@@ -43,6 +44,7 @@ async function getRecommendedFilm(): Promise<Film | null> {
 }
 
 export default function FilmVideo() {
+  const { user } = useUser();  
   const [data, setData] = useState<Film | null>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [isLoading, setIsLoading] = useState(true); // State to handle loading
@@ -56,13 +58,13 @@ export default function FilmVideo() {
   const markAsWatched = (userId: string, filmId: number) => {
     console.log("User", userId, "marked film", filmId, "as watched.");
   };
-  const userId = "user123";  // Example user ID
+  const userId = user?.id || "";  
 
   useEffect(() => {
     const fetchData = async () => {
       const filmData = await getRecommendedFilm();
       setData(filmData);
-      setIsLoading(false); // End loading state when data is fetched
+      setIsLoading(false); 
     };
 
     fetchData();
@@ -91,11 +93,11 @@ export default function FilmVideo() {
     <div className="h-[55vh] lg:h-[60vh] w-full flex justify-start items-center">
       <video
         ref={videoRef}
-        poster={data.imageString}
+        poster={data.imageUrl}
         autoPlay
         muted={isMuted}
         loop
-        src={data.trailer}
+        src={data.trailerUrl}
         className="w-full absolute top-0 left-0 h-[100vh] object-cover -z-10 brightness-[45%]"
       ></video>
       <div className="absolute bottom-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
@@ -108,13 +110,13 @@ export default function FilmVideo() {
         </p>
         <div className="flex gap-x-3 mt-4">
           <FilmButtons
-            age={data.age}
+            age={data.ageRating}
             duration={data.duration}
             id={data.id}
             overview={data.overview}
-            releaseDate={data.release}
+            releaseDate={data.releaseYear}
             title={data.title}
-            trailerUrl={data.trailer}
+            trailerUrl={data.trailerUrl}
             key={data.id}
             category={data.category}
             isMuted={isMuted}

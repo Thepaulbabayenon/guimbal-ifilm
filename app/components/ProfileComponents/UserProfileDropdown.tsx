@@ -12,7 +12,6 @@ interface UserProfileDropdownProps {
   user: {
     id: string;
     name?: string;
-    email: string;
     imageUrl?: string;
     isAdmin?: boolean;
   };

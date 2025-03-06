@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/app/auth/nextjs/useUser";
 import { updatePreferences } from "@/app/actions/preferences";
 import { useFormState } from "react-dom";
 

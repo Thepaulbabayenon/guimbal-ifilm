@@ -55,7 +55,7 @@ export default function FilmButtons({
     age,
     duration,
     category,
-    trailer: trailerUrl.split('v=')[1], // Extract video ID from trailer URL
+    trailer: trailerUrl && trailerUrl.includes('v=') ? trailerUrl.split('v=')[1] : '',
     rank: 5, // replace with actual ranking
     imageString: 'url-to-image.jpg', // replace with actual image URL
   };

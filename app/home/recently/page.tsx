@@ -1,5 +1,5 @@
 import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
-import { auth } from "@clerk/nextjs/server";
+import { useUser } from "@/app/auth/nextjs/useUser";
 import { db } from "@/app/db/drizzle";
 import Image from "next/image";
 import { film } from "@/app/db/schema";
@@ -25,7 +25,9 @@ async function getData() {
 export default async function Recently() {
   try {
     // Authenticate the user
-    const { userId }: { userId: string | null } = auth();
+    const { user } = useUser(); 
+    const userId = user?.id || null;
+
     if (!userId) {
       return (
         <div className="flex items-center justify-center h-screen text-center">
@@ -69,7 +71,7 @@ export default async function Recently() {
             <div key={film.id} className="relative h-60">
               {/* Film Thumbnail */}
               <Image
-                src={film.imageString}
+                src={film.imageUrl}
                 alt={film.title}
                 width={500}
                 height={400}
@@ -80,7 +82,7 @@ export default async function Recently() {
               <div className="h-60 relative z-10 w-full transform transition duration-500 hover:scale-125 opacity-0 hover:opacity-100">
                 <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center">
                   <Image
-                    src={film.imageString}
+                    src={film.imageUrl}
                     alt={film.title}
                     width={800}
                     height={800}
@@ -88,13 +90,13 @@ export default async function Recently() {
                   />
                   <FilmCard
                     key={film.id}
-                    age={film.age}
+                    age={film.ageRating}
                     filmId={film.id}
                     overview={film.overview}
                     time={film.duration}
                     title={film.title}
-                    year={parseInt(film.release.toString())}
-                    trailerUrl={film.trailer}
+                    year={parseInt(film.releaseYear.toString())}
+                    trailerUrl={film.trailerUrl}
                     initialRatings={0}
                     watchList={false}
                     category={film.category || "Uncategorized"}

@@ -6,7 +6,7 @@ interface FilmEditModalProps {
   film: {
     id: number;
     title: string;
-    age: number;
+    ageRating: number;
     duration: number;
     overview: string;
     release: string;
@@ -84,7 +84,7 @@ const FilmEditModal: React.FC<FilmEditModalProps> = ({ film, onClose }) => {
         {/* Form with ID for reference */}
         <form id="editFilmForm" onSubmit={handleSubmit} className="space-y-3 overflow-y-auto flex-grow px-1">
           <input name="title" value={formData.title} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Title" />
-          <input name="age" type="number" value={formData.age} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Age Rating" />
+          <input name="age" type="number" value={formData.ageRating} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Age Rating" />
           <input name="duration" type="number" value={formData.duration} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Duration (min)" />
           <textarea name="overview" value={formData.overview} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Overview"></textarea>
           <input name="release" type="date" value={formData.release} onChange={handleChange} className="w-full p-2 border rounded text-sm" />

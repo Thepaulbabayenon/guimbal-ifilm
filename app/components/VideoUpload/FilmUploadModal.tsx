@@ -11,7 +11,7 @@ const FilmUploadModal = () => {
     fileTypeTrailer: '',
     fileNameTrailer: '',
     title: '',
-    age: '',
+    ageRating: '',
     duration: '',
     overview: '',
     release: '',
@@ -73,7 +73,7 @@ const FilmUploadModal = () => {
       fileNameTrailer: '',
       fileTypeTrailer: '',
       title: '',
-      age: '',
+      ageRating: '',
       duration: '',
       overview: '',
       release: '',
@@ -222,8 +222,8 @@ const FilmUploadModal = () => {
                 />
                 <input
                   type="number"
-                  name="age"
-                  value={formData.age}
+                  name="ageRating"
+                  value={formData.ageRating}
                   placeholder="Age"
                   onChange={handleInputChange}
                   required

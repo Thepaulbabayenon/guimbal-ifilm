@@ -1,20 +1,28 @@
 'use client';
+export const dynamic = "force-dynamic"; // Forces the API to run on every request
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs"; // ✅ Import Clerk's useUser
+import { useAuth } from "@/app/auth/nextjs/useUser";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 export default function NewAnnouncement() {
   const router = useRouter();
-  const { user } = useUser(); // ✅ Get the current authenticated user
+  const { user } = useAuth(); 
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+useEffect(() => {
+  if (user) {
+    setIsAuthenticated(true);
+  }
+}, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +77,7 @@ export default function NewAnnouncement() {
           onChange={(e) => setContent(e.target.value)}
           required
         />
-        <Button type="submit" disabled={loading || !user}>
+        <Button type="submit" disabled={loading || !isAuthenticated}>
           {loading ? "Posting..." : "Post Announcement"}
         </Button>
       </form>

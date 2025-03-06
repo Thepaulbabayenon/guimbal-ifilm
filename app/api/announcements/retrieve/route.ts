@@ -1,16 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { announcements, dismissedAnnouncements } from "@/app/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { getUser } from "@/app/db/auth";
+import { getUserFromSession } from "@/app/auth/core/session"; 
 
 export const dynamic = "force-dynamic";
-export async function GET(req: Request) {
-  try {
-    const user = await getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Get dismissed announcement IDs for the user
+export async function GET(req: NextRequest) {
+  try {
+
+    const cookies = req.cookies.getAll().reduce((acc, cookie) => {
+      acc[cookie.name] = cookie.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+  
+    const user = await getUserFromSession(cookies);
+    
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+   
     const dismissed = await db
       .select({ announcementId: dismissedAnnouncements.announcementId })
       .from(dismissedAnnouncements)
@@ -22,7 +33,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ dismissedAnnouncements: [] });
     }
 
-    // Retrieve full dismissed announcement details
+ 
     const dismissedAnnouncementsList = await db
       .select({
         id: announcements.id,

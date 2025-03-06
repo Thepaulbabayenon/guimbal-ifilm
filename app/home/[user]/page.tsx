@@ -4,26 +4,22 @@ import { useState, useEffect } from "react";
 import { db } from "@/app/db/drizzle";
 import { film, watchLists } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/app/auth/nextjs/useUser";
 import FilmLayout from "@/app/components/FilmComponents/FilmLayout";
 import PlayVideoModal from "@/app/components/PlayVideoModal";
 import { Logo } from "@/app/components/Logo";
 import UserProfileDropdown from "@/app/components/ProfileComponents/UserProfileDropdown";
 import axios from "axios";
+import { Film } from "@/types/film";
 
-// Define Film type
-interface Film {
-  id: number;
-  title: string;
-  overview: string;
-  watchList: boolean;
-  trailerUrl: string;
-  year: number;
-  age: number;
-  time: number;
-  initialRatings: number;
-  category: string;
-  imageString: string;
+
+// Interface for user profile
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string; 
+  image: string;
+  isAdmin: boolean;
 }
 
 // Function to fetch watchlist directly from the database
@@ -32,16 +28,16 @@ async function fetchWatchlist(userId: string) {
     return await db
       .select({
         title: film.title,
-        age: film.age,
+        ageRating: film.ageRating,
         duration: film.duration,
-        imageString: film.imageString,
+        imageUrl: film.imageUrl,
         overview: film.overview,
-        release: film.release,
+        releaseYear: film.releaseYear,
         id: film.id,
-        trailer: film.trailer,
-        watchListId: watchLists.id,
+        trailerUrl: film.trailerUrl,
+        watchListId: watchLists.userId,
         category: film.category,
-        ratings: film.averageRating,
+        averageRating: film.averageRating,
       })
       .from(film)
       .leftJoin(watchLists, eq(film.id, watchLists.filmId))
@@ -53,37 +49,36 @@ async function fetchWatchlist(userId: string) {
 }
 
 export default function UserHome() {
-  const { user, isLoaded } = useUser();
+  // Correct property name: isLoaded -> isAuthenticated
+  const { user, isLoading, isAuthenticated } = useUser();
   const [watchlist, setWatchlist] = useState<Film[]>([]);
   const [top10Films, setTop10Films] = useState<Film[]>([]);
-  const [recommendedFilms, setRecommendedFilms] = useState<Film[]>([]);
+  const [recommendedFilms, setRecommendedFilms] = useState<Film[]>([]);  
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [profile, setProfile] = useState({
+  const [profile, setProfile] = useState<UserProfile>({
     id: "",
     name: "",
     email: "",
-    imageUrl: "",
+    image: "",
     isAdmin: false,
   });
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (!isLoading && user) {
       setProfile({
         id: user.id,
-        name: user.fullName || "Unnamed User",
-        email: user.primaryEmailAddress?.emailAddress || "",
-        imageUrl: user.imageUrl || "/default-avatar.png",
-        isAdmin: Boolean(user.publicMetadata?.isAdmin),
+        name: user.name || "Unnamed User",
+        email: user.email || "",
+        image: user.imageUrl || "/default-avatar.png",
+        isAdmin: Boolean(user.role),
       });
-
+  
       loadFilms();
     }
-  }, [isLoaded, user]);
-
-  
+  }, [isLoading, user]);
 
   const loadFilms = async () => {
     if (!user?.id) {
@@ -105,39 +100,73 @@ export default function UserHome() {
         title: film.title,
         overview: film.overview,
         watchList: film.watchListId !== null,
-        trailerUrl: film.trailer,
-        year: film.release,
-        age: film.age,
+        trailerUrl: film.trailerUrl || "",
+        year: film.releaseYear,
+        age: Number(film.ageRating) || 0,
         time: film.duration,
-        initialRatings: film.ratings ?? 0,
+        initialRatings: film.averageRating ?? 0,
         category: film.category,
-        imageString: film.imageString,
+        imageUrl: film.imageUrl,
+        producer: "", 
+        director: "",
+        coDirector: "",
+        studio: "",
+        averageRating: film.averageRating ?? null, 
       }));
+      
   
       setWatchlist(formattedWatchlist);
   
       // Fetch Top 10 Films from DB
-      const top10Res = await db.select().from(film).limit(10);
-      setTop10Films(
-        top10Res.map((film) => ({
-          id: film.id,
-          title: film.title,
-          overview: film.overview,
-          watchList: false,
-          trailerUrl: film.trailer || "",
-          year: film.release || 0,
-          age: film.age,
-          time: film.duration || 0,
-          initialRatings: film.averageRating ?? 0,
-          category: film.category,
-          imageString: film.imageString,
-        }))
-      );
+     // Fetch Top 10 Films from DB
+const top10Res = await db.select().from(film).limit(10);
+setTop10Films(
+  top10Res.map((film) => ({
+    id: film.id,
+    title: film.title,
+    overview: film.overview,
+    watchList: false,
+    trailerUrl: film.trailerUrl || "",
+    year: film.releaseYear || 0, // Use 'year' instead of 'releaseYear'
+    age: Number(film.ageRating) || 0, // Use 'age' instead of 'ageRating'
+    time: film.duration || 0, // Use 'time' for duration
+    initialRatings: film.averageRating ?? 0,
+    category: film.category,
+    imageUrl: film.imageUrl,
+    producer: "",
+    director: "",
+    coDirector: "",
+    studio: "",
+    averageRating: film.averageRating ?? 0,
+  }))
+);
   
-      // Fetch recommended films from API (Fix: Pass userId)
-      const recommendedRes = await axios.get(`/api/recommendations`, {
-        params: { userId: user.id }, // ✅ Add userId query parameter
-      });
+      // Fetch recommended films from API
+      // Fetch recommended films from API
+const recommendedRes = await axios.get(`/api/recommendations`, {
+  params: { userId: user.id },
+});
+
+setRecommendedFilms(
+  recommendedRes.data.map((film: any) => ({
+    id: film.id,
+    title: film.title,
+    overview: film.overview,
+    watchList: false,
+    trailerUrl: film.trailer || "",
+    year: film.release || 0, // Use 'year'
+    age: film.age || 0,
+    time: film.duration || 0,
+    initialRatings: film.averageRating ?? 0,
+    category: film.category,
+    imageString: film.imageString || film.imageUrl || "",
+    // Add missing properties
+    producer: film.producer || "",
+    director: film.director || "",
+    coDirector: film.coDirector || "",
+    studio: film.studio || "",
+  }))
+);
   
       setRecommendedFilms(
         recommendedRes.data.map((film: any) => ({
@@ -146,12 +175,18 @@ export default function UserHome() {
           overview: film.overview,
           watchList: false,
           trailerUrl: film.trailer || "",
+          releaseYear: film.release || 0,
+          ageRating: film.age || 0,
+          duration: film.duration || 0,
+          averageRating: film.averageRating ?? 0,
+          category: film.category,
+          imageUrl: film.imageString || film.imageUrl || "",
+          // Add properties to match the expected Film type
           year: film.release || 0,
-          age: film.age,
+          age: film.age || 0,
           time: film.duration || 0,
           initialRatings: film.averageRating ?? 0,
-          category: film.category,
-          imageString: film.imageString,
+          imageString: film.imageString || film.imageUrl || "",
         }))
       );
     } catch (err) {
@@ -162,8 +197,6 @@ export default function UserHome() {
     }
   };
   
-  
-
   const handleUpdateProfile = (updatedUser: { name: string; imageUrl?: string }) => {
     setProfile((prev) => ({ ...prev, ...updatedUser }));
   };
@@ -178,7 +211,8 @@ export default function UserHome() {
       <Logo />
 
       {/* Profile Section */}
-      {isLoaded && user && (
+      {/* Change isLoaded to isAuthenticated */}
+      {isAuthenticated && user && (
         <div className="flex flex-col items-center mb-10">
           <UserProfileDropdown user={profile} onUpdate={handleUpdateProfile} />
         </div>
@@ -195,22 +229,22 @@ export default function UserHome() {
 
       {/* Play Video Modal */}
       {selectedFilm && (
-        <PlayVideoModal
-          title={selectedFilm.title}
-          overview={selectedFilm.overview}
-          trailerUrl={selectedFilm.trailerUrl}
-          state={modalOpen}
-          changeState={setModalOpen}
-          release={selectedFilm.year}
-          age={selectedFilm.age}
-          duration={selectedFilm.time}
-          ratings={selectedFilm.initialRatings}
-          userId={user?.id || ""}
-          filmId={selectedFilm.id}
-          category={selectedFilm.category}
-          setUserRating={() => {}}
-        />
-      )}
+  <PlayVideoModal
+    title={selectedFilm.title}
+    overview={selectedFilm.overview}
+    trailerUrl={selectedFilm.trailerUrl}
+    state={modalOpen}
+    changeState={setModalOpen}
+    release={selectedFilm.year} 
+    age={selectedFilm.age} 
+    duration={selectedFilm.time} 
+    ratings={selectedFilm.averageRating ?? 0}
+    userId={user?.id || ""}
+    filmId={selectedFilm.id}
+    category={selectedFilm.category}
+    setUserRating={() => {}}
+  />
+)}
     </div>
   );
 }
