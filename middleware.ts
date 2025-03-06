@@ -5,7 +5,6 @@ import { getUserFromSession, updateUserSessionExpiration, Cookies } from "@/app/
 interface User {
   id: string;
   role: string;
-  // Add any other properties relevant to your user
 }
 
 // Define private and admin routes
