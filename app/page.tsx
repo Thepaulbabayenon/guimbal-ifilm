@@ -59,7 +59,7 @@ export default async function Home() {
       </div>
 
       {/* Grid Layout for Film Posters */}
-      <div className="relative z-10 grid grid-cols-2 gap-3 w-full px-4 max-w-md py-6">
+      <div className="relative z-10 grid grid-cols-5 gap-2 w-full px-4 max-w-md py-6">
         {top10Films.map((film) => (
           <FilmPosterCard 
             key={film.id} 
