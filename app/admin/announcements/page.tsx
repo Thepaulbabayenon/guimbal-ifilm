@@ -13,7 +13,7 @@ interface Announcement {
   createdAt: string;
 }
 
-const PAGE_SIZE = 10; // Limit announcements to 10 per page
+const PAGE_SIZE = 10; 
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -24,7 +24,7 @@ export default function Announcements() {
     async function fetchAnnouncements() {
       try {
         const res = await fetch(`/api/admin/announcements?page=${page}&limit=${PAGE_SIZE}`, {
-          credentials: "include", // Ensures cookies are sent
+          credentials: "include", 
         });
   
         if (!res.ok) throw new Error("Failed to fetch announcements");

@@ -33,7 +33,7 @@ export default function AdminEditPage() {
         const response = await fetch("/api/admin/films");
         const data = await response.json();
         
-        console.log("Fetched films:", data); // Debugging output
+        console.log("Fetched films:", data);
         
         if (Array.isArray(data)) {
           setFilms(data);

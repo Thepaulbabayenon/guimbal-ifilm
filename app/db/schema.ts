@@ -113,7 +113,7 @@ export const film = pgTable("films", {
   title: varchar("title", { length: 255 }).notNull(),
   imageUrl: varchar("image_url", { length: 1000 }).notNull(),
   overview: text("overview").notNull(),
-  duration: doublePrecision("duration").notNull(), 
+  duration: doublePrecision("duration").notNull(),
   releaseYear: integer("release_year").notNull(),
   ageRating: integer("age_rating").notNull(),
   videoSource: varchar("video_source", { length: 1000 }).notNull(),
@@ -130,7 +130,10 @@ export const film = pgTable("films", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
+    uploadedBy: uuid("uploader_by").references(() => users.id, { onDelete: "cascade" })
 });
+
+
 
 // UserInteractions Table (Existing)
 export const userInteractions = pgTable(
@@ -431,13 +434,17 @@ export const sessionRelations = relations(sessions, ({ one }) => ({
   }),
 }));
 
-export const filmRelations = relations(film, ({ many }) => ({
+export const filmRelations = relations(film, ({ many, one}) => ({
   genres: many(filmGenres),
   ratings: many(userRatings),
   watchedBy: many(watchedFilms),
   inWatchLists: many(watchLists),
   comments: many(comments),
   inPlaylists: many(playlistItems),
+  uploader: one(users, {
+    fields: [film.uploadedBy],
+    references: [users.id],
+  }),
 }));
 
 export const genreRelations = relations(genres, ({ many }) => ({

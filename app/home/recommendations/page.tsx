@@ -39,8 +39,8 @@ const RecommendationsPage = () => {
             recommendations.map((rec) => (
               <li key={rec.id} className="p-4 bg-gray-800 rounded-lg mb-2">
                 <h3 className="font-bold">{rec.title}</h3>
-                <p className="text-gray-400">{rec.genre}</p>
-                <p>{rec.description}</p>
+                <p className="text-gray-400">{rec.category}</p>
+                <p>{rec.overview}</p>
               </li>
             ))
           ) : (

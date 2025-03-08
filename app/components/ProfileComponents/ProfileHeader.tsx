@@ -22,7 +22,7 @@ export function ProfileHeader() {
   return (
     <div className="profile-header">
       <img
-        src={user.imageUrl || "/default-avatar.jpg"}
+        src={user.image || "/default-avatar.jpg"}
         alt="Profile"
         className="avatar"
         width={120}

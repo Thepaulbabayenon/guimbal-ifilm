@@ -72,7 +72,7 @@ export default function UserHome() {
         id: user.id,
         name: user.name || "Unnamed User",
         email: user.email || "",
-        image: user.imageUrl || "/default-avatar.png",
+        image: user.image || "/default-avatar.png",
         isAdmin: Boolean(user.role),
       });
   
@@ -101,8 +101,8 @@ export default function UserHome() {
         overview: film.overview,
         watchList: film.watchListId !== null,
         trailerUrl: film.trailerUrl || "",
-        year: film.releaseYear,
-        age: Number(film.ageRating) || 0,
+        releaseYear: film.releaseYear,
+        ageRating: Number(film.ageRating) || 0,
         time: film.duration,
         initialRatings: film.averageRating ?? 0,
         category: film.category,
@@ -127,8 +127,8 @@ setTop10Films(
     overview: film.overview,
     watchList: false,
     trailerUrl: film.trailerUrl || "",
-    year: film.releaseYear || 0, // Use 'year' instead of 'releaseYear'
-    age: Number(film.ageRating) || 0, // Use 'age' instead of 'ageRating'
+    releaseYear: film.releaseYear || 0, // Use 'year' instead of 'releaseYear'
+    ageRating: Number(film.ageRating) || 0, // Use 'age' instead of 'ageRating'
     time: film.duration || 0, // Use 'time' for duration
     initialRatings: film.averageRating ?? 0,
     category: film.category,
@@ -235,8 +235,8 @@ setRecommendedFilms(
     trailerUrl={selectedFilm.trailerUrl}
     state={modalOpen}
     changeState={setModalOpen}
-    release={selectedFilm.year} 
-    age={selectedFilm.age} 
+    releaseYear={selectedFilm.releaseYear} 
+    ageRating={selectedFilm.ageRating} 
     duration={selectedFilm.time} 
     ratings={selectedFilm.averageRating ?? 0}
     userId={user?.id || ""}

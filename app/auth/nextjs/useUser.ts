@@ -8,17 +8,19 @@ export type FullUser = {
   email: string;
   role: "admin" | "user";
   name: string;
-  firstName?: string;
+  username?: string;
   twoFactorEnabled: boolean;
   twoFactorVerified?: boolean;
-  imageUrl?: string;
+  image?: string;
+  emailVerified?: Date | null;
+  createdAt?: Date;
 };
 
 export type User = {
   id: string;
   role: "admin" | "user";
   name?: string;
-  imageUrl?: string;
+  image?: string;
   email?: string;
   twoFactorEnabled: boolean;
 };
@@ -40,6 +42,10 @@ export interface UseAuthReturn {
   // Session state
   is2FARequired: boolean;
   setIs2FARequired: (required: boolean) => void;
+  // Password management
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
+  // Profile management
+  updateProfile: (profile: Partial<Omit<FullUser, 'id' | 'role'>>) => Promise<boolean>;
 }
 
 /**
@@ -66,6 +72,12 @@ export function useAuth({
       const response = await fetch(url);
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // User is not authenticated
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
         throw new Error(`Failed to fetch user with status: ${response.status}`);
       }
 
@@ -75,16 +87,20 @@ export function useAuth({
       const userData = data.user || data;
       
       if (userData) {
-        // Add firstName if we have a name
-        if (userData.name) {
-          userData.firstName = userData.name.split(" ")[0] || "";
-        }
-        
         // If 2FA is enabled but not verified for this session, set flag
         if (userData.twoFactorEnabled && !userData.twoFactorVerified) {
           setIs2FARequired(true);
         } else {
           setIs2FARequired(false);
+        }
+        
+        // Convert date strings to Date objects if they exist
+        if (userData.emailVerified) {
+          userData.emailVerified = new Date(userData.emailVerified);
+        }
+        
+        if (userData.createdAt) {
+          userData.createdAt = new Date(userData.createdAt);
         }
         
         setUser(userData);
@@ -291,6 +307,59 @@ export function useAuth({
     }
   };
 
+  // Change password
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to change password with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.success;
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      return false;
+    }
+  };
+
+  // Update profile information
+  const updateProfile = async (profile: Partial<Omit<FullUser, 'id' | 'role'>>): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(profile)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update profile with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update user state to reflect profile changes
+        await fetchUser();
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      return false;
+    }
+  };
+
   return {
     user,
     isAuthenticated: !!user && !is2FARequired,
@@ -306,7 +375,11 @@ export function useAuth({
     verify2FAWithBackupCode,
     // 2FA state
     is2FARequired,
-    setIs2FARequired
+    setIs2FARequired,
+    // Password management
+    changePassword,
+    // Profile management
+    updateProfile
   };
 }
 
@@ -317,6 +390,7 @@ export function useUser() {
   return {
     user: auth.user,
     isLoading: auth.isLoading,
-    isAuthenticated: auth.isAuthenticated && !auth.is2FARequired,
+    isAuthenticated: auth.isAuthenticated,
+    refetchUser: auth.refetchUser
   };
 }

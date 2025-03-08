@@ -1,33 +1,23 @@
 'use client'; // Mark this component as client-side
 
 import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
-import { getFilmsByCategory } from "@/app/api/getFilms"; // Function to get films by category
-import { useParams } from "next/navigation"; // For accessing the category from the URL
+import { getFilmsByCategory } from "@/app/api/getFilms"; 
+import { useParams } from "next/navigation"; 
 import Image from "next/image";
-import { useEffect, useState } from "react"; // Import useState for state management
+import { useEffect, useState } from "react";
+import { Film } from "@/types/film";
 
-// Define the structure of the Film object
-interface Film {
-  id: number;
-  title: string;
-  imageString?: string;
-  age: number;
-  overview: string;
-  duration: number;
-  release: string | number;
-  trailer: string;
-  category: string;
-}
+
 
 export default function CategoryFilms() {
-  const { category } = useParams(); // Get the selected category from the URL
+  const { category } = useParams(); 
 
   // Ensure category is a string (it could be a string[] in some cases)
   const categoryString = Array.isArray(category) ? category[0] : category;
 
-  const [films, setFilms] = useState<Film[]>([]); // State for films
-  const [loading, setLoading] = useState<boolean>(true); // State for loading
-  const [error, setError] = useState<string | null>(null); // State for error
+  const [films, setFilms] = useState<Film[]>([]); 
+  const [loading, setLoading] = useState<boolean>(true); 
+  const [error, setError] = useState<string | null>(null); 
 
   // Fetch films based on category
   useEffect(() => {
@@ -44,14 +34,14 @@ export default function CategoryFilms() {
     };
 
     fetchFilms();
-  }, [categoryString]); // Dependency on categoryString
+  }, [categoryString]); 
 
   if (loading) {
-    return <p>Loading...</p>; // Display loading state
+    return <p>Loading...</p>; 
   }
 
   if (error) {
-    return <p>{error}</p>; // Display error if fetching fails
+    return <p>{error}</p>; 
   }
 
   if (!films || films.length === 0) {
@@ -76,7 +66,7 @@ export default function CategoryFilms() {
         {films.map((film: Film) => ( // Explicitly type the 'film' variable
           <div key={film.id} className="relative h-60">
             <Image
-              src={film.imageString as string}
+              src={film.imageUrl as string}
               alt="Film"
               width={500}
               height={400}
@@ -85,7 +75,7 @@ export default function CategoryFilms() {
             <div className="h-60 relative z-10 w-full transform transition duration-500 hover:scale-125 opacity-0 hover:opacity-100">
               <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center">
                 <Image
-                  src={film.imageString as string}
+                  src={film.imageUrl as string}
                   alt="Film"
                   width={800}
                   height={800}
@@ -94,13 +84,13 @@ export default function CategoryFilms() {
                 {film && (
                   <FilmCard
                     key={film.id}
-                    age={film.age}
+                    ageRating={film.ageRating}
                     filmId={film.id}
                     overview={film.overview}
                     time={film.duration}
                     title={film.title}
-                    year={parseInt(film.release.toString())}
-                    trailerUrl={film.trailer}
+                    releaseYear={parseInt(film.releaseYear.toString())}
+                    trailerUrl={film.trailerUrl}
                     initialRatings={0}
                     watchList={false}
                     category={film.category || "Uncategorized"}

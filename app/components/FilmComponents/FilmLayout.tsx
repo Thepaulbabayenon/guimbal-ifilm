@@ -38,7 +38,7 @@ const itemVariants = {
   }
 };
 
-// Memoized FilmItem component to prevent unnecessary re-renders
+
 const FilmItem = memo(({ 
   film, 
   rating, 
@@ -85,12 +85,12 @@ const FilmItem = memo(({
 
           <FilmCard
             key={film.id}
-            age={film.age}
+            ageRating={film.ageRating}  
             filmId={film.id}
             overview={film.overview}
             time={film.time}
             title={film.title}
-            year={film.year}
+            releaseYear={film.releaseYear}
             trailerUrl={film.trailerUrl}
             initialRatings={film.initialRatings}
             watchList={film.watchList}
@@ -112,21 +112,23 @@ const FilmItem = memo(({
 
 FilmItem.displayName = "FilmItem";
 
-const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, userId }) => {
+const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, error, userId }) => {
   const [filmRatings, setFilmRatings] = useState<Record<number, number>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
   const [userRating, setUserRating] = useState<number>(0);
   const [fetchedInitial, setFetchedInitial] = useState(false);
 
-  // Fetch ratings in batches to prevent freezing
+
   useEffect(() => {
+    console.log("films.length", films.length);
+  console.log("Dependency change detected!");
     let isMounted = true;
-    
+  
     const fetchRatings = async () => {
       if (films.length === 0 || fetchedInitial) return;
       
-      try {
+      try { 
         // Process films in smaller batches to prevent UI freezing
         const batchSize = 4;
         const batches = Math.ceil(films.length / batchSize);
@@ -164,7 +166,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, u
             });
           }
           
-          // Small delay between batches to keep UI responsive
+       
           await new Promise(resolve => setTimeout(resolve, 10));
         }
         
@@ -175,7 +177,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, u
     };
 
     fetchRatings();
-    
+
     return () => {
       isMounted = false;
     };
@@ -262,14 +264,14 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, u
         initial="hidden"
         animate="show"
       >
-        {films.map((film) => (
-          <FilmItem
-            key={film.id}
-            film={film}
-            rating={filmRatings[film.id] || null}
-            onClick={() => handleFilmClick(film)}
-          />
-        ))}
+       {films.map((film, index) => (
+        <FilmItem
+          key={`${film.id}-${index}`} 
+          film={film}
+          rating={filmRatings[film.id] || null}
+          onClick={() => handleFilmClick(film)}
+        />
+      ))}
       </motion.div>
 
       {/* Single Video Modal controlled at the layout level */}
@@ -280,8 +282,8 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films, loading, error, u
           trailerUrl={selectedFilm.trailerUrl}
           state={modalOpen}
           changeState={setModalOpen}
-          release={selectedFilm.year}
-          age={selectedFilm.age}
+          releaseYear={selectedFilm.releaseYear}
+          ageRating={selectedFilm.ageRating}
           duration={selectedFilm.time}
           ratings={filmRatings[selectedFilm.id] || selectedFilm.initialRatings}
           setUserRating={handleSetUserRating}

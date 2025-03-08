@@ -2,12 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FilmSlider } from "../components/FilmSliders/FilmSlider";
-import { FilmSliderComedy } from "../components/FilmSliders/FilmSliderComedy";
-import { FilmSliderDrama } from "../components/FilmSliders/FilmSliderDrama";
-import { FilmSliderFolklore } from "../components/FilmSliders/FilmSliderFolklore";
-import { FilmSliderHorror } from "../components/FilmSliders/FilmSliderHorror";
-import { FilmSliderReco } from "../components/FilmSliders/FilmSliderReco";
+import FilmSlider from "../components/FilmComponents/DynamicFilmSlider"; // Update import path to match your file structure
 import FilmVideo from "../components/FilmComponents/FilmVideo";
 import RecentlyAdded from "../components/RecentlyAdded";
 import { useUser } from "@/app/auth/nextjs/useUser";
@@ -15,13 +10,22 @@ import { TextLoop } from "@/components/ui/text-loop";
 import { LoadingSpinner } from "@/app/components/LoadingSpinner";
 import { AccessDenied } from "@/app/components/AccessDenied";
 
+
+
 export default function HomePage() {
   const { user, isAuthenticated, isLoading } = useUser();
   const [userId, setUserId] = useState<string | null>(null);
+  const [recommendedFilms, setRecommendedFilms] = useState<any[]>([]); // Store recommended films
 
   useEffect(() => {
     if (user) {
       setUserId(user.id);
+
+     
+      fetch(`/api/recommendations?userId=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => setRecommendedFilms(data))
+        .catch((err) => console.error("Error fetching recommendations:", err));
     }
   }, [user]);
 
@@ -34,6 +38,16 @@ export default function HomePage() {
   if (!isAuthenticated) {
     return <AccessDenied />;
   }
+
+  
+  const filmCategories = [
+    { id: "popular", title: "POPULAR FILMS", categoryFilter: undefined, limit: 10 },
+    { id: "comedy", title: "COMEDY FILMS", categoryFilter: "comedy", limit: 10 },
+    { id: "drama", title: "DRAMA FILMS", categoryFilter: "drama", limit: 10 },
+    { id: "folklore", title: "FOLKLORE FILMS", categoryFilter: "folklore", limit: 10 },
+    { id: "horror", title: "HORROR FILMS", categoryFilter: "horror", limit: 10 },
+    { id: "romance", title: "ROMANCE FILMS", categoryFilter: "romance", limit: 10 },
+  ];
 
   return (
     <div className="pt-[4rem] lg:pt-[5rem] p-5 lg:p-0">
@@ -62,14 +76,8 @@ export default function HomePage() {
 
       <RecentlyAdded />
 
-      {[{ title: "POPULAR FILMS", component: <FilmSlider /> },
-        { title: "COMEDY FILMS", component: <FilmSliderComedy /> },
-        { title: "DRAMA FILMS", component: <FilmSliderDrama /> },
-        { title: "FOLKLORE FILMS", component: <FilmSliderFolklore /> },
-        { title: "HORROR FILMS", component: <FilmSliderHorror /> },
-        { title: "RECOMMENDED FOR YOU", component: userId ? <FilmSliderReco userId={userId} /> : <FilmSlider /> } // Fallback if no userId
-      ].map(({ title, component }) => (
-        <div key={title} className="mt-6">
+      {filmCategories.map((category) => (
+        <div key={category.id} className="mt-6">
           <h1 className="text-3xl font-bold text-gray-400">
             <TextLoop
               className="overflow-y-clip"
@@ -85,14 +93,25 @@ export default function HomePage() {
                 exit: { y: -20, rotateX: -90, opacity: 0, filter: "blur(4px)" },
               }}
             >
-              <span>{title}</span>
-              <span>{title.replace("FILMS", "MOVIES")}</span>
-              <span>{title.replace("FILMS", "CINEMA")}</span>
+              <span>{category.title}</span>
+              <span>{category.title.replace("FILMS", "MOVIES")}</span>
+              <span>{category.title.replace("FILMS", "CINEMA")}</span>
             </TextLoop>
           </h1>
-          {component}
+          <FilmSlider 
+            title={category.title}
+            categoryFilter={category.categoryFilter}
+            limit={category.limit}
+          />
         </div>
       ))}
+      {/* ✅ Recommended Films Section */}
+      {recommendedFilms.length > 0 && (
+        <div className="mt-6">
+          <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
+          <FilmSlider title="Recommended Films" films={recommendedFilms} />
+        </div>
+      )}
     </div>
   );
 }

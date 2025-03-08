@@ -10,28 +10,28 @@ import {
   MorphingDialogClose,
   MorphingDialogTitle,
   MorphingDialogDescription,
-} from "@/components/ui/morphing-dialog"; // Adjust path if needed
-import { Button } from "react-bootstrap";
+} from "@/components/ui/morphing-dialog"; 
+
 import Image from "next/image";
 
 interface FilmDetails {
   title: string;
   overview: string;
-  release: number;
   producer: string;
   director: string;
   coDirector: string;
   studio: string;
-  age: number;
+  ageRating: number;
   duration: number;
   category: string;
-  trailer: string;
+  trailerUrl: string;
   rank: number;
-  imageString: string;
+  imageUrl: string;
+  releaseYear: number;
 }
 
 interface LearnMoreModalProps {
-  film: FilmDetails; // Film details to display
+  film: FilmDetails; 
 }
 
 const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
@@ -42,7 +42,9 @@ const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
   return (
     <MorphingDialog>
       <MorphingDialogTrigger className="cursor-pointer">
-        <Button variant="primary">Learn More</Button>
+        <div className="bg-gray-800 text-white px-4 py-1 rounded-lg text-center">
+          Learn More
+        </div>
       </MorphingDialogTrigger>
       <MorphingDialogContainer>
         <MorphingDialogContent className="bg-gray-900 text-white rounded-xl max-w-sm p-4">
@@ -52,16 +54,16 @@ const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
           </MorphingDialogTitle>
 
           <div className="flex flex-col items-center mt-3">
-            <Image
+          <Image
               width={40}
               height={40}
               src={
-                film.imageString.startsWith("http")
-                  ? film.imageString
+                film.imageUrl && typeof film.imageUrl === 'string' && film.imageUrl.startsWith("http")
+                  ? film.imageUrl
                   : "/default-placeholder.png"
               }
-              alt={`${film.title} Poster`}
-              className="w-32 h-48 object-cover rounded-lg shadow-md"
+              alt={film.title || "Film poster"}
+              className="rounded-md"
             />
           </div>
 
@@ -70,7 +72,7 @@ const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
               <strong>Overview:</strong> {film.overview}
             </p>
             <p>
-              <strong>Release Year:</strong> {film.release}
+              <strong>Release Year:</strong> {film.releaseYear}
             </p>
             <p>
               <strong>Producer:</strong> {film.producer}
@@ -82,7 +84,7 @@ const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
               <strong>Studio:</strong> {film.studio}
             </p>
             <p>
-              <strong>Age Rating:</strong> {film.age}+
+              <strong>Age Rating:</strong> {film.ageRating}+
             </p>
             <p>
               <strong>Duration:</strong> {film.duration} min
@@ -99,7 +101,7 @@ const LearnMoreModal: React.FC<LearnMoreModalProps> = ({ film }) => {
             <strong className="text-sm">Trailer:</strong>
             <div className="w-full mt-2 rounded-lg overflow-hidden">
               <ReactPlayer
-                url={film.trailer}
+                url={film.trailerUrl}
                 playing
                 controls
                 width="100%"

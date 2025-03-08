@@ -14,12 +14,11 @@ interface Film {
   watchList: boolean;
   imageUrl: string;
   trailerUrl: string;
-  age: number;
-  release: number;
+  ageRating: number;
   duration: number;
   category: string;
   averageRating: number;
-  year: number; 
+  releaseYear: number; 
   time: number; 
   initialRatings: number; 
 }
@@ -37,8 +36,8 @@ async function getData(userId: string): Promise<Film[]> {
         watchList: sql<boolean>`COALESCE(${watchLists.userId} IS NOT NULL, FALSE)`.as("watchList"),
         imageUrl: film.imageUrl,
         trailerUrl: film.trailerUrl,
-        age: film.ageRating,
-        release: film.releaseYear,
+        ageRating: film.ageRating,
+        releaseYear: film.releaseYear,
         duration: film.duration,
         category: film.category,
         averageRating: sql<number>`AVG(${userRatings.rating})`.as("averageRating"),
@@ -49,14 +48,13 @@ async function getData(userId: string): Promise<Film[]> {
         and(eq(watchLists.filmId, film.id), eq(watchLists.userId, userId))
       )
       .leftJoin(userRatings, eq(userRatings.filmId, film.id))
-      .groupBy(film.id)
+      .groupBy(film.id, watchLists.userId) 
       .orderBy(sql<number>`AVG(${userRatings.rating}) DESC`)
       .limit(4);
 
-  
     return userFilms.map(f => ({
       ...f,
-      year: f.release, 
+      year: f.releaseYear, 
       time: f.duration, 
       initialRatings: f.averageRating || 0, 
     }));
@@ -83,7 +81,7 @@ export default function RecentlyAdded() {
 
   return (
     <FilmLayout
-      title="Recently Added"
+      title=""
       films={films}
       loading={isLoading}
       error={films.length === 0 ? "No films found" : null}

@@ -3,55 +3,75 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { film } from "@/app/db/schema"; 
-import { eq, sql } from "drizzle-orm";
-
+import { eq, sql, and, desc } from "drizzle-orm";
 
 export type Film = {
   id: number;
-  imageString: string;
+  imageUrl: string;
   title: string;
-  age: number;
+  ageRating: number;
   duration: number;
   overview: string;
-  release: number;
+  releaseYear: number;
   videoSource: string;
   category: string;
-  trailer: string;
+  trailerUrl: string;
   createdAt: string;
+  updatedAt: string;
+  producer: string;
+  director: string;
+  coDirector: string;
+  studio: string;
   rank: number;
+  averageRating: number | null;
 };
 
 export async function GET(req: NextRequest) {
   const title = req.nextUrl.searchParams.get("title");
   const year = req.nextUrl.searchParams.get("year");
   const rating = req.nextUrl.searchParams.get("rating");
+  const category = req.nextUrl.searchParams.get("category");
+  const limitParam = req.nextUrl.searchParams.get("limit");
+  const limit = limitParam ? parseInt(limitParam) : 10;
 
   try {
-    const filters: any[] = [];
-
-    // Add filters based on query parameters
-    if (title) filters.push(sql`lower(${film.title}) like ${'%' + title.toLowerCase() + '%'}`);
-    if (year) filters.push(eq(film.releaseYear, parseInt(year)));
-    if (rating) filters.push(eq(film.rank, parseInt(rating)));
-
-    // Query the database with filters if any are provided
-    const query = db.select().from(film);
-    if (filters.length > 0) {
-      query.where(sql`${filters.join(' and ')}`);
+    const baseQuery = db.select().from(film);
+    
+    // Build conditions array
+    const conditions = [];
+    if (title) conditions.push(sql`lower(${film.title}) like ${'%' + title.toLowerCase() + '%'}`);
+    if (year) conditions.push(eq(film.releaseYear, parseInt(year)));
+    if (rating) conditions.push(eq(film.rank, parseInt(rating)));
+    if (category) conditions.push(eq(film.category, category));
+    
+    // Execute query with conditions and limit
+    let filmsData;
+    
+    if (conditions.length > 0) {
+      // With conditions
+      filmsData = await baseQuery
+        .where(and(...conditions))
+        .orderBy(desc(film.rank))
+        .limit(limit);
+    } else {
+      // No conditions
+      filmsData = await baseQuery
+        .orderBy(desc(film.rank))
+        .limit(limit);
     }
 
-    const filmsData = await query;
-
+    // Return data in the format expected by the component
     if (filmsData.length === 0) {
-      return NextResponse.json({ message: "No films found" }, { status: 404 });
+      return NextResponse.json([]);
     }
 
-    return NextResponse.json({ rows: filmsData }); 
+    return NextResponse.json({ rows: filmsData });
   } catch (error) {
     console.error("Error fetching films:", error);
     return NextResponse.json({ message: 'Error fetching films' }, { status: 500 });
   }
 }
+
 export async function POST(req: NextRequest) {
   try {
     // Parse the JSON body to extract the film ID

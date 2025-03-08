@@ -1,6 +1,6 @@
 {
-  "id": "37fa1993-0216-4c90-9b0d-2aefa3759477",
-  "prevId": "97d13b02-8b0c-443c-9130-a7a2087392e0",
+  "id": "3012287c-4be7-4366-b46a-64e94dc59891",
+  "prevId": "3e1bdcd1-9d1e-4692-bb0f-dad7caf5c782",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -456,10 +456,30 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "uploader_by": {
+          "name": "uploader_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "films_uploader_by_users_id_fk": {
+          "name": "films_uploader_by_users_id_fk",
+          "tableFrom": "films",
+          "tableTo": "users",
+          "columnsFrom": [
+            "uploader_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },

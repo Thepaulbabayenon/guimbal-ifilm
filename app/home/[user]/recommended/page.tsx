@@ -1,41 +1,15 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '@/app/auth/nextjs/useUser';
 import FilmLayout from '@/app/components/FilmComponents/FilmLayout';
 import { Logo } from '@/app/components/Logo';
 import { AlertCircle } from 'lucide-react';
-import { Film } from '@/types/film'; // Import your actual Film type
+import { Film } from '@/types/film'; 
+import { useRecommendations } from '@/hooks/useRecommendations'; // Import the hook
 
 interface RecommendationSection {
   reason: string;
   films: Film[];
-}
-
-async function fetchRecommendedFilms(userId: string): Promise<RecommendationSection[]> {
-  try {
-    const response = await axios.get<RecommendationSection[]>(`/api/recommendations`, {
-      params: { userId },
-      timeout: 10000,
-    });
-    
-    if (!Array.isArray(response.data)) {
-      console.error('API returned invalid format:', response.data);
-      return [];
-    }
-
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error(`API error (${error.code || 'unknown'}): ${error.message}`);
-      if (error.response) {
-        console.error(`Status: ${error.response.status}, Data:`, error.response.data);
-      }
-    } else {
-      console.error('Error fetching recommended films:', error);
-    }
-    throw error;
-  }
 }
 
 const FilmSkeleton: React.FC = () => (
@@ -99,54 +73,52 @@ const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (
 
 const RecommendedPage: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [recommendations, setRecommendations] = useState<RecommendationSection[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Fetch recommendations if user is authenticated
+  const { recommendations: rawRecommendations, loading } = 
+    useRecommendations(user?.id || '') as { 
+      recommendations: any[], 
+      loading: boolean 
+    };
+
+  // Transform recommendations to match the expected format
+  const recommendations: RecommendationSection[] = React.useMemo(() => {
+    if (!rawRecommendations || !Array.isArray(rawRecommendations)) return [];
+
+    return rawRecommendations.map((item: any) => ({
+      reason: item.reason || "Recommended for You",
+      films: item.films.map((film: any) => ({
+        id: film.id,
+        title: film.title,
+        overview: film.description || "",
+        category: film.category || "Uncategorized",
+        watchList: film.watchList ?? false,
+        trailerUrl: film.trailerUrl || "",
+        year: film.year || 2020, // Default year
+        age: film.age || 0, // Default age rating
+        time: film.time || 120, // Default time
+        initialRatings: film.initialRatings || 0,
+        imageUrl: film.imageUrl || "/default-movie.jpg", // Default image
+        averageRating: film.averageRating ?? null
+      }))
+    }));
+  }, [rawRecommendations]);
 
   const displayName = user?.name || user?.email?.split('@')[0] || 'User';
 
-  const fetchData = async () => {
-    if (!user?.id || !isAuthenticated) return;
-    
-    setLoading(true);
+  const handleRetry = () => {
+  
     setError(null);
-    
-    try {
-      const data = await fetchRecommendedFilms(user.id);
-      setRecommendations(data);
-    } catch (error) {
-      let errorMessage = 'Failed to load recommended films';
-      
-      if (axios.isAxiosError(error)) {
-        if (error.code === 'ECONNABORTED') {
-          errorMessage = 'Request timed out. Please check your connection and try again.';
-        } else if (error.response?.status === 404) {
-          errorMessage = 'Recommendation service not found.';
-        } else if (error.response?.status === 401) {
-          errorMessage = 'Authentication error. Please sign in again.';
-        } else if (error.response?.status && error.response.status >= 500) {
-          errorMessage = 'Server error. Our team has been notified.';
-        }
-      }
-      
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
   };
 
   useEffect(() => {
-    if (!isLoading) {
-      if (isAuthenticated && user) {
-        fetchData();
-      } else {
-        setLoading(false);
-        setError('Please sign in to view recommendations');
-      }
+    if (!isLoading && !isAuthenticated) {
+      setError('Please sign in to view recommendations');
     }
-  }, [isLoading, isAuthenticated, user]);
+  }, [isLoading, isAuthenticated]);
 
-  if (loading) {
+  if (loading || isLoading) {
     return (
       <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
         <Logo />
@@ -163,7 +135,7 @@ const RecommendedPage: React.FC = () => {
       <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
         <Logo />
         <h1 className="text-3xl font-bold mb-6 text-center justify-center">Recommended for {displayName}</h1>
-        <ErrorState message={error} onRetry={fetchData} />
+        <ErrorState message={error} onRetry={handleRetry} />
       </div>
     );
   }

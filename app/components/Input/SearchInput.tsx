@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FilmCard } from "@/app/components/FilmComponents/FilmCard"; // Ensure correct path
+import { FilmCard } from "@/app/components/FilmComponents/FilmCard"; 
 import PlayVideoModal from "../PlayVideoModal";
 
 export default function SearchResultsPage() {
@@ -97,8 +97,8 @@ export default function SearchResultsPage() {
            overview={film.overview}
            watchList={film.watchList}
            trailerUrl={film.trailerUrl}
-           year={film.year}
-           age={film.age}
+           releaseYear={film.releaseYear}
+           ageRating={film.age}
            time={film.duration}
            initialRatings={film.ratings}
            category={film.category}
@@ -135,12 +135,12 @@ export default function SearchResultsPage() {
         overview={selectedFilm?.overview || ""}
         state={open}
         changeState={setOpen}
-        age={selectedFilm?.age || 0}
+        ageRating={selectedFilm?.age || 0}
         duration={selectedFilm?.duration || 0}
-        release={selectedFilm?.release || 0}
+        releaseYear={selectedFilm.release || 0}
         ratings={selectedFilm?.ratings || 0}
         setUserRating={() => {}}
-        category={selectedFilm?.category || ""} // Pass category here
+        category={selectedFilm?.category || ""} 
       />
     </div>
   );

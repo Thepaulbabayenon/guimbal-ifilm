@@ -5,8 +5,7 @@ export interface Film {
   overview: string;
   watchList: boolean;
   trailerUrl: string;
-  year: number;
-  age: number;
+  releaseYear: number;
   time: number;
   initialRatings: number;
   category: string;

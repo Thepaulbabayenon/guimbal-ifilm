@@ -12,15 +12,15 @@ interface Film {
   id: number;
   title: string;
   overview: string;
-  age: number;
+  ageRating: number;
   duration: number;
   category: string;
   videoSource: string;
-  trailer: string;
+  trailerUrl: string;
   producer: string;
   director: string;
   studio: string;
-  imageString?: string;
+  imageUrl?: string;
 }
 
 export default function FilmForm({ initialData }: FilmFormProps) {

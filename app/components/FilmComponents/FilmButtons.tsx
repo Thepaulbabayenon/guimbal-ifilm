@@ -10,9 +10,9 @@ interface iAppProps {
   overview: string;
   trailerUrl: string;
   id: number;
-  age: number;
+  ageRating: number;
   title: string;
-  releaseDate: number;
+  releaseYear: number;
   duration: number;
   category: string;
   isMuted: boolean;
@@ -25,11 +25,11 @@ interface iAppProps {
 }
 
 export default function FilmButtons({
-  age,
+  ageRating,
   duration,
   id,
   overview,
-  releaseDate,
+  releaseYear,
   title,
   trailerUrl,
   category,
@@ -45,20 +45,22 @@ export default function FilmButtons({
   const [isLearnMoreModalOpen, setLearnMoreModalOpen] = useState(false); // State for LearnMoreModal
 
   const film = {
+    id,
     title,
     overview,
-    release: releaseDate,
-    producer: 'Producer Name', // replace with actual producer info
-    director: 'Director Name', // replace with actual director info
-    coDirector: 'Co-director Name', // replace with actual co-director info
-    studio: 'Studio Name', // replace with actual studio info
-    age,
+    releaseYear, // ✅ Matches database schema
+    ageRating,
     duration,
     category,
-    trailer: trailerUrl && trailerUrl.includes('v=') ? trailerUrl.split('v=')[1] : '',
-    rank: 5, // replace with actual ranking
-    imageString: 'url-to-image.jpg', // replace with actual image URL
+    director: "Director Name", // Replace with actual director data
+    coDirector: "Co-director Name", // Replace with actual co-director data
+    producer: "Producer Name", // Replace with actual producer data
+    studio: "Studio Name", // Replace with actual studio data
+    trailerUrl, // ✅ Matches database schema
+    imageUrl: "url-to-image.jpg", // ✅ Matches database schema
+    rank: 5, // Replace with actual rank data if available
   };
+  
 
   // GSAP animations for buttons
   const handleHoverIn = (element: any) => {
@@ -121,19 +123,19 @@ export default function FilmButtons({
       <PlayVideoModal
         state={isPlayModalOpen}
         changeState={setPlayModalOpen}
-        age={age}
+        ageRating={ageRating}
         duration={duration}
         key={id}
         overview={overview}
-        release={releaseDate}
+        releaseYear={releaseYear}
         title={title}
         trailerUrl={trailerUrl}
         category={category}
-        ratings={userRatings[id] || 0} // Pass user rating
-        setUserRating={setUserRating} // Function to update the rating
-        userId={userId} // Pass user ID for marking as watched
-        filmId={id} // Pass film ID to fetch comments and other details
-        markAsWatched={markAsWatched} // Function to mark the movie as watched
+        ratings={userRatings[id] || 0} 
+        setUserRating={setUserRating} 
+        userId={userId} 
+        filmId={id} 
+        markAsWatched={markAsWatched} 
       />
 
       {/* Learn More Modal */}

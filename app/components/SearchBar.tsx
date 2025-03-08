@@ -14,9 +14,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
   const [query, setQuery] = useState<string>("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [isClient, setIsClient] = useState<boolean>(false);
   const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const resultsRef = React.useRef<HTMLUListElement>(null);
+
+  // Set isClient to true once component mounts
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const isYear = (input: string) => /^\d{4}$/.test(input);
 
@@ -61,23 +67,28 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
     if (inputRef.current) inputRef.current.focus();
   };
 
+  
+ 
   useEffect(() => {
+    if (!isClient) return; // Prevent animations from running on the server
+  
     if (inputRef.current) {
       gsap.fromTo(
         inputRef.current,
         { scale: 1, backgroundColor: "transparent" },
-        { scale: 1.05, backgroundColor: "rgba(255, 255, 255, 0.1)", duration: 0.3, ease: "ease.inOut" }
+        { scale: 1.05, backgroundColor: "rgba(255, 255, 255, 0.1)", duration: 0.3 }
       );
     }
-
+  
     if (results.length > 0 && resultsRef.current) {
       gsap.fromTo(
         resultsRef.current,
         { opacity: 0, y: -20 },
-        { opacity: 1, y: 0, duration: 0.3, stagger: 0.1, ease: "ease.out" }
+        { opacity: 1, y: 0, duration: 0.3 }
       );
     }
-  }, [results]);
+  }, [results, isClient]);
+  
 
   return (
     <div className={`relative max-w-lg ${isMobile ? "mx-auto mt-4 px-6" : ""} bg-transparent`}>
@@ -89,7 +100,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
           placeholder="Search for films by title or year..."
           value={query}
           onChange={handleChange}
-          onKeyDown={handleKeyDown}
+          onKeyDown={isClient ? handleKeyDown : undefined}
         />
         {query && (
           <button
@@ -102,7 +113,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
       </div>
 
       {/* Loading Animation */}
-      {loading && (
+      {loading && isClient && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -131,31 +142,33 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
       )}
 
       {/* Search Results */}
-      <div className="absolute top-full left-0 w-full mt-2 rounded-lg shadow-lg bg-gray-900 z-10">
-        {results.length > 0 ? (
-          <motion.ul
-            ref={resultsRef}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="max-h-64 overflow-y-auto bg-gray-900 rounded-lg"
-          >
-            {results.map((result: any) => (
-              <motion.li
-                key={result.id}
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="px-4 py-3 border-b border-gray-700 hover:bg-gray-800 transition-all cursor-pointer"
-                onClick={() => router.push(`/home/films/${result.id}`)}
-              >
-                <div className="text-white text-lg font-semibold">{result.title}</div>
-              </motion.li>
-            ))}
-          </motion.ul>
-        ) : query && !loading ? (
-          <div className="px-4 py-2 text-center text-gray-500">No results found</div>
-        ) : null}
-      </div>
+      {isClient && (
+        <div className="absolute top-full left-0 w-full mt-2 rounded-lg shadow-lg bg-gray-900 z-10">
+          {results.length > 0 ? (
+            <motion.ul
+              ref={resultsRef}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="max-h-64 overflow-y-auto bg-gray-900 rounded-lg"
+            >
+              {results.map((result: any) => (
+                <motion.li
+                  key={result.id}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                  className="px-4 py-3 border-b border-gray-700 hover:bg-gray-800 transition-all cursor-pointer"
+                  onClick={() => router.push(`/home/films/${result.id}`)}
+                >
+                  <div className="text-white text-lg font-semibold">{result.title}</div>
+                </motion.li>
+              ))}
+            </motion.ul>
+          ) : query && !loading ? (
+            <div className="px-4 py-2 text-center text-gray-500">No results found</div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };

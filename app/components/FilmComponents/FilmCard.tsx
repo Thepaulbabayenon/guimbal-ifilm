@@ -15,12 +15,12 @@ interface FilmCardProps {
   watchList: boolean;
   watchListId?: string;
   trailerUrl: string;
-  year: number;
-  age: number;
-  time: number;
+  releaseYear: number;
+  ageRating?: number;
+  time?: number;
   initialRatings: number;
   category: string;
-  onOpenModal?: () => void; // New prop for handling modal opening
+  onOpenModal?: () => void;
 }
 
 export function FilmCard({
@@ -30,30 +30,31 @@ export function FilmCard({
   watchList: initialWatchList,
   watchListId,
   trailerUrl,
-  year,
-  age,
+  releaseYear,
+  ageRating,
   time,
   initialRatings,
   category,
-  onOpenModal, // Add this to the function parameters
+  onOpenModal,
 }: FilmCardProps) {
-  // Use the auth hook and safely access its properties
+  // Auth state
   const auth = useAuth();
   const userId = auth?.user?.id;
   const getToken = auth?.getToken;
 
+  // Component state
   const [open, setOpen] = useState(false);
   const [watchList, setWatchList] = useState(initialWatchList);
   const [userRating, setUserRating] = useState<number>(0);
   const [averageRating, setAverageRating] = useState<number>(initialRatings);
   const [isSavingWatchlist, setIsSavingWatchlist] = useState(false);
   const [isSavingRating, setIsSavingRating] = useState(false);
-  const [loading, setLoading] = useState(true); // State for overall loading
+  const [loading, setLoading] = useState(true);
   const pathName = usePathname();
 
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-  // Function to mark a film as watched
+  // Mark film as watched
   const markAsWatched = async (userId: string, filmId: number) => {
     try {
       if (!userId) {
@@ -61,14 +62,18 @@ export function FilmCard({
         return;
       }
 
-      await axios.post(`/api/films/${filmId}/watched-films`, { userId, filmId }, { headers: { "Content-Type": "application/json" } });
+      await axios.post(
+        `/api/films/${filmId}/watched-films`, 
+        { userId, filmId }, 
+        { headers: { "Content-Type": "application/json" } }
+      );
       console.log(`Film ${filmId} marked as watched for user ${userId}`);
     } catch (error) {
       console.error("Error marking film as watched:", error);
     }
   };
 
-  // Fetch user rating and average rating when the component mounts
+  // Fetch ratings on mount
   useEffect(() => {
     if (!userId) {
       setLoading(false);
@@ -77,39 +82,49 @@ export function FilmCard({
 
     const fetchRatings = async () => {
       try {
-        const response = await axios.get(`/api/films/${filmId}/user-rating`, { params: { userId } });
+        // Fetch user's rating
+        const response = await axios.get(`/api/films/${filmId}/user-rating`, { 
+          params: { userId } 
+        });
 
         if (response.data && response.data.rating !== undefined) {
           setUserRating(response.data.rating);
         }
 
+        // Fetch average rating
         const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
         if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
           setAverageRating(avgResponse.data.averageRating);
         } else {
           setAverageRating(initialRatings);
         }
-
-        setLoading(false); // Set loading to false once data is fetched
       } catch (error) {
-        console.error("Error fetching ratings from the database:", error);
+        console.error("Error fetching ratings:", error);
         setAverageRating(initialRatings);
-        setLoading(false); // Set loading to false even in case of error
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchRatings();
   }, [filmId, initialRatings, userId]);
 
-  // Save user rating to the database when it changes
+  // Save user rating when changed
   useEffect(() => {
     if (!userId || userRating === 0) return;
 
     const saveUserRating = async () => {
       try {
         setIsSavingRating(true);
-        await axios.post(`/api/films/${filmId}/user-rating`, { userId, rating: userRating }, { headers: { "Content-Type": "application/json" } });
+        
+        // Save user rating
+        await axios.post(
+          `/api/films/${filmId}/user-rating`, 
+          { userId, rating: userRating }, 
+          { headers: { "Content-Type": "application/json" } }
+        );
 
+        // Update average rating
         const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
         if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
           setAverageRating(avgResponse.data.averageRating);
@@ -124,6 +139,7 @@ export function FilmCard({
     saveUserRating();
   }, [userRating, filmId, userId]);
 
+  // Handle watchlist toggle
   const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
   
@@ -136,7 +152,7 @@ export function FilmCard({
     const previousState = watchList;
   
     try {
-      // Make sure getToken exists before calling it
+      // Get authentication token
       const token = getToken ? await getToken() : null;
       
       if (!token) {
@@ -147,20 +163,17 @@ export function FilmCard({
       setWatchList(!previousState);
   
       if (previousState) {
-        console.log("Attempting to remove from watchlist. Current watchListId:", watchListId);
+        // Remove from watchlist
+        console.log("Removing from watchlist. Current watchListId:", watchListId);
   
         if (!watchListId) {
-          console.error("Error: watchListId is missing!", watchListId);
-          alert("Error: Missing watchlist ID");
-          return;
+          throw new Error("Missing watchlist ID");
         }
   
-        // Convert watchListId to a number before passing it
+        // Convert watchListId to a number
         const watchListIdNumber = Number(watchListId);
         if (isNaN(watchListIdNumber)) {
-          console.error("Invalid watchListId:", watchListId);
-          alert("Error: Invalid watchlist ID");
-          return;
+          throw new Error("Invalid watchlist ID");
         }
   
         await axios.delete(`${baseUrl}/api/watchlist/${watchListIdNumber}`, {
@@ -168,9 +181,8 @@ export function FilmCard({
             Authorization: `Bearer ${token}`,
           },
         });
-  
       } else {
-        // Use the server action for adding to watchlist
+        // Add to watchlist using server action
         await addToWatchlist({ 
           filmId, 
           pathname: pathName, 
@@ -191,21 +203,27 @@ export function FilmCard({
 
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
-    if (isSavingRating) {
-      return;
-    }
+    if (isSavingRating) return;
 
     if (!userId) {
       alert("Please log in to rate films.");
       return;
     }
 
+    // Optimistic UI update
     setUserRating(newRating);
 
     try {
       setIsSavingRating(true);
-      await axios.post(`/api/films/${filmId}/user-rating`, { userId, rating: newRating }, { headers: { "Content-Type": "application/json" } });
+      
+      // Save the rating
+      await axios.post(
+        `/api/films/${filmId}/user-rating`, 
+        { userId, rating: newRating }, 
+        { headers: { "Content-Type": "application/json" } }
+      );
 
+      // Update average rating
       const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
       if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
         setAverageRating(avgResponse.data.averageRating);
@@ -217,18 +235,64 @@ export function FilmCard({
     }
   };
 
-  // Ensure averageRating is a valid number before calling toFixed
-  const safeAverageRating = typeof averageRating === "number" && !isNaN(averageRating) ? averageRating : NaN;
+  // Format average rating safely
+  const safeAverageRating = typeof averageRating === "number" && !isNaN(averageRating) 
+    ? averageRating 
+    : NaN;
+
+  // Render loading skeleton
+  const renderSkeleton = () => (
+    <div className="space-y-4">
+      <div className="bg-gray-300 animate-pulse w-32 h-6 rounded"></div>
+      <div className="flex gap-x-2 items-center">
+        <div className="bg-gray-300 animate-pulse w-10 h-4 rounded"></div>
+        <div className="bg-gray-300 animate-pulse w-10 h-4 rounded"></div>
+        <div className="bg-gray-300 animate-pulse w-10 h-4 rounded"></div>
+      </div>
+      <div className="flex gap-x-2">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <CiStar key={index} className="w-4 h-4 text-gray-300 animate-pulse" />
+        ))}
+      </div>
+      <div className="bg-gray-300 animate-pulse w-48 h-4 rounded"></div>
+      <div className="bg-gray-300 animate-pulse w-32 h-4 rounded"></div>
+    </div>
+  );
+
+  // Render film details
+  const renderFilmDetails = () => (
+    <>
+      <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
+      <div className="flex gap-x-2 items-center">
+        <p className="font-normal text-sm">{releaseYear}</p>
+        <p className="font-normal border py-0.5 px-1 border-gray-200 rounded text-sm">{ageRating}+</p>
+        <p className="font-normal text-sm">{time}m</p>
+        <div className="flex items-center">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <CiStar
+              key={star}
+              className={`w-4 h-4 cursor-pointer ${userRating >= star ? "text-green-400" : "text-gray-400"}`}
+              onClick={() => handleRatingClick(star)}
+            />
+          ))}
+        </div>
+      </div>
+      <p className="line-clamp-1 text-sm text-gray-200 font-light">{overview}</p>
+      <p className="font-normal text-sm mt-2">
+        Average Rating: {isNaN(safeAverageRating) ? "N/A" : safeAverageRating.toFixed(2)} / 5
+      </p>
+    </>
+  );
 
   return (
     <>
-      {/* Play button with modified handler to use the callback */}
+      {/* Play button */}
       <button 
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           setOpen(true);
-          if (onOpenModal) onOpenModal(); // Call the parent's handler
+          if (onOpenModal) onOpenModal();
         }} 
         className="-mt-14"
       >
@@ -239,56 +303,18 @@ export function FilmCard({
       <div className="right-5 top-5 absolute z-10">
         <Button 
           variant="outline" 
-          size="icon" 
+          size="icon"
+          className="bg-black/50 hover:bg-black/70" 
           onClick={handleToggleWatchlist} 
           disabled={isSavingWatchlist || loading}
         >
-          <CiHeart className={`w-4 h-4 ${watchList ? "text-red-500" : "text-gray-500"}`} />
+          <CiHeart className={`w-6 h-6 ${watchList ? "text-red-500" : "text-white"}`} />
         </Button>
       </div>
 
       {/* Film Details */}
       <div className="p-5 absolute bottom-0 left-0">
-        {loading ? (
-          // Skeleton loader for the film card content
-          <div className="space-y-4">
-            <div className="bg-gray-300 animate-pulse w-32 h-6 rounded"></div>
-            <div className="flex gap-x-2 items-center">
-              <div className="bg-gray-300 animate-pulse w-10 h-4 rounded"></div>
-              <div className="bg-gray-300 animate-pulse w-10 h-4 rounded"></div>
-              <div className="bg-gray-300 animate-pulse w-10 h-4 rounded"></div>
-            </div>
-            <div className="flex gap-x-2">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <CiStar key={index} className="w-4 h-4 text-gray-300 animate-pulse" />
-              ))}
-            </div>
-            <div className="bg-gray-300 animate-pulse w-48 h-4 rounded"></div>
-            <div className="bg-gray-300 animate-pulse w-32 h-4 rounded"></div>
-          </div>
-        ) : (
-          <>
-            <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
-            <div className="flex gap-x-2 items-center">
-              <p className="font-normal text-sm">{year}</p>
-              <p className="font-normal border py-0.5 px-1 border-gray-200 rounded text-sm">{age}+</p>
-              <p className="font-normal text-sm">{time}m</p>
-              <div className="flex items-center">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <CiStar
-                    key={star}
-                    className={`w-4 h-4 cursor-pointer ${userRating >= star ? "text-green-400" : "text-gray-400"}`}
-                    onClick={() => handleRatingClick(star)}
-                  />
-                ))}
-              </div>
-            </div>
-            <p className="line-clamp-1 text-sm text-gray-200 font-light">{overview}</p>
-            <p className="font-normal text-sm mt-2">
-              Average Rating: {isNaN(safeAverageRating) ? "N/A" : safeAverageRating.toFixed(2)} / 5
-            </p>
-          </>
-        )}
+        {loading ? renderSkeleton() : renderFilmDetails()}
       </div>
     </>
   );

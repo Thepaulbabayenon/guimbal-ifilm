@@ -1,6 +1,6 @@
 {
-  "id": "97d13b02-8b0c-443c-9130-a7a2087392e0",
-  "prevId": "afbf1d6f-1e74-4658-87f5-39fe4a58d084",
+  "id": "3e1bdcd1-9d1e-4692-bb0f-dad7caf5c782",
+  "prevId": "f802dd27-0661-41bb-bc24-4083f7163208",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -456,10 +456,30 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "uploader_id": {
+          "name": "uploader_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "films_uploader_id_users_id_fk": {
+          "name": "films_uploader_id_users_id_fk",
+          "tableFrom": "films",
+          "tableTo": "users",
+          "columnsFrom": [
+            "uploader_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
@@ -802,6 +822,63 @@
           ]
         }
       }
+    },
+    "public.two_factor_sessions": {
+      "name": "two_factor_sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verified": {
+          "name": "verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "two_factor_sessions_user_id_users_id_fk": {
+          "name": "two_factor_sessions_user_id_users_id_fk",
+          "tableFrom": "two_factor_sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
     },
     "public.userInteractions": {
       "name": "userInteractions",
@@ -1170,6 +1247,25 @@
         "image": {
           "name": "image",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "two_factor_secret": {
+          "name": "two_factor_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "two_factor_enabled": {
+          "name": "two_factor_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "two_factor_backup_codes": {
+          "name": "two_factor_backup_codes",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": false
         },

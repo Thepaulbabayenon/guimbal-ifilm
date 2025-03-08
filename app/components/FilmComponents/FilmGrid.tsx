@@ -15,15 +15,15 @@ export function FilmGrid() {
   interface Film {
     id: number;
     title: string;
-    age: number | null; // Allow null
+    ageRating: number | null; 
     duration: number;
-    imageString: string;
+    imageUrl: string;
     overview: string;
-    release: number;
+    releaseYear: number;
     videoSource: string;
     category: string;
-    trailer: string | null; // Allow null
-    rank: number | null; // Allow null
+    trailerUrl: string | null; 
+    rank: number | null; 
   }
   
   
@@ -36,7 +36,7 @@ export function FilmGrid() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
   const [watchList, setWatchList] = useState<{ [key: number]: boolean }>({});
-  const [loading, setLoading] = useState(true); // Track loading state
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchFilms() {
@@ -44,9 +44,9 @@ export function FilmGrid() {
         const filmsData = await getAllFilms();
         const formattedFilms = filmsData.map((film) => ({
           ...film,
-          age: film.age !== null ? Number(film.age) : 0, // Convert to number or default to 0
-          trailer: film.trailer ?? "", // Ensure trailer is a string
-          rank: film.rank ?? 0, // Default rank to 0 if null
+          ageRating: film.ageRating !== null ? Number(film.ageRating) : 0, 
+          trailerUrl: film.trailerUrl ?? "",
+          rank: film.rank ?? 0, 
         }));
     
         setFilms(formattedFilms);
@@ -137,7 +137,7 @@ export function FilmGrid() {
             <Card className="h-40 w-full">
               <CardContent className="relative flex items-center justify-center p-1 h-full">
                 <img
-                  src={film.imageString}
+                  src={film.imageUrl}
                   alt={film.title}
                   className="object-cover w-full h-full transition-transform duration-200 hover:scale-105"
                 />
@@ -174,12 +174,12 @@ export function FilmGrid() {
        overview={selectedFilm.overview}
        state={modalOpen}
        title={selectedFilm.title}
-       trailerUrl={selectedFilm.trailer ?? ""} // Ensure it's a string
-       age={selectedFilm.age ?? 0} // Default age to 0
+       trailerUrl={selectedFilm.trailerUrl ?? ""} 
+       ageRating={selectedFilm.ageRating ?? 0} 
        duration={selectedFilm.duration}
-       release={selectedFilm.release}
-       ratings={selectedFilm.rank ?? 0} // Default rank to 0
-       setUserRating={() => {}} // Implement this function if needed
+       releaseYear={selectedFilm.releaseYear}
+       ratings={selectedFilm.rank ?? 0} 
+       setUserRating={() => {}} 
        markAsWatched={() => markAsWatched(selectedFilm.id)}
        category={selectedFilm.category}
      />     

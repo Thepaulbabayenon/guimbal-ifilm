@@ -47,11 +47,11 @@ export default function FilmVideo() {
   const { user } = useUser();  
   const [data, setData] = useState<Film | null>(null);
   const [isMuted, setIsMuted] = useState(true);
-  const [isLoading, setIsLoading] = useState(true); // State to handle loading
+  const [isLoading, setIsLoading] = useState(true); 
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const userRatings = { [1]: 4 };  // Example: Assuming the film ID is 1
-  const averageRatings = { [1]: 4.5 };  // Example: Assuming the film ID is 1
+  const userRatings = { [1]: 4 };  
+  const averageRatings = { [1]: 4.5 };  
   const setUserRating = (rating: number) => {
     console.log("User rating set to:", rating);
   };
@@ -78,7 +78,7 @@ export default function FilmVideo() {
   };
 
   if (isLoading) {
-    return <LoadingState />; // Display loading state while fetching data
+    return <LoadingState />; 
   }
 
   if (!data) {
@@ -110,22 +110,22 @@ export default function FilmVideo() {
         </p>
         <div className="flex gap-x-3 mt-4">
           <FilmButtons
-            age={data.ageRating}
+            ageRating={data.ageRating}
             duration={data.duration}
             id={data.id}
             overview={data.overview}
-            releaseDate={data.releaseYear}
+            releaseYear={data.releaseYear}
             title={data.title}
             trailerUrl={data.trailerUrl}
             key={data.id}
             category={data.category}
             isMuted={isMuted}
             toggleMute={toggleMute}
-            userRatings={userRatings}  // Pass the updated ratings
-            averageRatings={averageRatings}  // Pass the updated ratings
+            userRatings={userRatings}  
+            averageRatings={averageRatings}  
             setUserRating={setUserRating}
             markAsWatched={markAsWatched}
-            userId={userId}  // Pass the user ID
+            userId={userId}  
           />
         </div>
       </div>

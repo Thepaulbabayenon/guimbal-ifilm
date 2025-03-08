@@ -1,26 +1,30 @@
 'use client';
 
 import { useState, useEffect } from "react";
+import { Film } from "@/types/film"; // Ensure this path is correct
 
-type Recommendation = {
-  id: number;
-  title: string;
-  genre: string;
-  description: string;
-};
-
-export const useRecommendations = (userId: string) => {
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+export function useRecommendations(userId: string | null) {
+  const [recommendations, setRecommendations] = useState<Readonly<Film>[]>([]); 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!userId) {
+      console.error("❌ Missing userId in useRecommendations");
+      setLoading(false);
+      return;
+    }
+
     const fetchRecommendations = async () => {
       try {
-        const res = await fetch(`/api/recommendations?userId=${userId}`);
-        const data = await res.json();
+        const response = await fetch(`/api/recommendations?userId=${userId}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const data: Readonly<Film>[] = await response.json(); 
         setRecommendations(data);
-      } catch (error) {
-        console.error("Failed to fetch recommendations:", error);
+      } catch (err) {
+        setError("Failed to fetch recommendations.");
+        console.error("❌ API request error:", err);
       } finally {
         setLoading(false);
       }
@@ -29,5 +33,5 @@ export const useRecommendations = (userId: string) => {
     fetchRecommendations();
   }, [userId]);
 
-  return { recommendations, loading };
-};
+  return { recommendations, loading, error };
+}

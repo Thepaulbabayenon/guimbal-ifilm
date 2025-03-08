@@ -261,7 +261,7 @@ const FilmUploadModal = () => {
                   type="text"
                   name="category"
                   value={formData.category}
-                  placeholder="Category"
+                  placeholder="Category (all lowercase)"
                   onChange={handleInputChange}
                   required
                   className="border rounded-lg p-1 w-full text-sm text-black"

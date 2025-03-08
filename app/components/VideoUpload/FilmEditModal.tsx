@@ -88,7 +88,7 @@ const FilmEditModal: React.FC<FilmEditModalProps> = ({ film, onClose }) => {
           <input name="duration" type="number" value={formData.duration} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Duration (min)" />
           <textarea name="overview" value={formData.overview} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Overview"></textarea>
           <input name="release" type="date" value={formData.release} onChange={handleChange} className="w-full p-2 border rounded text-sm" />
-          <input name="category" value={formData.category} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Category" />
+          <input name="category" value={formData.category} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Category (all lowercase)" />
           <input name="producer" value={formData.producer} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Producer" />
           <input name="director" value={formData.director} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Director" />
           <input name="coDirector" value={formData.coDirector} onChange={handleChange} className="w-full p-2 border rounded text-sm" placeholder="Co-Director" />

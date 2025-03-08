@@ -1,21 +1,15 @@
-// /actions/index.ts
 'use server';
 import axios from 'axios';
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/app/db/drizzle'; // Adjust the import to match your NeonDB setup
-import { film } from '@/app/db/schema'; // Adjust import for your films table schema
+import { db } from '@/app/db/drizzle';
+import { film, resetTokens } from '@/app/db/schema';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import crypto from "crypto";
+import { Resend } from "resend";
+import { eq, } from 'drizzle-orm';
 
-import { resetTokens } from "@/app/db/schema"
-import crypto from "crypto"
-import { Resend } from "resend"
-
-const resend = new Resend(process.env.RESEND_API_KEY)
-
-
-
-
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Initialize S3 client from AWS SDK v3
 const s3Client = new S3Client({
@@ -36,16 +30,26 @@ interface DeleteFromWatchlistData {
 }
 
 interface UserRatingData {
-  userId: string;  // Assuming user ID is a string
+  userId: string;
   filmId: number;
-  rating: number;  // User's rating
+  rating: number;
 }
 
 interface AverageRatingResponse {
   averageRating: number;
 }
 
-
+// For NextRequest/NextResponse usage
+export async function handleApiRequest(req: NextRequest) {
+  const body = await req.json();
+  
+  if (req.method === 'POST') {
+    // Process request
+    return NextResponse.json({ success: true, data: body });
+  } else {
+    return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  }
+}
 
 // Function to add a movie to the watchlist
 export const addToWatchlist = async (data: AddToWatchlistData) => {
@@ -94,24 +98,59 @@ export const saveUserRating = async (data: UserRatingData) => {
 export const fetchAverageRating = async (filmId: number) => {
   try {
     const response = await axios.get(`/api/films/${filmId}/average-rating`);
-    return response.data as AverageRatingResponse; // Ensure we return the correct type
+    return response.data as AverageRatingResponse;
   } catch (error) {
     throw error;
   }
 };
 
+// Using the film schema to get film details
+export async function getFilmDetails(filmId: number) {
+  try {
+    const filmData = await db.select().from(film).where(eq(film.id, filmId));
+    return filmData[0] || null;
+  } catch (error) {
+    console.error("Error fetching film details:", error);
+    return null;
+  }
+}
+
+// Generate a signed URL for uploading film posters to S3
+export async function generateUploadUrl(fileName: string, userId: string) {
+  try {
+    const key = `posters/${userId}/${fileName}`;
+    
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET!,
+      Key: key,
+      ContentType: 'image/jpeg', // Adjust based on your requirements
+    });
+    
+    // Generate a signed URL that allows the client to upload directly to S3
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    
+    return {
+      success: true,
+      uploadUrl: signedUrl,
+      fileKey: key
+    };
+  } catch (error) {
+    console.error("Error generating signed URL:", error);
+    return { success: false, error: "Failed to generate upload URL" };
+  }
+}
 
 export async function sendPasswordReset(email: string) {
   try {
     // Generate a secure reset token
-    const token = crypto.randomBytes(32).toString("hex")
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60) // Token valid for 1 hour
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // Token valid for 1 hour
 
     // Store reset token in DB
-    await db.insert(resetTokens).values({ email, token, expiresAt })
+    await db.insert(resetTokens).values({ email, token, expiresAt });
 
     // Generate reset link
-    const resetLink = `https://thebantayanfilmfestival.com/reset-password?token=${token}&email=${encodeURIComponent(email)}`
+    const resetLink = `https://thebantayanfilmfestival.com/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
     // Send email
     await resend.emails.send({
@@ -123,11 +162,11 @@ export async function sendPasswordReset(email: string) {
         <a href="${resetLink}">Reset Password</a>
         <p>This link is valid for 1 hour.</p>
       `,
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error("Error sending password reset email:", error)
-    return { success: false, error: "Failed to send reset email" }
+    console.error("Error sending password reset email:", error);
+    return { success: false, error: "Failed to send reset email" };
   }
 }

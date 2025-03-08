@@ -123,7 +123,7 @@ export default function FilmQueryPage() {
             <p><strong>Director:</strong> {film.director}</p>
             <p><strong>Producer:</strong> {film.producer}</p>
             <p><strong>Studio:</strong> {film.studio}</p>
-            <p><strong>Release Year:</strong> {film.year}</p>
+            <p><strong>Release Year:</strong> {film.releaseYear}</p>
             <p><strong>Rating:</strong> {film.averageRating ?? "N/A"}</p>
           </div>
 
@@ -145,9 +145,9 @@ export default function FilmQueryPage() {
       overview={film.overview}
       state={open}
       changeState={setOpen}
-      age={film.ageRating ?? 0} 
+      ageRating={film.ageRating ?? 0} 
       duration={film.duration ?? 0}
-      release={film.year}
+      releaseYear={film.releaseYear}
       ratings={film.averageRating ?? 0} 
       setUserRating={() => {}}
       userId={""} 

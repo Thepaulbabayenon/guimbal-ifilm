@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: { filmId: string 
       return NextResponse.json({ error: "Invalid film ID" }, { status: 400 });
     }
 
-    // Fetch film details from the database
+  
     const filmData = await db.select().from(film).where(eq(film.id, filmId)).limit(1);
 
     if (!filmData.length) {

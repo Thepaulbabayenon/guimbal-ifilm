@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { userRoles } from "@/app/db/schema";
+import { userRoles, sessions, users } from "@/app/db/schema";
 import { z } from "zod";
-import { redisClient } from "@/redis/redis";
+import { db } from "@/app/db/drizzle";
+import { and, eq, sql } from "drizzle-orm";
 
 // Seven days in seconds
 const SESSION_EXPIRATION_SECONDS = 60 * 60 * 24 * 7;
@@ -29,7 +30,7 @@ export type Cookies = {
   delete: (key: string) => void;
 };
 
-// Updated CookiesHandler for App Router
+// CookiesHandler for App Router
 export class CookiesHandler implements Cookies {
   private req: NextRequest;
   private response: NextResponse | null;
@@ -101,37 +102,46 @@ export async function getUserFromSession(cookies: Record<string, string> | null)
     return null;
   }
 
-  const sessionId = cookies[COOKIE_SESSION_KEY];
-  console.log("getUserFromSession called");
+  const sessionToken = cookies[COOKIE_SESSION_KEY];
 
-  if (!sessionId) {
-    console.log("No session ID found in cookies");
+  if (!sessionToken) {
+    console.log("No session token found in cookies");
     return null;
   }
-
-  console.log(`Session ID found: ${sessionId}`);
-  return getUserSessionById(sessionId);
+  
+  return getUserSessionByToken(sessionToken);
 }
 
 export async function updateUserSessionData(
   user: UserSession,
   cookies: Record<string, string>
 ): Promise<void> {
-  const sessionId = cookies[COOKIE_SESSION_KEY];
-  console.log("updateUserSessionData called");
-
-  if (!sessionId) {
-    console.log("No session ID found in cookies for update");
+  const sessionToken = cookies[COOKIE_SESSION_KEY];
+ 
+  if (!sessionToken) {
+    console.log("No session token found in cookies for update");
     return;
   }
 
   try {
-    console.log(`Updating session data for session ID: ${sessionId}`);
+    // Validate user data
     const validatedUser = sessionSchema.parse(user);
-    await redisClient.set(`session:${sessionId}`, JSON.stringify(validatedUser), {
-      ex: SESSION_EXPIRATION_SECONDS,
-    });    
-    console.log("User session updated successfully in Redis");
+    
+    // Find the session
+    const existingSession = await db.query.sessions.findFirst({
+      where: eq(sessions.sessionToken, sessionToken),
+    });
+    
+    if (!existingSession) {
+      console.log("Session not found for update");
+      return;
+    }
+    
+    // Update the user role if needed
+    await db.update(users)
+      .set({ role: validatedUser.role })
+      .where(eq(users.id, validatedUser.id));
+      
   } catch (error) {
     console.error("Error updating user session:", error);
   }
@@ -142,26 +152,41 @@ export async function createUserSession(
   cookies: Cookies
 ): Promise<void> {
   try {
-    console.log("createUserSession called for user ID:", user.id);
-    const sessionId = await generateUUID();
-    console.log(`Generated new session ID: ${sessionId}`);
-
-    // Ensure user data is correctly passed
-    const userSession: UserSession = {
-      id: user.id,
-      role: user.role,
-    };
-
-    const validatedSession = sessionSchema.parse(userSession);
-    await redisClient.set(`session:${sessionId}`, JSON.stringify(validatedSession), {
-      ex: SESSION_EXPIRATION_SECONDS,
-    });
-    console.log("User session created and stored in Redis");
-
-    // Ensure cookies is an appropriate object for setting cookies
+    // Validate user data
+    const validatedUser = sessionSchema.parse(user);
+    
+    // Check if a session for this user already exists
+    const existingSession = await findExistingUserSession(user.id);
+    let sessionToken = existingSession?.sessionToken;
+    
+    // Set expiration date
+    const expiresAt = new Date();
+    expiresAt.setSeconds(expiresAt.getSeconds() + SESSION_EXPIRATION_SECONDS);
+    
+    // If no existing session, create a new one
+    if (!sessionToken) {
+      sessionToken = await generateUUID();
+      console.log(`Creating new session for user ${user.id}`);
+      
+      // Create session in database
+      await db.insert(sessions).values({
+        sessionToken,
+        userId: user.id,
+        expires: expiresAt,
+      });
+    } else {
+      console.log(`Reusing existing session for user ${user.id}`);
+      
+      // Update existing session expiration
+      await db.update(sessions)
+        .set({ expires: expiresAt })
+        .where(eq(sessions.sessionToken, sessionToken));
+    }
+    
+    // Set the cookie
     if (typeof cookies.set === 'function') {
-      await setCookie(sessionId, cookies);
-      console.log("Session ID set in cookies");
+      await setCookie(sessionToken, cookies);
+      console.log("Session token set in cookies");
     } else {
       console.warn("Cannot set cookie: cookies object does not have a valid set method");
     }
@@ -171,34 +196,54 @@ export async function createUserSession(
   }
 }
 
+// Helper function to find existing session for a user
+async function findExistingUserSession(userId: string): Promise<{ sessionToken: string } | null> {
+  try {
+    // Find valid (not expired) session
+    const session = await db.query.sessions.findFirst({
+      where: and(
+        eq(sessions.userId, userId),
+        // Only return sessions that haven't expired
+        sql`${sessions.expires} > NOW()`
+      ),
+    });
+    
+    if (!session) {
+      return null;
+    }
+    
+    return { sessionToken: session.sessionToken };
+  } catch (error) {
+    console.error("Error finding existing user session:", error);
+    return null;
+  }
+}
+
 export async function updateUserSessionExpiration(
   cookies: Cookies
 ): Promise<void> {
-  console.log("updateUserSessionExpiration called");
   const sessionCookie = cookies.get(COOKIE_SESSION_KEY);
   
   if (!sessionCookie || !sessionCookie.value) {
-    console.log("No session ID found in cookies for expiration update");
+    console.log("No session token found in cookies for expiration update");
     return;
   }
 
-  const sessionId = sessionCookie.value;
-  console.log(`Session ID found: ${sessionId}`);
+  const sessionToken = sessionCookie.value;
   
   try {
-    const user = await getUserSessionById(sessionId);
-    if (!user) {
-      console.log(`No user found for session ID: ${sessionId}`);
-      return;
-    }
-
-    await redisClient.set(`session:${sessionId}`, JSON.stringify(user), {
-      ex: SESSION_EXPIRATION_SECONDS,
-    });
-    console.log("Session expiration updated in Redis");
-
-    await setCookie(sessionId, cookies);
-    console.log("Session expiration updated in cookies");
+    // Set new expiration date
+    const expiresAt = new Date();
+    expiresAt.setSeconds(expiresAt.getSeconds() + SESSION_EXPIRATION_SECONDS);
+    
+    // Update session expiration
+    await db.update(sessions)
+      .set({ expires: expiresAt })
+      .where(eq(sessions.sessionToken, sessionToken));
+    
+    // Update cookie expiration
+    await setCookie(sessionToken, cookies);
+    console.log("Session expiration updated");
   } catch (error) {
     console.error("Error updating session expiration:", error);
   }
@@ -207,67 +252,75 @@ export async function updateUserSessionExpiration(
 export async function removeUserFromSession(
   cookies: Cookies
 ): Promise<void> {
-  console.log("removeUserFromSession called");
   const sessionCookie = cookies.get(COOKIE_SESSION_KEY);
   
   if (!sessionCookie || !sessionCookie.value) {
-    console.log("No session ID found in cookies for removal");
     return;
   }
 
-  const sessionId = sessionCookie.value;
+  const sessionToken = sessionCookie.value;
   try {
-    console.log(`Removing session ID: ${sessionId} from Redis`);
-    await redisClient.del(`session:${sessionId}`);
+    // Delete the session from the database
+    await db.delete(sessions)
+      .where(eq(sessions.sessionToken, sessionToken));
+    
+    // Delete the cookie
     cookies.delete(COOKIE_SESSION_KEY);
-    console.log("Session ID deleted from cookies and Redis");
+    console.log("Session deleted from cookies and database");
   } catch (error) {
     console.error("Error removing user from session:", error);
   }
 }
 
-async function setCookie(sessionId: string, cookies: Cookies): Promise<void> {
-  console.log("setCookie called");
-  console.log(`Setting session ID: ${sessionId} in cookies`);
+async function setCookie(sessionToken: string, cookies: Cookies): Promise<void> {
   try {
-    await cookies.set(COOKIE_SESSION_KEY, sessionId, {
+    await cookies.set(COOKIE_SESSION_KEY, sessionToken, {
       secure: true,
       httpOnly: true,
       sameSite: "lax",
       expires: Date.now() + SESSION_EXPIRATION_SECONDS * 1000,
     });
   } catch (error) {
-    console.error("Error setting cookie:", error);
     throw new Error("Failed to set session cookie");
   }
 }
 
-async function getUserSessionById(sessionId: string): Promise<UserSession | null> {
-  console.log(`getUserSessionById called with sessionId: ${sessionId}`);
-
-  if (!sessionId || typeof sessionId !== 'string') {
-    console.log("Invalid session ID provided");
+async function getUserSessionByToken(sessionToken: string): Promise<UserSession | null> {
+  if (!sessionToken || typeof sessionToken !== 'string') {
+    console.log("Invalid session token provided");
     return null;
   }
 
   try {
-    const rawUser = await redisClient.get(`session:${sessionId}`);
+    // Find the session and join with user
+    const session = await db.query.sessions.findFirst({
+      where: and(
+        eq(sessions.sessionToken, sessionToken),
+        // Only return sessions that haven't expired
+        sql`${sessions.expires} > NOW()`
+      ),
+      with: {
+        user: true,  // Assuming you have relations set up
+      },
+    });
 
-    if (!rawUser) {
-      console.log(`No session data found for sessionId: ${sessionId}`);
+    if (!session || !session.user) {
       return null;
     }
 
-    // Handle case where Redis client might return string instead of object
-    const userObject = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
-    const { success, data: user } = sessionSchema.safeParse(userObject);
+    // Create user session object
+    const userSession: UserSession = {
+      id: session.userId,
+      role: session.user.role,
+    };
+
+    // Validate
+    const { success, data: user } = sessionSchema.safeParse(userSession);
 
     if (!success) {
-      console.log(`Failed to parse user session data for sessionId: ${sessionId}`);
       return null;
     }
 
-    console.log(`User session found: ${JSON.stringify(user)}`);
     return user;
   } catch (error) {
     console.error("Error fetching user session:", error);
@@ -275,7 +328,7 @@ async function getUserSessionById(sessionId: string): Promise<UserSession | null
   }
 }
 
-// Function to generate UUID using Web Crypto API instead of Node.js crypto
+// Function to generate UUID using Web Crypto API
 async function generateUUID(): Promise<string> {
   // Generate 16 random bytes (128 bits) for UUID
   const buffer = new Uint8Array(16);
@@ -299,3 +352,4 @@ async function generateUUID(): Promise<string> {
     hexCodes.slice(10, 16).join('')
   ].join('-');
 }
+

@@ -45,7 +45,7 @@ const UserNav = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-sm">
                 <Avatar className="h-10 w-10 rounded-sm">
-                  <AvatarImage src={user?.imageUrl || ""} alt={user.name || "User"} />
+                  <AvatarImage src={user?.image || ""} alt={user.name || "User"} />
                   <AvatarFallback className="rounded-sm">
                     {user.name ? user.name[0] : "U"}
                   </AvatarFallback>
@@ -78,6 +78,11 @@ const UserNav = () => {
                   <DropdownMenuItem className="text-red-500">Admin</DropdownMenuItem>
                 </Link>
               )}
+              <Link href="/home/user/favorites">
+              <DropdownMenuItem >
+                Your Favorites
+              </DropdownMenuItem>
+              </Link>
               <DropdownMenuItem >
                 <LogOutButton />
               </DropdownMenuItem>

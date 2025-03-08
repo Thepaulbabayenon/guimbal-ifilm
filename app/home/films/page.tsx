@@ -25,13 +25,13 @@ export default function AllFilmsPage() {
           overview: film.overview,
           watchList: film.watchList,
           trailerUrl: film.trailerUrl,
-          year: film.year,
-          age: film.age,
+          releaseYear: film.releaseYear,
+          ageRating: film.ageRating,
           time: film.time,
           initialRatings: film.initialRatings,
           category: film.category,
-          imageUrl: film.imageString, // Map imageString to imageUrl
-          averageRating: null // Provide default for averageRating
+          imageUrl: film.imageUrl, 
+          averageRating: null 
         }));
         
         setFilms(mappedFilms);

@@ -131,13 +131,13 @@ const UserManagementClient = ({
         <input
           type="text"
           placeholder="Search by name or email..."
-          className="px-4 py-2 border rounded-l w-full"
+          className="px-4 py-2 border rounded-l w-full text-black"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         <button 
           type="submit"
-          className="bg-blue-500 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
+          className="bg-blue-500 hover:bg-blue-700 text-black px-4 py-2 rounded-r"
         >
           Search
         </button>
@@ -147,22 +147,22 @@ const UserManagementClient = ({
         <table className="min-w-full bg-white border">
           <thead className="bg-gray-100">
             <tr>
-              <th className="py-2 px-4 border text-left">Name</th>
-              <th className="py-2 px-4 border text-left">Email</th>
-              <th className="py-2 px-4 border text-left">Role</th>
-              <th className="py-2 px-4 border text-left">Actions</th>
+              <th className="py-2 px-4 border text-left text-black">Name</th>
+              <th className="py-2 px-4 border text-left text-black">Email</th>
+              <th className="py-2 px-4 border text-left text-black">Role</th>
+              <th className="py-2 px-4 border text-left text-black">Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
               <tr key={user.id} className={user.id === currentUserId ? "bg-blue-50" : ""}>
-                <td className="py-2 px-4 border">
+                <td className="py-2 px-4 border text-black">
                   {user.firstName} {user.lastName}
                 </td>
-                <td className="py-2 px-4 border">
+                <td className="py-2 px-4 border text-black">
                   {user.email || user.emailAddresses[0]?.emailAddress}
                 </td>
-                <td className="py-2 px-4 border">
+                <td className="py-2 px-4 border text-black">
                   <select
                     value={user.role}
                     onChange={(e) => handleUpdateRole(user.id, e.target.value as "admin" | "user")}

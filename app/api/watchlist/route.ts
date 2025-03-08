@@ -32,19 +32,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-  
-    const validFilmIds = filmIds
-      .map((id) => parseInt(id))
-      .filter((id) => !isNaN(id));
+
+    if (filmIds.length === 0) {
+      const fullWatchlist = await getWatchlistForUser(userId);
+      return NextResponse.json({ watchlist: fullWatchlist });
+    }
+
+    // Validate and parse film IDs
+    const validFilmIds = filmIds.map(Number).filter((id) => !isNaN(id));
 
     if (validFilmIds.length === 0) {
       return NextResponse.json({ error: "Invalid or missing film IDs" }, { status: 400 });
     }
 
-   
     const watchlist = await getWatchlistForUser(userId);
-
-  
     const results = validFilmIds.map((filmId) => ({
       filmId,
       isInWatchlist: watchlist.some((item: { filmId: number }) => item.filmId === filmId),
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to check watchlist" }, { status: 500 });
   }
 }
+
 
 
 const addFilmToWatchlist = async (userId: string, filmId: number) => {

@@ -1,124 +1,112 @@
-import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
-import { db } from "@/app/db/drizzle";
-import Image from "next/image";
-import { film, watchLists } from "@/app/db/schema";
-import { eq } from "drizzle-orm";
-import { Logo } from "@/app/components/Logo";
-import { useUser } from "@/app/auth/nextjs/useUser"; // Adjust the import path as needed
-import { redirect } from "next/navigation";
+'use client';
 
-async function getData(userId: string) {
-  try {
-    const query = db
-      .select({
-        title: film.title,
-        age: film.ageRating,
-        duration: film.duration,
-        imageString: film.imageUrl,
-        overview: film.overview,
-        release: film.releaseYear,
-        id: film.id,
-        trailer: film.trailerUrl,
-        watchListId: watchLists.userId,
-        category: film.category,
-        ratings: film.averageRating,
-      })
-      .from(film)
-      .leftJoin(watchLists, eq(film.id, watchLists.filmId))
-      .where(eq(watchLists.userId, userId));
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import axios from 'axios';
+import FilmLayout from '@/app/components/FilmComponents/FilmLayout';
+import { useAuth } from '@/app/auth/nextjs/useUser';
+import { Film } from '@/types/film';
 
-    return await query;
-  } catch (error) {
-    console.error("Error fetching data:", error);
-    throw new Error("Failed to fetch favorites.");
-  }
-}
+/**
+ * User Favorites Page Component
+ * Displays films that a user has added to their favorites/watchlist
+ */
+export default function UserFavoritesPage() {
+  const [films, setFilms] = useState<Film[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const params = useParams();
+  const username = params.user as string;
+  
+  // Determine if viewing own favorites or another user's
+  const isOwnFavorites = user?.name === decodeURIComponent(username) || user?.email === decodeURIComponent(username);
 
-function FavoritesContent() {
-  const { user, isLoading, isAuthenticated } = useUser();
+  // Fetch user's favorite films
+  useEffect(() => {
+    if (isLoading) return;
+    
+    const fetchFavorites = async () => {
+      try {
+        if (!user || !user.id) {
+          setError("User information is unavailable");
+          setLoading(false);
+          return;
+        }
+      
+        const response = await axios.get(`/api/watchlist`, {
+          params: { userId: user.id },
+        });
+        console.log("Full response structure:", JSON.stringify(response.data));
+        
+        // Update the films state with the response data
+        setFilms(response.data.films || response.data.watchlist || response.data || []);
+        setLoading(false);
+      } catch (err) {
+        console.error("❌ Error fetching watchlist:", err);
+        setError("Failed to load favorite films");
+        setLoading(false);
+      }
+    };
+    
+    fetchFavorites();
+  }, [username, user, isLoading]);
 
+  // Loading state while authentication is being checked
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen text-center">
-        <Logo />
-        <h1 className="text-2xl font-semibold text-gray-400">
-          Loading...
-        </h1>
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <div className="spinner-border animate-spin border-t-4 border-blue-500 rounded-full w-12 h-12"></div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    redirect("/sign-in");
-  }
+  // Title changes based on whose favorites are being viewed
+  const pageTitle = isOwnFavorites 
+    ? 'My Favorites' 
+    : `${decodeURIComponent(username)}'s Favorites`;
 
-  const userName = user?.name || "User";
-  const firstName = userName.split(" ")[0];
-
-  // This part would typically involve a client-side data fetching method
-  // For now, we'll leave it as a placeholder
-  const uniqueFilms: any[] = []; // Replace with actual data fetching logic
+  // Additional message when no favorites found
+  const emptyMessage = isOwnFavorites
+    ? "You haven't added any films to your favorites yet."
+    : `${decodeURIComponent(username)} hasn't added any films to their favorites yet.`;
 
   return (
-    <div className="recently-added-container mb-20">
-      <div className="items-center justify-center flex">
-        <div className="top-0 left-0 pt-1">
-          <Logo />
+    <div className="container mx-auto">
+      {/* Empty state for no favorites */}
+      {!loading && !error && films.length === 0 && (
+        <div className="text-center py-20">
+          <h2 className="text-2xl font-bold mb-4">{emptyMessage}</h2>
+          {isOwnFavorites && (
+            <p className="text-gray-400">
+              Browse films and click the heart icon to add them to your favorites.
+            </p>
+          )}
         </div>
-        <h1 className="text-gray-400 text-4xl font-bold items-center justify-center mt-10 px-5 sm:px-0 pt-9">
-          {firstName.toLowerCase()}'s favorites
-        </h1>
-      </div>
-
-      {uniqueFilms.length === 0 ? (
-        <div className="items-center justify-center flex flex-col">
-          <p className="text-gray-400 text-lg">
-            No films found in your favorites.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6">
-          {uniqueFilms.map((film) => (
-            <div key={film.id} className="relative h-60">
-              <Image
-                src={film.imageString}
-                alt="Film"
-                width={500}
-                height={400}
-                className="rounded-sm absolute w-full h-full object-cover"
-              />
-              <div className="h-60 relative z-10 w-full transform transition duration-500 hover:scale-125 opacity-0 hover:opacity-100">
-                <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center">
-                  <Image
-                    src={film.imageString}
-                    alt="Film"
-                    width={800}
-                    height={800}
-                    className="absolute w-full h-full -z-10 rounded-lg object-cover"
-                  />
-                  <FilmCard 
-                    filmId={film.id}
-                    title={film.title}
-                    watchList={!!film.watchListId}
-                    watchListId={film.watchListId ? film.watchListId.toString() : undefined}
-                    trailerUrl={film.trailer}
-                    year={film.release}
-                    age={film.age}
-                    time={film.duration}
-                    initialRatings={film.ratings ?? 0}
-                    overview={film.overview}
-                    category={film.category}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
+      )}
+      
+      {/* Display films using the FilmLayout component */}
+      {films.length > 0 && (
+        <FilmLayout
+          title={pageTitle}
+          films={films}
+          loading={loading}
+          error={error}
+          userId={user?.id}
+        />
+      )}
+      
+      {/* Error state */}
+      {error && !loading && (
+        <div className="text-center py-20">
+          <div className="text-red-500 text-xl">{error}</div>
+          {!isAuthenticated && (
+            <p className="mt-4 text-gray-400">
+              You may need to sign in to view this content.
+            </p>
+          )}
         </div>
       )}
     </div>
   );
-}
-
-export default function Favorites() {
-  return <FavoritesContent />;
 }

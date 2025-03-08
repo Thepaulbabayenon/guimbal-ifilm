@@ -13,20 +13,8 @@ import Autoplay from "embla-carousel-autoplay";
 import { CiStar } from "react-icons/ci";
 import { FaHeart, FaPlay } from "react-icons/fa";
 import axios from "axios";
+import { Film } from "@/types/film";
 
-interface Film {
-  id: number;
-  title?: string;
-  age?: number;
-  duration?: number;
-  imageString?: string;
-  overview?: string;
-  release?: number;
-  videoSource?: string;
-  category?: string;
-  trailer?: string;
-  rank?: number;
-}
 
 interface RecommendationSection {
   reason: string;
@@ -427,9 +415,9 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
                   <CarouselItem key={film.id} className="flex-none w-52 md:w-56 relative">
                     <Card>
                       <CardContent className="relative p-2">
-                        {completeFilm.imageString ? (
+                        {completeFilm.imageUrl ? (
                           <img
-                            src={completeFilm.imageString}
+                            src={completeFilm.imageUrl}
                             alt={completeFilm.title || `Film ${film.id}`}
                             className="object-cover w-full h-60 rounded-lg transition-transform duration-300 hover:scale-105"
                             loading="lazy" // Add lazy loading
@@ -441,9 +429,9 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
                         )}
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 hover:opacity-100 bg-black bg-opacity-50 gap-2">
                           <button 
-                            onClick={() => completeFilm.trailer && handlePlay(completeFilm)} 
+                            onClick={() => completeFilm.trailerUrl && handlePlay(completeFilm)} 
                             className="text-white text-xl"
-                            disabled={!completeFilm.trailer}
+                            disabled={!completeFilm.trailerUrl}
                             aria-label="Play trailer"
                           >
                             <FaPlay />
@@ -492,10 +480,10 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
           overview={selectedFilm.overview || ""}
           state={modalOpen}
           title={selectedFilm.title || ""}
-          trailerUrl={selectedFilm.trailer || ""}
-          age={selectedFilm.age || 0}
+          trailerUrl={selectedFilm.trailerUrl || ""}
+          ageRating={selectedFilm.ageRating || 0}
           duration={selectedFilm.duration || 0}
-          release={selectedFilm.release || 0}
+          releaseYear={selectedFilm.releaseYear || 0}
           ratings={userRatings[selectedFilm.id] || 0}
           setUserRating={(rating: number) => handleRatingClick(selectedFilm.id, rating)}
           markAsWatched={() => markAsWatched(selectedFilm.id)}

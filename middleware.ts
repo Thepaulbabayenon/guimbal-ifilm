@@ -25,7 +25,7 @@ const adminRoutes = [
 
 // Define the cookies object with the correct types for set, get, and delete
 export async function middleware(request: NextRequest) {
-  console.log("Middleware triggered for:", request.nextUrl.pathname);
+  
 
   const cookies: Cookies = {
     set: (key: string, value: string, options: { 
@@ -34,16 +34,16 @@ export async function middleware(request: NextRequest) {
       sameSite?: "strict" | "lax"; 
       expires?: number 
     }) => {
-      console.log(`Setting cookie: ${key} = ${value}`);
+     
       request.cookies.set({ ...options, name: key, value });
       return Promise.resolve(); 
     },
     get: (key: string) => {
-      console.log(`Getting cookie: ${key}`);
+     
       return request.cookies.get(key);
     },
     delete: (key: string) => {
-      console.log(`Deleting cookie: ${key}`);
+    
       return request.cookies.delete(key);
     },
   };
@@ -55,20 +55,20 @@ export async function middleware(request: NextRequest) {
     await updateUserSessionExpiration(cookies);
   }
 
-  console.log("Middleware completed for:", request.nextUrl.pathname);
+ 
   return response;
 }
 
 // Function to handle authentication logic
 async function middlewareAuth(request: NextRequest, cookies: Cookies) {
-  console.log("Checking authentication for:", request.nextUrl.pathname);
+ 
 
   // Convert cookies to an object for getUserFromSession
   const cookiesObject: { [key: string]: string } = {};
   const allCookies = request.cookies.getAll();
   allCookies.forEach((cookie: { name: string, value: string }) => {
     cookiesObject[cookie.name] = cookie.value;
-    console.log(`Cookie found: ${cookie.name} = ${cookie.value}`);
+   
   });
 
   // Get user from session
@@ -107,7 +107,7 @@ async function middlewareAuth(request: NextRequest, cookies: Cookies) {
   }
 
   console.log("Authentication check passed");
-  return null; // Allow the request to proceed
+  return null; 
 }
 
 // Helper functions

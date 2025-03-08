@@ -21,9 +21,9 @@ interface PlayVideoModalProps {
   trailerUrl: string;
   state: boolean;
   changeState: (state: boolean) => void;
-  release: number;
-  age: number;
-  duration: number;
+  releaseYear: number;
+  ageRating?: number;
+  duration?: number;
   ratings: number;
   setUserRating: (rating: number) => void;
   userId?: string;
@@ -39,9 +39,9 @@ export default function PlayVideoModal({
   state,
   title,
   trailerUrl,
-  age,
+  ageRating,
   duration,
-  release,
+  releaseYear,
   ratings,
   setUserRating,
   userId,
@@ -53,6 +53,7 @@ export default function PlayVideoModal({
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -63,6 +64,15 @@ export default function PlayVideoModal({
   const handleRatingClick = (rating: number) => {
     setUserRating(rating);
   };
+
+  // Control video playback based on modal state
+  useEffect(() => {
+    if (state) {
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
+    }
+  }, [state]);
 
   useEffect(() => {
     if (state) {
@@ -109,6 +119,14 @@ export default function PlayVideoModal({
     setIsResizing(false);
   };
 
+  const handleDialogChange = (newState: boolean) => {
+    // Ensure video stops when dialog closes
+    if (!newState) {
+      setIsPlaying(false);
+    }
+    changeState(newState);
+  };
+
   useEffect(() => {
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
@@ -125,7 +143,7 @@ export default function PlayVideoModal({
   }, [isResizing]);
 
   return (
-    <Dialog open={state} onOpenChange={() => changeState(!state)}>
+    <Dialog open={state} onOpenChange={handleDialogChange}>
       <DialogContent
         ref={dialogRef}
         className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto p-4"
@@ -135,8 +153,8 @@ export default function PlayVideoModal({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="line-clamp-3">{overview}</DialogDescription>
           <div className="flex gap-x-2 items-center">
-            <p>{release}</p>
-            <p className="border py-0.5 px-1 border-gray-200 rounded">{age}+</p>
+            <p>{releaseYear}</p>
+            <p className="border py-0.5 px-1 border-gray-200 rounded">{ageRating}+</p>
             <p className="font-normal text-sm">{duration}h</p>
             <p>⭐ {ratings}</p>
           </div>
@@ -150,7 +168,7 @@ export default function PlayVideoModal({
           )}
           <ReactPlayer
             url={trailerUrl}
-            playing
+            playing={isPlaying}
             controls
             width="100%"
             height="100%"
