@@ -1,13 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getUserFromSession, updateUserSessionExpiration, Cookies } from "@/app/auth/core/session";
+import { 
+  getUserFromSession, 
+  updateUserSessionExpiration, 
+  Cookies,
+  cleanupExpiredSessions
+} from "@/app/auth/core/session";
 
-// Define the type for the user
+
 interface User {
   id: string;
   role: string;
 }
 
-// Define private and admin routes
+
 const privateRoutes = [
   "/home/user/favorites", 
   "/home/user", 
@@ -23,10 +28,12 @@ const adminRoutes = [
   "/admin/user-edit",
 ];
 
-// Define the cookies object with the correct types for set, get, and delete
-export async function middleware(request: NextRequest) {
-  
 
+let lastCleanupTime = 0;
+const CLEANUP_INTERVAL = 1000 * 60 * 60
+
+
+export async function middleware(request: NextRequest) {
   const cookies: Cookies = {
     set: (key: string, value: string, options: { 
       secure?: boolean; 
@@ -34,48 +41,57 @@ export async function middleware(request: NextRequest) {
       sameSite?: "strict" | "lax"; 
       expires?: number 
     }) => {
-     
       request.cookies.set({ ...options, name: key, value });
       return Promise.resolve(); 
     },
     get: (key: string) => {
-     
       return request.cookies.get(key);
     },
     delete: (key: string) => {
-    
       return request.cookies.delete(key);
     },
   };
 
+
+  const currentTime = Date.now();
+  if (currentTime - lastCleanupTime > CLEANUP_INTERVAL) {
+    try {
+   
+      cleanupExpiredSessions().then(deletedCount => {
+        console.log(`Cleaned up ${deletedCount} expired sessions`);
+      }).catch(error => {
+        console.error("Session cleanup error:", error);
+      });
+      
+      lastCleanupTime = currentTime;
+    } catch (error) {
+      console.error("Error initiating session cleanup:", error);
+    }
+  }
+
   const response = (await middlewareAuth(request, cookies)) ?? NextResponse.next();
   
-  // Only update session expiration if a response was successfully generated
+
   if (response) {
     await updateUserSessionExpiration(cookies);
   }
-
  
   return response;
 }
 
-// Function to handle authentication logic
 async function middlewareAuth(request: NextRequest, cookies: Cookies) {
- 
-
   // Convert cookies to an object for getUserFromSession
   const cookiesObject: { [key: string]: string } = {};
   const allCookies = request.cookies.getAll();
   allCookies.forEach((cookie: { name: string, value: string }) => {
     cookiesObject[cookie.name] = cookie.value;
-   
   });
 
-  // Get user from session
+  
   const user: User | null = await getUserFromSession(cookiesObject);
   console.log("User from session:", user);
 
-  // Check for private routes authentication
+
   if (privateRoutes.some(route => request.nextUrl.pathname.startsWith(route))) {
     if (!isUserAuthenticated(user)) {
       console.log("User not authenticated for private route, redirecting to /sign-in");
@@ -83,17 +99,15 @@ async function middlewareAuth(request: NextRequest, cookies: Cookies) {
     }
   }
 
-  // Check for admin routes authentication
+
   if (adminRoutes.some(route => request.nextUrl.pathname.startsWith(route))) {
     console.log("Attempting to access admin route");
     
-    // First, check if user is authenticated
     if (!isUserAuthenticated(user)) {
       console.log("User not authenticated, redirecting to /sign-in");
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
     
-    // Then, check if user is an admin
     console.log("User role:", user?.role);
     if (!isUserAdmin(user)) {
       console.log("User is not an admin, redirecting to /");
@@ -101,16 +115,17 @@ async function middlewareAuth(request: NextRequest, cookies: Cookies) {
     }
   }
 
-  // Optional: Additional logic for cleaning up or managing cookies
+  
   if (shouldDeleteCookie(user)) {
     cookies.delete("__clerk_db_jwt");
   }
-
+  console.log("Complete user object:", JSON.stringify(user));
+  console.log("Is user admin?", isUserAdmin(user));
   console.log("Authentication check passed");
   return null; 
 }
 
-// Helper functions
+
 const isUserAuthenticated = (user: User | null) => !!user;
 const isUserAdmin = (user: User | null) => user && user.role === "admin";
 const shouldDeleteCookie = (user: User | null) => !user;

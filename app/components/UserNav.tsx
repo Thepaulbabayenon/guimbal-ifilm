@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useUser } from "@/app/auth/nextjs/useUser"; // Updated import path
+import { useAuth } from "@/app/auth/nextjs/useUser";
 import { Loader2 } from "lucide-react";
 import {
   Avatar,
@@ -18,16 +18,22 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { LogOutButton } from "../auth/nextjs/components/LogOutButton";
 
-const UserNav = () => {
-  const { user, isLoading, isAuthenticated } = useUser();
 
-      console.log("User data:", user); 
+const UserNav: React.FC = () => {
+  const { user, isLoading, isAuthenticated, signOut } = useAuth();
 
-  
+  console.log("User data:", user);
 
   const isAdmin = user?.role === "admin";
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -57,7 +63,7 @@ const UserNav = () => {
                 <div className="flex flex-col space-y-1">
                   <Link href="/home/user">
                     <p className="text-sm font-medium leading-none">
-                      {user.name || "User Name"}
+                      {user.name || "Thebantayanfilmfestival User"}
                     </p>
                   </Link>
                   <p className="text-xs leading-none text-muted-foreground">
@@ -79,12 +85,12 @@ const UserNav = () => {
                 </Link>
               )}
               <Link href="/home/user/favorites">
-              <DropdownMenuItem >
-                Your Favorites
-              </DropdownMenuItem>
+                <DropdownMenuItem>
+                  Your Favorites
+                </DropdownMenuItem>
               </Link>
-              <DropdownMenuItem >
-                <LogOutButton />
+              <DropdownMenuItem onClick={handleSignOut}>
+                Log Out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

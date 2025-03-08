@@ -224,7 +224,9 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-500">Average Rating</p>
-                <p className="text-3xl font-bold text-slate-800 mt-1">{filmStats.averageRating.toFixed(1)}</p>
+                <p className="text-3xl font-bold text-slate-800 mt-1">
+                        {filmStats.averageRating.toFixed(1)}
+                  </p>
               </div>
               <div className="h-12 w-12 bg-amber-50 rounded-full flex items-center justify-center">
                 <Star className="h-6 w-6 text-amber-600" />

@@ -84,13 +84,11 @@ export class CookiesHandler implements Cookies {
     this.response.cookies.delete(key);
   }
 
-  // Helper method to set the response object after construction
   setResponse(response: NextResponse) {
     this.response = response;
     return this;
   }
 
-  // Helper method to check if response is available
   hasResponse() {
     return this.response !== null;
   }
@@ -98,14 +96,12 @@ export class CookiesHandler implements Cookies {
 
 export async function getUserFromSession(cookies: Record<string, string> | null): Promise<UserSession | null> {
   if (!cookies) {
-    console.log("No cookies provided");
     return null;
   }
 
   const sessionToken = cookies[COOKIE_SESSION_KEY];
 
   if (!sessionToken) {
-    console.log("No session token found in cookies");
     return null;
   }
   
@@ -119,7 +115,6 @@ export async function updateUserSessionData(
   const sessionToken = cookies[COOKIE_SESSION_KEY];
  
   if (!sessionToken) {
-    console.log("No session token found in cookies for update");
     return;
   }
 
@@ -133,7 +128,6 @@ export async function updateUserSessionData(
     });
     
     if (!existingSession) {
-      console.log("Session not found for update");
       return;
     }
     
@@ -166,7 +160,6 @@ export async function createUserSession(
     // If no existing session, create a new one
     if (!sessionToken) {
       sessionToken = await generateUUID();
-      console.log(`Creating new session for user ${user.id}`);
       
       // Create session in database
       await db.insert(sessions).values({
@@ -175,8 +168,6 @@ export async function createUserSession(
         expires: expiresAt,
       });
     } else {
-      console.log(`Reusing existing session for user ${user.id}`);
-      
       // Update existing session expiration
       await db.update(sessions)
         .set({ expires: expiresAt })
@@ -186,9 +177,8 @@ export async function createUserSession(
     // Set the cookie
     if (typeof cookies.set === 'function') {
       await setCookie(sessionToken, cookies);
-      console.log("Session token set in cookies");
     } else {
-      console.warn("Cannot set cookie: cookies object does not have a valid set method");
+      throw new Error("Cannot set cookie: cookies object does not have a valid set method");
     }
   } catch (error) {
     console.error("Error creating user session:", error);
@@ -203,7 +193,6 @@ async function findExistingUserSession(userId: string): Promise<{ sessionToken: 
     const session = await db.query.sessions.findFirst({
       where: and(
         eq(sessions.userId, userId),
-        // Only return sessions that haven't expired
         sql`${sessions.expires} > NOW()`
       ),
     });
@@ -225,7 +214,6 @@ export async function updateUserSessionExpiration(
   const sessionCookie = cookies.get(COOKIE_SESSION_KEY);
   
   if (!sessionCookie || !sessionCookie.value) {
-    console.log("No session token found in cookies for expiration update");
     return;
   }
 
@@ -243,7 +231,6 @@ export async function updateUserSessionExpiration(
     
     // Update cookie expiration
     await setCookie(sessionToken, cookies);
-    console.log("Session expiration updated");
   } catch (error) {
     console.error("Error updating session expiration:", error);
   }
@@ -266,7 +253,6 @@ export async function removeUserFromSession(
     
     // Delete the cookie
     cookies.delete(COOKIE_SESSION_KEY);
-    console.log("Session deleted from cookies and database");
   } catch (error) {
     console.error("Error removing user from session:", error);
   }
@@ -275,7 +261,7 @@ export async function removeUserFromSession(
 async function setCookie(sessionToken: string, cookies: Cookies): Promise<void> {
   try {
     await cookies.set(COOKIE_SESSION_KEY, sessionToken, {
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       sameSite: "lax",
       expires: Date.now() + SESSION_EXPIRATION_SECONDS * 1000,
@@ -287,7 +273,6 @@ async function setCookie(sessionToken: string, cookies: Cookies): Promise<void> 
 
 async function getUserSessionByToken(sessionToken: string): Promise<UserSession | null> {
   if (!sessionToken || typeof sessionToken !== 'string') {
-    console.log("Invalid session token provided");
     return null;
   }
 
@@ -296,11 +281,10 @@ async function getUserSessionByToken(sessionToken: string): Promise<UserSession 
     const session = await db.query.sessions.findFirst({
       where: and(
         eq(sessions.sessionToken, sessionToken),
-        // Only return sessions that haven't expired
         sql`${sessions.expires} > NOW()`
       ),
       with: {
-        user: true,  // Assuming you have relations set up
+        user: true,
       },
     });
 
@@ -315,13 +299,7 @@ async function getUserSessionByToken(sessionToken: string): Promise<UserSession 
     };
 
     // Validate
-    const { success, data: user } = sessionSchema.safeParse(userSession);
-
-    if (!success) {
-      return null;
-    }
-
-    return user;
+    return sessionSchema.parse(userSession);
   } catch (error) {
     console.error("Error fetching user session:", error);
     return null;
@@ -353,3 +331,16 @@ async function generateUUID(): Promise<string> {
   ].join('-');
 }
 
+// Add a cleanup function to delete expired sessions
+export async function cleanupExpiredSessions(): Promise<number> {
+  try {
+    const result = await db.delete(sessions)
+      .where(sql`${sessions.expires} < NOW()`)
+      .returning({ id: sessions.id });
+    
+    return result.length;
+  } catch (error) {
+    console.error("Error cleaning up expired sessions:", error);
+    return 0;
+  }
+}
