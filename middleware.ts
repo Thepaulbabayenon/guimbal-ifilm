@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { 
   getUserFromSession, 
   updateUserSessionExpiration, 
-  Cookies,
-  cleanupExpiredSessions
+  Cookies
 } from "@/app/auth/core/session";
 
 interface User {
@@ -11,179 +10,244 @@ interface User {
   role: string;
 }
 
-const privateRoutes = [
-  "/home/user/favorites", 
-  "/home/user", 
-  "/home/user/recommended"
-];
+interface CachedSession {
+  user: User | null;
+  expiresAt: number;
+  lastDatabaseUpdate: number;
+}
 
-const adminRoutes = [
-  "/admin", 
-  "/admin/upload", 
-  "/admin/delete", 
-  "/admin/edit",
-  "/admin/users",
-  "/admin/user-edit",
-];
+// Authentication configuration
+const AUTH_COOKIE_NAME = "session_token";
 
-// Cache for user sessions to reduce database queries
-const userSessionCache = new Map<string, {user: User | null, expiresAt: number}>();
-const SESSION_CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
+// Route configuration maps for faster lookups
+const ROUTE_CONFIG = {
+  private: new Set([
+    "/home/user/favorites", 
+    "/home/user", 
+    "/home/user/recommended"
+  ]),
+  admin: new Set([
+    "/admin", 
+    "/admin/upload", 
+    "/admin/delete", 
+    "/admin/edit",
+    "/admin/users",
+    "/admin/user-edit",
+  ]),
+  // Static extensions to skip middleware for
+  staticExtensions: new Set([
+    '.ico', '.png', '.jpg', '.jpeg', '.svg', 
+    '.css', '.js', '.woff', '.woff2', '.ttf'
+  ])
+};
 
-// Cleanup interval increased to reduce database operations
-let lastCleanupTime = 0;
-const CLEANUP_INTERVAL = 1000 * 60 * 60 * 24; // Increased to 24 hours
+// Performance optimization constants
+const SESSION_CACHE_DURATION = 900000; // 15 minutes in milliseconds
+const SESSION_UPDATE_INTERVAL = 3600000; // 1 hour in milliseconds
+const MIN_DB_OPERATION_INTERVAL = 1000; // 1 second in milliseconds
+const GRACE_PERIOD = 60000; // 1 minute in milliseconds
 
-// Session update throttling - only update if nearing expiration
-const SESSION_UPDATE_THRESHOLD = 1000 * 60 * 30; // 30 minutes before expiration
+// Memory-efficient session cache
+const userSessionCache = new Map<string, CachedSession>();
+let lastDbOperationTime = 0;
 
 export async function middleware(request: NextRequest) {
-  // Skip middleware for static assets and non-authenticated routes
   const pathname = request.nextUrl.pathname;
-  if (
-    pathname.includes('/_next') || 
-    pathname.includes('/api/public') ||
-    pathname.endsWith('.ico') ||
-    pathname.endsWith('.png') ||
-    pathname.endsWith('.jpg') ||
-    pathname.endsWith('.jpeg') ||
-    pathname.endsWith('.svg') ||
-    pathname.endsWith('.css') ||
-    pathname.endsWith('.js') ||
-    (pathname === '/' && !request.cookies.has('__clerk_db_jwt'))
-  ) {
+  
+  // Fast path: Skip middleware for static resources and public routes
+  if (shouldSkipMiddleware(pathname, request)) {
     return NextResponse.next();
   }
 
+  // Cookie helper object - created only when needed
   const cookies: Cookies = {
-    set: (key: string, value: string, options: { 
-      secure?: boolean; 
-      httpOnly?: boolean; 
-      sameSite?: "strict" | "lax"; 
-      expires?: number 
-    }) => {
+    set: (key, value, options) => {
       request.cookies.set({ ...options, name: key, value });
-      return Promise.resolve(); 
+      return Promise.resolve();
     },
-    get: (key: string) => {
-      return request.cookies.get(key);
-    },
-    delete: (key: string) => {
-      return request.cookies.delete(key);
-    },
+    get: (key) => request.cookies.get(key),
+    delete: (key) => request.cookies.delete(key)
   };
 
-  // Run cleanup less frequently
   const currentTime = Date.now();
-  if (currentTime - lastCleanupTime > CLEANUP_INTERVAL) {
-    try {
-      // Run cleanup as a non-blocking operation
-      cleanupExpiredSessions().then(deletedCount => {
-        console.log(`Cleaned up ${deletedCount} expired sessions`);
-      }).catch(error => {
-        console.error("Session cleanup error:", error);
-      });
-      
-      lastCleanupTime = currentTime;
-    } catch (error) {
-      console.error("Error initiating session cleanup:", error);
-    }
-  }
-
-  const response = (await middlewareAuth(request, cookies)) ?? NextResponse.next();
   
-  // Only update session expiration if necessary
-  // Note: this assumes session metadata includes expiration info
-  const sessionCookie = cookies.get("__clerk_db_jwt");
-  if (response && sessionCookie) {
-    const sessionToken = sessionCookie.value;
+  // Auth check and route protection
+  const authResponse = await middlewareAuth(request, cookies, currentTime);
+  if (authResponse) return authResponse;
+  
+  const response = NextResponse.next();
+  
+  // Session update logic - only for active sessions that need refreshing
+  const sessionToken = cookies.get(AUTH_COOKIE_NAME)?.value;
+  if (sessionToken) {
     const cachedSession = userSessionCache.get(sessionToken);
     
-    // Only update if nearing expiration or not cached
-    if (!cachedSession || (cachedSession.expiresAt - currentTime) < SESSION_UPDATE_THRESHOLD) {
-      await updateUserSessionExpiration(cookies);
+    if (
+      cachedSession && 
+      currentTime - cachedSession.lastDatabaseUpdate > SESSION_UPDATE_INTERVAL &&
+      currentTime - lastDbOperationTime > MIN_DB_OPERATION_INTERVAL
+    ) {
+      lastDbOperationTime = currentTime;
+      
+      // Fire-and-forget session update
+      queueMicrotask(async () => {
+        try {
+          await updateUserSessionExpiration(cookies);
+          
+          const session = userSessionCache.get(sessionToken);
+          if (session) {
+            userSessionCache.set(sessionToken, {
+              ...session,
+              lastDatabaseUpdate: Date.now()
+            });
+          }
+        } catch (error) {
+          console.error("Session update error:", error);
+        }
+      });
     }
   }
- 
+  
   return response;
 }
 
-async function middlewareAuth(request: NextRequest, cookies: Cookies) {
-  const sessionToken = cookies.get("__clerk_db_jwt")?.value;
+async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTime: number) {
+  const sessionToken = cookies.get(AUTH_COOKIE_NAME)?.value;
   
-  // Skip auth check if no session token exists
+  // Fast path for no token
   if (!sessionToken) {
-    if (isProtectedRoute(request.nextUrl.pathname)) {
+    const { pathname } = request.nextUrl;
+    // Check if route requires auth
+    if (isProtectedRoute(pathname)) {
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
     return null;
   }
   
-  // Check cache before hitting database
-  const currentTime = Date.now();
+  // User lookup with cache prioritization
   const cachedSession = userSessionCache.get(sessionToken);
-  
   let user: User | null = null;
   
   if (cachedSession && currentTime < cachedSession.expiresAt) {
+    // Cache hit - use cached user data
     user = cachedSession.user;
   } else {
-    // Convert cookies to an object for getUserFromSession
-    const cookiesObject: { [key: string]: string } = {};
-    const allCookies = request.cookies.getAll();
-    allCookies.forEach((cookie: { name: string, value: string }) => {
-      cookiesObject[cookie.name] = cookie.value;
-    });
-    
-    user = await getUserFromSession(cookiesObject);
-    
-    // Cache the result
-    if (user) {
+    // Cache miss or expired cache
+    if (currentTime - lastDbOperationTime > MIN_DB_OPERATION_INTERVAL) {
+      // Database retrieval path
+      lastDbOperationTime = currentTime;
+      
+      // Optimize cookie extraction
+      const cookiesObject: Record<string, string> = {};
+      for (const cookie of request.cookies.getAll()) {
+        cookiesObject[cookie.name] = cookie.value;
+      }
+      
+      try {
+        user = await getUserFromSession(cookiesObject);
+        
+        // Update cache
+        if (user) {
+          userSessionCache.set(sessionToken, {
+            user,
+            expiresAt: currentTime + SESSION_CACHE_DURATION,
+            lastDatabaseUpdate: currentTime
+          });
+        } else {
+          // Invalid session - clean up
+          userSessionCache.delete(sessionToken);
+          cookies.delete(AUTH_COOKIE_NAME);
+        }
+      } catch (error) {
+        console.error("Session retrieval error:", error);
+        // Fallback to cached data if available during errors
+        if (cachedSession) user = cachedSession.user;
+      }
+    } else if (cachedSession) {
+      // Throttling active - use slightly expired cache with grace period
+      user = cachedSession.user;
       userSessionCache.set(sessionToken, {
-        user,
-        expiresAt: currentTime + SESSION_CACHE_DURATION
+        ...cachedSession,
+        expiresAt: currentTime + GRACE_PERIOD
       });
-    } else if (sessionToken) {
-      // If no user found but token exists, remove from cache
-      userSessionCache.delete(sessionToken);
     }
   }
 
-  const pathname = request.nextUrl.pathname;
-
-  if (privateRoutes.some(route => pathname.startsWith(route))) {
-    if (!isUserAuthenticated(user)) {
-      return NextResponse.redirect(new URL("/sign-in", request.url));
+  // Route authorization checks
+  const { pathname } = request.nextUrl;
+  
+  // Private route check
+  for (const route of ROUTE_CONFIG.private) {
+    if (pathname.startsWith(route)) {
+      if (!user) {
+        return NextResponse.redirect(new URL("/sign-in", request.url));
+      }
+      break;
     }
   }
 
-  if (adminRoutes.some(route => pathname.startsWith(route))) {
-    if (!isUserAuthenticated(user)) {
-      return NextResponse.redirect(new URL("/sign-in", request.url));
-    }
-    
-    if (!isUserAdmin(user)) {
-      return NextResponse.redirect(new URL("/", request.url));
+  // Admin route check
+  for (const route of ROUTE_CONFIG.admin) {
+    if (pathname.startsWith(route)) {
+      if (!user) {
+        return NextResponse.redirect(new URL("/sign-in", request.url));
+      }
+      
+      if (user.role !== "admin") {
+        return NextResponse.redirect(new URL("/", request.url));
+      }
+      break;
     }
   }
   
   return null;
 }
 
-const isUserAuthenticated = (user: User | null) => !!user;
-const isUserAdmin = (user: User | null) => user && user.role === "admin";
-const shouldDeleteCookie = (user: User | null) => !user;
-const isProtectedRoute = (pathname: string) => 
-  privateRoutes.some(route => pathname.startsWith(route)) || 
-  adminRoutes.some(route => pathname.startsWith(route));
+// Optimized helper functions
+function shouldSkipMiddleware(pathname: string, request: NextRequest): boolean {
+  // Check static path components first (most common case)
+  if (
+    pathname.includes('/_next') || 
+    pathname.includes('/api/public') ||
+    pathname.includes('/static/')
+  ) {
+    return true;
+  }
+  
+  // Check file extensions
+  const lastDotIndex = pathname.lastIndexOf('.');
+  if (lastDotIndex !== -1) {
+    const extension = pathname.slice(lastDotIndex);
+    if (ROUTE_CONFIG.staticExtensions.has(extension)) {
+      return true;
+    }
+  }
+  
+  // Special case for homepage without auth
+  return pathname === '/' && !request.cookies.has(AUTH_COOKIE_NAME);
+}
 
-// More specific matcher to reduce middleware execution
+function isProtectedRoute(pathname: string): boolean {
+  // Check private routes
+  for (const route of ROUTE_CONFIG.private) {
+    if (pathname.startsWith(route)) return true;
+  }
+  
+  // Check admin routes
+  for (const route of ROUTE_CONFIG.admin) {
+    if (pathname.startsWith(route)) return true;
+  }
+  
+  return false;
+}
+
+// Focused matcher pattern
 export const config = {
   matcher: [
     '/home/:path*',
     '/admin/:path*',
-    '/api/:path*',
-    '/sign-in', 
+    '/api/((?!public).)*',
+    '/sign-in',
     '/sign-up'
   ],
 };

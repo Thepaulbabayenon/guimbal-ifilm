@@ -44,7 +44,7 @@ const UserNav: React.FC = () => {
   }
 
   return (
-    <nav className="flex items-center justify-between p-4 bg-transparent shadow text-muted-foreground">
+    <nav className="flex items-center justify-between p-4 bg-transparent shadow text-muted-foreground cursor-pointer">
       <div>
         {isAuthenticated && user ? (
           <DropdownMenu>
@@ -60,9 +60,9 @@ const UserNav: React.FC = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel>
-                <div className="flex flex-col space-y-1">
+                <div className="flex flex-col space-y-1 ">
                   <Link href="/home/user">
-                    <p className="text-sm font-medium leading-none">
+                    <p className="text-sm font-extrabold leading-none focus:underline-offset-2">
                       {user.name || "Thebantayanfilmfestival User"}
                     </p>
                   </Link>
@@ -73,25 +73,28 @@ const UserNav: React.FC = () => {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <Link href="/home/user/recommended">
-                <DropdownMenuItem>Recommended Films</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer">Recommended Films</DropdownMenuItem>
               </Link>
               {isAdmin ? (
                 <Link href="/admin">
-                  <DropdownMenuItem>Admin</DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer focus:text-blue-600">Admin</DropdownMenuItem>
                 </Link>
               ) : (
                 <Link href="/restricted">
-                  <DropdownMenuItem className="text-red-500">Admin</DropdownMenuItem>
+                  <DropdownMenuItem className="text-red-500 cursor-pointer">Admin</DropdownMenuItem>
                 </Link>
               )}
               <Link href="/home/user/favorites">
-                <DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer">
                   Your Favorites
                 </DropdownMenuItem>
               </Link>
-              <DropdownMenuItem onClick={handleSignOut}>
-                Log Out
-              </DropdownMenuItem>
+              <DropdownMenuItem 
+          onClick={handleSignOut} 
+          className="hover:text-red-800 focus:text-red-800 cursor-pointer"
+        >
+          Log Out
+        </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
