@@ -31,7 +31,7 @@ async function getCurrentUser(): Promise<User | null> {
   try {
     // Since this is a server component, we need to access the API directly
     // rather than using the client-side fetch approach
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://www.thebantayanfilmfestival.com'}/api/auth/user`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/user`, {
       headers: {
         cookie: cookies().toString(),
       },

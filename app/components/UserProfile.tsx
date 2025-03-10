@@ -26,7 +26,7 @@ const UserProfile = ({ userId }: { userId: string }) => {
     const fetchRecommendedFilms = async () => {
       try {
         // Fetch recommendations from your API
-        const response = await fetch(`https://www.thebantayanfilmfestival.com/api/recommendations?userId=${userId}`);
+        const response = await fetch(`http://localhost:3000/api/recommendations?userId=${userId}`);
         const data = await response.json();
 
         // If no films are found, set an error message

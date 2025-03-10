@@ -10,7 +10,7 @@ import { createGoogleOAuthClient } from "./google"
 // Constants for cookies and expiration times
 const STATE_COOKIE_KEY = "oAuthState"
 const CODE_VERIFIER_COOKIE_KEY = "oAuthCodeVerifier"
-const COOKIE_EXPIRATION_SECONDS = 60 * 10  // 10 minutes
+const COOKIE_EXPIRATION_SECONDS = 60 * 10 
 
 // OAuthClient Class to handle the OAuth flow
 export class OAuthClient<T> {
@@ -160,6 +160,9 @@ export class OAuthClient<T> {
   // Validate the state received from the OAuth provider
   private async validateState(state: string, cookies: Pick<Cookies, "get">) {
     const cookieState = cookies.get(STATE_COOKIE_KEY)?.value
+    console.log('All cookies:', cookies);
+  console.log('State from OAuth provider:', state);
+  console.log('State from cookie:', cookieState);
     return cookieState === state
   }
 
