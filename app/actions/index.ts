@@ -150,7 +150,7 @@ export async function sendPasswordReset(email: string) {
     await db.insert(resetTokens).values({ email, token, expiresAt });
 
     // Generate reset link
-    const resetLink = `http://localhost:3000/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+    const resetLink = `https://www.thebantayanfilmfestival.com/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
     // Send email
     await resend.emails.send({

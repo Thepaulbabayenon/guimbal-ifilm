@@ -23,7 +23,7 @@ export async function sendResetEmail(email: string) {
     await saveResetToken(email, token)
 
     // Construct reset link
-    const resetLink = `http://localhost:3000/reset-password?token=${token}&email=${encodeURIComponent(email)}`
+    const resetLink = `https://www.thebantayanfilmfestival.com/reset-password?token=${token}&email=${encodeURIComponent(email)}`
 
     // Send email
     await resend.emails.send({
