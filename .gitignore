@@ -40,3 +40,8 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+app/api/getFilms.ts
+app/db/auth.ts
+app/components/UserProfile.tsx
+app/actions/index.ts
+app/action.ts
