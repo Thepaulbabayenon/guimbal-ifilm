@@ -71,7 +71,7 @@ async function connectUserToAccount(
     columns: { id: true, role: true },
   })
 
-  // If no user exists, create one
+
   if (user == null) {
     const [newUser] = await db
       .insert(users)

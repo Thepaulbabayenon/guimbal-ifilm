@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { CiHeart, CiPlay1, CiStar } from "react-icons/ci";
 import { usePathname } from "next/navigation";
 import axios from "axios";
-import { addToWatchlist } from "@/app/action";
 import { AxiosError } from "axios"; 
 import { useAuth } from "@/app/auth/nextjs/useUser";
 
@@ -12,39 +11,37 @@ interface FilmCardProps {
   filmId: number;
   overview: string;
   title: string;
-  watchList: boolean;
-  watchListId?: string;
-  trailerUrl: string;
+  trailerUrl?: string; 
   releaseYear: number;
   ageRating?: number;
   time?: number;
   initialRatings: number;
-  category: string;
+  category?: string;
   onOpenModal?: () => void;
+  onCloseModal?: () => void; // New prop for handling modal close events
+  watchList?: boolean;
 }
 
 export function FilmCard({
   filmId,
   overview,
   title,
-  watchList: initialWatchList,
-  watchListId,
-  trailerUrl,
   releaseYear,
   ageRating,
   time,
   initialRatings,
-  category,
   onOpenModal,
+  onCloseModal, // Receive the onCloseModal prop
 }: FilmCardProps) {
-  // Auth state
+  
   const auth = useAuth();
   const userId = auth?.user?.id;
   const getToken = auth?.getToken;
 
   // Component state
   const [open, setOpen] = useState(false);
-  const [watchList, setWatchList] = useState(initialWatchList);
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistId, setWatchlistId] = useState<string | null>(null);
   const [userRating, setUserRating] = useState<number>(0);
   const [averageRating, setAverageRating] = useState<number>(initialRatings);
   const [isSavingWatchlist, setIsSavingWatchlist] = useState(false);
@@ -52,7 +49,51 @@ export function FilmCard({
   const [loading, setLoading] = useState(true);
   const pathName = usePathname();
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  // Fetch watchlist status and user data on component mount
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchUserData = async () => {
+      try {
+        // Fetch watchlist status using the new API endpoint
+        const watchlistResponse = await axios.get(`/api/films/${filmId}/watchlist`, { 
+          params: { userId } 
+        });
+
+        if (watchlistResponse.data) {
+          setInWatchlist(watchlistResponse.data.inWatchlist);
+          setWatchlistId(watchlistResponse.data.watchListId);
+        }
+        
+        // Fetch user's rating
+        const ratingResponse = await axios.get(`/api/films/${filmId}/user-rating`, { 
+          params: { userId } 
+        });
+
+        if (ratingResponse.data && ratingResponse.data.rating !== undefined) {
+          setUserRating(ratingResponse.data.rating);
+        }
+
+        // Fetch average rating
+        const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+        if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+          setAverageRating(avgResponse.data.averageRating);
+        } else {
+          setAverageRating(initialRatings);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setAverageRating(initialRatings);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [filmId, initialRatings, userId]);
 
   // Mark film as watched
   const markAsWatched = async (userId: string, filmId: number) => {
@@ -72,42 +113,6 @@ export function FilmCard({
       console.error("Error marking film as watched:", error);
     }
   };
-
-  // Fetch ratings on mount
-  useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchRatings = async () => {
-      try {
-        // Fetch user's rating
-        const response = await axios.get(`/api/films/${filmId}/user-rating`, { 
-          params: { userId } 
-        });
-
-        if (response.data && response.data.rating !== undefined) {
-          setUserRating(response.data.rating);
-        }
-
-        // Fetch average rating
-        const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
-        if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
-          setAverageRating(avgResponse.data.averageRating);
-        } else {
-          setAverageRating(initialRatings);
-        }
-      } catch (error) {
-        console.error("Error fetching ratings:", error);
-        setAverageRating(initialRatings);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRatings();
-  }, [filmId, initialRatings, userId]);
 
   // Save user rating when changed
   useEffect(() => {
@@ -139,67 +144,51 @@ export function FilmCard({
     saveUserRating();
   }, [userRating, filmId, userId]);
 
-  // Handle watchlist toggle
-  const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-  
-    if (!userId) {
-      alert("Please log in to manage your watchlist.");
-      return;
-    }
-  
-    setIsSavingWatchlist(true);
-    const previousState = watchList;
-  
-    try {
-      // Get authentication token
-      const token = getToken ? await getToken() : null;
+const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  e.preventDefault();
+  e.stopPropagation(); // Prevent event bubbling
+
+  if (!userId) {
+    alert("Please log in to manage your watchlist.");
+    return;
+  }
+
+  setIsSavingWatchlist(true);
+  const previousWatchlistState = inWatchlist;
+
+  try {
+    // Optimistic UI update
+    setInWatchlist(!previousWatchlistState);
+
+    if (previousWatchlistState) {
+      // Remove from watchlist using the filmId directly in the URL
+      // This matches your existing route structure
+      await axios.delete(`/api/watchlist/${filmId}`);
       
-      if (!token) {
-        throw new Error("Failed to get authentication token");
-      }
-  
-      // Optimistic UI update
-      setWatchList(!previousState);
-  
-      if (previousState) {
-        // Remove from watchlist
-        console.log("Removing from watchlist. Current watchListId:", watchListId);
-  
-        if (!watchListId) {
-          throw new Error("Missing watchlist ID");
-        }
-  
-        // Convert watchListId to a number
-        const watchListIdNumber = Number(watchListId);
-        if (isNaN(watchListIdNumber)) {
-          throw new Error("Invalid watchlist ID");
-        }
-  
-        await axios.delete(`${baseUrl}/api/watchlist/${watchListIdNumber}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      } else {
-        // Add to watchlist using server action
-        await addToWatchlist({ 
-          filmId, 
-          pathname: pathName, 
-          userId 
-        });
-      }
-    } catch (error) {
-      // Rollback on error
-      setWatchList(previousState);
-      const axiosError = error as AxiosError;
+      // Reset the watchlist ID
+      setWatchlistId(null);
+    } else {
+      // Add to watchlist
+      const response = await axios.post('/api/watchlist', {
+        userId,
+        filmId
+      });
       
-      console.error("Watchlist error:", axiosError.response?.data || error);
-      alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
-    } finally {
-      setIsSavingWatchlist(false);
+      if (response.data && response.data.success) {
+        console.log("Successfully added to watchlist");
+      }
     }
-  };
+  } catch (error) {
+    // Rollback on error
+    setInWatchlist(previousWatchlistState);
+    const axiosError = error as AxiosError;
+    
+    console.error("Watchlist error:", axiosError.response?.data || error);
+    alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
+  } finally {
+    setIsSavingWatchlist(false);
+  }
+};
 
   // Handle rating click
   const handleRatingClick = async (newRating: number) => {
@@ -265,8 +254,8 @@ export function FilmCard({
       <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
       <div className="flex gap-x-2 items-center">
         <p className="font-normal text-sm">{releaseYear}</p>
-        <p className="font-normal border py-0.5 px-1 border-gray-200 rounded text-sm">{ageRating}+</p>
-        <p className="font-normal text-sm">{time}m</p>
+        {ageRating && <p className="font-normal border py-0.5 px-1 border-gray-200 rounded text-sm">{ageRating}+</p>}
+        {time && <p className="font-normal text-sm">{time}m</p>}
         <div className="flex items-center">
           {[1, 2, 3, 4, 5].map((star) => (
             <CiStar
@@ -284,6 +273,29 @@ export function FilmCard({
     </>
   );
 
+  // Handle modal state changes
+  const handleOpenModal = () => {
+    setOpen(true);
+    if (userId) markAsWatched(userId, filmId);
+    if (onOpenModal) onOpenModal();
+  };
+
+  const handleCloseModal = () => {
+    setOpen(false);
+    if (onCloseModal) onCloseModal(); // Call the onCloseModal prop function
+  };
+
+  // Make this component aware of modal close events
+  useEffect(() => {
+    // This effect manages the modal open state
+    return () => {
+      // Clean up video playback when component unmounts
+      if (open) {
+        handleCloseModal();
+      }
+    };
+  }, []);
+
   return (
     <>
       {/* Play button */}
@@ -291,8 +303,7 @@ export function FilmCard({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setOpen(true);
-          if (onOpenModal) onOpenModal();
+          handleOpenModal();
         }} 
         className="-mt-14"
       >
@@ -308,7 +319,7 @@ export function FilmCard({
           onClick={handleToggleWatchlist} 
           disabled={isSavingWatchlist || loading}
         >
-          <CiHeart className={`w-6 h-6 ${watchList ? "text-red-500" : "text-white"}`} />
+          <CiHeart className={`w-6 h-6 ${inWatchlist ? "text-red-500" : "text-white"}`} />
         </Button>
       </div>
 

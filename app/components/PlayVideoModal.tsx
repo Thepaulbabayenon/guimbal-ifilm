@@ -31,6 +31,7 @@ interface PlayVideoModalProps {
   markAsWatched?: (userId: string, filmId: number) => void;
   watchTimerDuration?: number;
   category: string;
+  refreshRating?: () => Promise<void>; 
 }
 
 export default function PlayVideoModal({
@@ -49,6 +50,8 @@ export default function PlayVideoModal({
   markAsWatched,
   watchTimerDuration = 30000,
   category,
+  refreshRating,
+  
 }: PlayVideoModalProps) {
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
@@ -56,6 +59,7 @@ export default function PlayVideoModal({
   const [isPlaying, setIsPlaying] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const playerRef = useRef<ReactPlayer>(null);
 
   const [modalWidth, setModalWidth] = useState(425);
   const [modalHeight, setModalHeight] = useState(600);
@@ -65,14 +69,11 @@ export default function PlayVideoModal({
     setUserRating(rating);
   };
 
-  // Control video playback based on modal state
+
   useEffect(() => {
-    if (state) {
-      setIsPlaying(true);
-    } else {
-      setIsPlaying(false);
-    }
+    setIsPlaying(state);
   }, [state]);
+
 
   useEffect(() => {
     if (state) {
@@ -83,6 +84,7 @@ export default function PlayVideoModal({
       );
     }
   }, [state]);
+
 
   useEffect(() => {
     if (state && !hasWatched && userId && filmId && markAsWatched) {
@@ -119,13 +121,19 @@ export default function PlayVideoModal({
     setIsResizing(false);
   };
 
+  
   const handleDialogChange = (newState: boolean) => {
-    // Ensure video stops when dialog closes
     if (!newState) {
+     
       setIsPlaying(false);
+     
+      if (playerRef.current) {
+        playerRef.current.seekTo(0);
+      }
     }
     changeState(newState);
   };
+
 
   useEffect(() => {
     if (isResizing) {
@@ -167,6 +175,7 @@ export default function PlayVideoModal({
             </div>
           )}
           <ReactPlayer
+            ref={playerRef}
             url={trailerUrl}
             playing={isPlaying}
             controls

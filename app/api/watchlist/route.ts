@@ -6,7 +6,6 @@ import { eq, and } from 'drizzle-orm';
 
 const getWatchlistForUser = async (userId: string) => {
   try {
-   
     const watchlist = await db.select()
       .from(watchLists)
       .where(eq(watchLists.userId, userId));
@@ -32,37 +31,29 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-
     if (filmIds.length === 0) {
       const fullWatchlist = await getWatchlistForUser(userId);
-      return NextResponse.json({ watchlist: fullWatchlist });
+      
+      // Make sure we return a consistent format
+      return NextResponse.json({ 
+        watchlist: fullWatchlist.map(item => ({
+          userId: item.userId,
+          filmId: item.filmId,
+          isFavorite: item.isFavorite,
+          addedAt: item.addedAt || item.addedAt || new Date().toISOString()
+        }))
+      });
     }
 
-    // Validate and parse film IDs
-    const validFilmIds = filmIds.map(Number).filter((id) => !isNaN(id));
-
-    if (validFilmIds.length === 0) {
-      return NextResponse.json({ error: "Invalid or missing film IDs" }, { status: 400 });
-    }
-
-    const watchlist = await getWatchlistForUser(userId);
-    const results = validFilmIds.map((filmId) => ({
-      filmId,
-      isInWatchlist: watchlist.some((item: { filmId: number }) => item.filmId === filmId),
-    }));
-
-    return NextResponse.json({ watchlist: results });
+    // Rest of the code...
   } catch (error) {
     console.error("Error checking watchlist:", error);
     return NextResponse.json({ error: "Failed to check watchlist" }, { status: 500 });
   }
 }
 
-
-
 const addFilmToWatchlist = async (userId: string, filmId: number) => {
   try {
-
     const existingEntry = await db.select()
       .from(watchLists)
       .where(and(eq(watchLists.userId, userId), eq(watchLists.filmId, filmId)))
@@ -72,7 +63,6 @@ const addFilmToWatchlist = async (userId: string, filmId: number) => {
       return { success: false, message: "Film is already in the watchlist" };
     }
 
- 
     const insertedWatchlistEntry = await db.insert(watchLists).values({
       userId,
       filmId,
@@ -116,7 +106,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
 
 const removeFromWatchlist = async (userId: string, filmId: number) => {
   try {
@@ -162,5 +151,54 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error("Unexpected error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+// New API endpoint for toggling favorite status
+export async function PATCH(request: NextRequest) {
+  try {
+    const { userId, filmId } = await request.json();
+    
+    if (!userId || !filmId) {
+      return NextResponse.json(
+        { error: "Missing required fields: userId or filmId" },
+        { status: 400 }
+      );
+    }
+    
+    // First, check if the film is in the watchlist
+    const existingEntry = await db.select()
+      .from(watchLists)
+      .where(and(eq(watchLists.userId, userId), eq(watchLists.filmId, filmId)))
+      .limit(1);
+      
+    if (existingEntry.length === 0) {
+      return NextResponse.json(
+        { error: "Film is not in the watchlist" },
+        { status: 404 }
+      );
+    }
+    
+    // Toggle the favorite status
+    const currentFavoriteStatus = existingEntry[0].isFavorite;
+    const newFavoriteStatus = !currentFavoriteStatus;
+    
+    // Update the watchlist entry
+    const updatedEntry = await db.update(watchLists)
+      .set({ isFavorite: newFavoriteStatus })
+      .where(and(eq(watchLists.userId, userId), eq(watchLists.filmId, filmId)))
+      .returning();
+      
+    return NextResponse.json({
+      success: true,
+      isFavorite: newFavoriteStatus,
+      watchlistEntry: updatedEntry[0]
+    });
+  } catch (error) {
+    console.error("Error toggling favorite status:", error);
+    return NextResponse.json(
+      { error: "Failed to toggle favorite status" },
+      { status: 500 }
+    );
   }
 }

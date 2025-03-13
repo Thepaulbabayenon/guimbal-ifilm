@@ -6,23 +6,17 @@ import axios from 'axios';
 import FilmLayout from '@/app/components/FilmComponents/FilmLayout';
 import { useAuth } from '@/app/auth/nextjs/useUser';
 import { Film } from '@/types/film';
+import { Logo } from '@/app/components/Logo';
 
-/**
- * User Favorites Page Component
- * Displays films that a user has added to their favorites/watchlist
- */
+
 export default function UserFavoritesPage() {
   const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated, isLoading } = useAuth();
   const params = useParams();
-  const username = params.user as string;
+  const urlUsername = params.user as string;
   
-  // Determine if viewing own favorites or another user's
-  const isOwnFavorites = user?.name === decodeURIComponent(username) || user?.email === decodeURIComponent(username);
-
-  // Fetch user's favorite films
   useEffect(() => {
     if (isLoading) return;
     
@@ -33,14 +27,76 @@ export default function UserFavoritesPage() {
           setLoading(false);
           return;
         }
-      
-        const response = await axios.get(`/api/watchlist`, {
+        
+        // Log user info
+        console.log("Current user:", user);
+        console.log("URL username:", urlUsername);
+        
+        // 1. Get watchlist items
+        const watchlistResponse = await axios.get(`/api/watchlist`, {
           params: { userId: user.id },
         });
-        console.log("Full response structure:", JSON.stringify(response.data));
         
-        // Update the films state with the response data
-        setFilms(response.data.films || response.data.watchlist || response.data || []);
+      
+      
+        
+        console.log("Watchlist API response:", watchlistResponse.data);
+        
+        // Handle empty watchlist
+        const watchlistItems = watchlistResponse.data.watchlist || [];
+        console.log("Watchlist items:", watchlistItems);
+        
+        if (watchlistItems.length === 0) {
+          console.log("No items in watchlist");
+          setFilms([]);
+          setLoading(false);
+          return;
+        }
+        
+      
+        let filmIds: number[] = [];
+        
+        if (Array.isArray(watchlistItems)) {
+          // Check if the response contains objects with filmId property
+          if (watchlistItems[0] && typeof watchlistItems[0].filmId !== 'undefined') {
+            filmIds = watchlistItems.map(item => item.filmId);
+          } else if (typeof watchlistItems[0] === 'number') {
+            filmIds = watchlistItems;
+          }
+        }
+        
+        console.log("Film IDs extracted:", filmIds);
+        
+        if (filmIds.length === 0) {
+          console.log("No film IDs could be extracted");
+          setFilms([]);
+          setLoading(false);
+          return;
+        }
+        
+        // 3. Fetch film details
+        const filmsResponse = await axios.get(`/api/films`, {
+          params: { ids: filmIds.join(',') },
+        });
+        
+        console.log("Films API response:", filmsResponse.data);
+    
+        
+        // 4. Handle different response formats
+        let fetchedFilms: Film[] = [];
+        
+        if (filmsResponse.data.rows && Array.isArray(filmsResponse.data.rows)) {
+          fetchedFilms = filmsResponse.data.rows;
+        } else if (filmsResponse.data.films && Array.isArray(filmsResponse.data.films)) {
+          fetchedFilms = filmsResponse.data.films;
+        } else if (filmsResponse.data.results && Array.isArray(filmsResponse.data.results)) {
+          fetchedFilms = filmsResponse.data.results;
+        } else if (Array.isArray(filmsResponse.data)) {
+          fetchedFilms = filmsResponse.data;
+        }
+        
+        console.log("Processed films:", fetchedFilms);
+        setFilms(fetchedFilms);
         setLoading(false);
       } catch (err) {
         console.error("❌ Error fetching watchlist:", err);
@@ -50,30 +106,35 @@ export default function UserFavoritesPage() {
     };
     
     fetchFavorites();
-  }, [username, user, isLoading]);
+  }, [urlUsername, user, isLoading]);
 
-  // Loading state while authentication is being checked
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="spinner-border animate-spin border-t-4 border-blue-500 rounded-full w-12 h-12"></div>
-      </div>
-    );
-  }
-
-  // Title changes based on whose favorites are being viewed
+  // Determine if viewing own favorites
+  const isOwnFavorites = !isLoading && user && (
+    (user.name && decodeURIComponent(urlUsername).toLowerCase() === user.name.toLowerCase()) || 
+    (user.email && decodeURIComponent(urlUsername).toLowerCase() === user.email.toLowerCase())
+  );
+  
+  // UI messages
   const pageTitle = isOwnFavorites 
     ? 'My Favorites' 
-    : `${decodeURIComponent(username)}'s Favorites`;
+    : `${decodeURIComponent(urlUsername)}'s Favorites`;
 
-  // Additional message when no favorites found
   const emptyMessage = isOwnFavorites
     ? "You haven't added any films to your favorites yet."
-    : `${decodeURIComponent(username)} hasn't added any films to their favorites yet.`;
+    : `${decodeURIComponent(urlUsername)} hasn't added any films to their favorites yet.`;
 
   return (
     <div className="container mx-auto">
-      {/* Empty state for no favorites */}
+     <Logo />
+      
+      {/* Loading state */}
+      {loading && (
+        <div className="text-center py-20">
+          <p>Loading your favorites...</p>
+        </div>
+      )}
+      
+      {/* Empty state */}
       {!loading && !error && films.length === 0 && (
         <div className="text-center py-20">
           <h2 className="text-2xl font-bold mb-4">{emptyMessage}</h2>
@@ -85,7 +146,7 @@ export default function UserFavoritesPage() {
         </div>
       )}
       
-      {/* Display films using the FilmLayout component */}
+      {/* Film grid */}
       {films.length > 0 && (
         <FilmLayout
           title={pageTitle}

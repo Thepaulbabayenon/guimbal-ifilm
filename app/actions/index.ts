@@ -44,7 +44,7 @@ export async function handleApiRequest(req: NextRequest) {
   const body = await req.json();
   
   if (req.method === 'POST') {
-    // Process request
+    
     return NextResponse.json({ success: true, data: body });
   } else {
     return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
@@ -142,19 +142,19 @@ export async function generateUploadUrl(fileName: string, userId: string) {
 
 export async function sendPasswordReset(email: string) {
   try {
-    // Generate a secure reset token
+   
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // Token valid for 1 hour
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); 
 
-    // Store reset token in DB
+  
     await db.insert(resetTokens).values({ email, token, expiresAt });
 
-    // Generate reset link
-    const resetLink = `https://www.thebantayanfilmfestival.com/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+    
+    const resetLink = `http://localhost:3000/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
-    // Send email
+   
     await resend.emails.send({
-      from: "noreply@thebantayanfilmfestival.com",
+      from: "onboarding@resend.dev",
       to: email,
       subject: "Password Reset Request",
       html: `

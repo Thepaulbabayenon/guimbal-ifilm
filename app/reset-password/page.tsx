@@ -1,12 +1,14 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense } from "react"
 import ResetPasswordForm from "@/app/components/ResetPasswordForm"
 
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={<p className="text-center text-gray-400">Loading...</p>}>
-      <ResetPasswordForm />
+      <div className="flex items-center justify-center min-h-screen">
+        <ResetPasswordForm />
+      </div>
     </Suspense>
   )
 }

@@ -15,6 +15,8 @@ import { FaHeart, FaPlay } from "react-icons/fa";
 import axios from "axios";
 import { Film } from "@/types/film";
 
+// Import the getFilmRating function
+import { getFilmRating } from "@/app/services/filmService";
 
 interface RecommendationSection {
   reason: string;
@@ -195,10 +197,11 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
           }
           
           if (avgRating === null) {
+            // Use the getFilmRating function instead of direct axios call
             promises.push(
-              axios.get(`/api/films/${filmId}/average-rating`)
-              .then(res => {
-                avgRating = res.data.averageRating || 0;
+              getFilmRating(filmId)
+              .then(data => {
+                avgRating = data.averageRating || 0;
                 apiCache.avgRatings.set(cacheKeyAvgRating, avgRating);
               })
               .catch(err => console.error(`Error fetching avg rating for film ${filmId}:`, err))
@@ -292,7 +295,7 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
     }
   }, [userId, watchList]);
   
-  // Optimize rating function with debounce
+  // Optimize rating function with getFilmRating
   const handleRatingClick = useCallback(async (filmId: number, newRating: number) => {
     if (!userId) {
       console.warn("Please log in to rate films.");
@@ -309,9 +312,9 @@ export function FilmSliderReco({ userId }: FilmSliderRecoProps) {
       const cacheKey = `rating-${userId}-${filmId}`;
       apiCache.userRatings.set(cacheKey, newRating);
 
-      // Get updated average rating
-      const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
-      const newAvgRating = avgResponse.data.averageRating || 0;
+      // Get updated average rating using the getFilmRating function
+      const ratingData = await getFilmRating(filmId);
+      const newAvgRating = ratingData.averageRating || 0;
       
       setAverageRatings(prev => ({
         ...prev,

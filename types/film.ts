@@ -17,6 +17,8 @@ export interface Film {
   averageRating: number | null;
   ageRating?: number;  
   duration?: number;  
+  inWatchlist?: boolean
+  watchlistId?: string
 }
 
 

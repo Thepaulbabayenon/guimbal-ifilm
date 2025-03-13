@@ -1,9 +1,7 @@
-export const dynamic = "force-dynamic";
-
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle";
 import { film } from "@/app/db/schema"; 
-import { eq, sql, and, desc } from "drizzle-orm";
+import { eq, sql, and, desc, inArray } from "drizzle-orm";
 
 export type Film = {
   id: number;
@@ -33,6 +31,7 @@ export async function GET(req: NextRequest) {
   const category = req.nextUrl.searchParams.get("category");
   const limitParam = req.nextUrl.searchParams.get("limit");
   const limit = limitParam ? parseInt(limitParam) : 10;
+  const ids = req.nextUrl.searchParams.get("ids");
 
   try {
     const baseQuery = db.select().from(film);
@@ -43,6 +42,15 @@ export async function GET(req: NextRequest) {
     if (year) conditions.push(eq(film.releaseYear, parseInt(year)));
     if (rating) conditions.push(eq(film.rank, parseInt(rating)));
     if (category) conditions.push(eq(film.category, category));
+    
+    // Handle IDs parameter for favorites/watchlist
+    if (ids) {
+      const filmIds = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      if (filmIds.length > 0) {
+        // Use inArray operator instead of raw SQL for the IN clause
+        conditions.push(inArray(film.id, filmIds));
+      }
+    }
     
     // Execute query with conditions and limit
     let filmsData;
@@ -62,13 +70,13 @@ export async function GET(req: NextRequest) {
 
     // Return data in the format expected by the component
     if (filmsData.length === 0) {
-      return NextResponse.json([]);
+      return NextResponse.json({ rows: [] });
     }
 
     return NextResponse.json({ rows: filmsData });
   } catch (error) {
     console.error("Error fetching films:", error);
-    return NextResponse.json({ message: 'Error fetching films' }, { status: 500 });
+    return NextResponse.json({ message: 'Error fetching films', error: String(error) }, { status: 500 });
   }
 }
 

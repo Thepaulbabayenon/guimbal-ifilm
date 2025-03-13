@@ -5,15 +5,20 @@ import { watchLists } from "@/app/db/schema";
 import { and, eq } from "drizzle-orm";
 import { COOKIE_SESSION_KEY } from "@/app/auth/core/session";
 
-export async function DELETE(req: NextRequest, { params }: { params: { watchListId?: string } }) {
-  console.log("🟢 Received params:", params);
+export async function DELETE(
+  req: NextRequest, 
+  { params }: { params: { watchListId: string } }
+) {
+  console.log("🟢 Deleting film from watchlist, params:", params);
 
-  if (!params?.watchListId) {
-    console.error("🔴 Missing watchListId");
-    return NextResponse.json({ error: "Missing watchListId" }, { status: 400 });
+  // Extract filmId from URL path - Using watchListId as the filmId
+  const filmId = parseInt(params.watchListId, 10);
+  if (isNaN(filmId)) {
+    console.error("🔴 Invalid filmId:", params.watchListId);
+    return NextResponse.json({ error: "Invalid filmId" }, { status: 400 });
   }
-
-  // ✅ Use CookiesHandler to extract session cookies
+  
+  // Get authenticated user
   const cookiesHandler = new CookiesHandler(req);
   const user = await getUserFromSession({
     [COOKIE_SESSION_KEY]: cookiesHandler.get(COOKIE_SESSION_KEY)?.value || "",
@@ -24,38 +29,32 @@ export async function DELETE(req: NextRequest, { params }: { params: { watchList
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  console.log("🟢 Authenticated user:", user.id);
-
-  // Extract filmId from request
-  const filmId = parseInt(params.watchListId, 10);
-  if (isNaN(filmId)) {
-    console.error("🔴 Invalid filmId:", params.watchListId);
-    return NextResponse.json({ error: "Invalid filmId" }, { status: 400 });
-  }
-
-  try {
-    console.log(`🟢 User ${user.id} is trying to delete watchlist item with filmId ${filmId}`);
-
+  console.log(`🟢 User ${user.id} is removing film ${filmId} from watchlist`);
   
+  try {
+    // Check if item exists first
     const watchlistItem = await db
       .select()
       .from(watchLists)
       .where(and(eq(watchLists.userId, user.id), eq(watchLists.filmId, filmId)))
       .limit(1);
 
-    console.log("🟢 Found watchlist item:", watchlistItem);
-
     if (!watchlistItem.length) {
       console.error("🔴 Watchlist item not found");
       return NextResponse.json({ error: "Watchlist item not found" }, { status: 404 });
     }
 
-    await db.delete(watchLists).where(and(eq(watchLists.userId, user.id), eq(watchLists.filmId, filmId)));
-
+    // Delete the watchlist item
+    await db.delete(watchLists)
+      .where(and(
+        eq(watchLists.userId, user.id),
+        eq(watchLists.filmId, filmId)
+      ));
+      
     console.log("🟢 Successfully deleted watchlist item");
-    return NextResponse.json({ message: "Removed from watchlist" }, { status: 200 });
+    return NextResponse.json({ success: true, message: "Removed from watchlist" });
   } catch (error) {
-    console.error("🔴 Internal Server Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("🔴 Error deleting watchlist item:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

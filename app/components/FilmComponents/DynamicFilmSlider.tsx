@@ -15,9 +15,12 @@ import PlayVideoModal from "@/app/components/PlayVideoModal"
 import Autoplay from "embla-carousel-autoplay"
 import { Button } from "@/components/ui/button"
 import { CiHeart } from "react-icons/ci"
-import axios from "axios"
+import axios, { AxiosError } from "axios"
 import { usePathname } from "next/navigation"
 import { useUser } from "@/app/auth/nextjs/useUser";
+
+// Import the getFilmRating function
+import { getFilmRating } from "@/app/services/filmService"; 
 
 interface Film {
   id: number
@@ -38,8 +41,9 @@ interface Film {
   studio: string
   rank: number
   averageRating: number | null
-  inWatchlist?: boolean
-  watchlistId?: string
+  watchList?: boolean;
+  inWatchlist?: boolean;
+  watchlistId?: string | null;
 }
 
 
@@ -57,14 +61,65 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
   const [films, setFilms] = useState<Film[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistId, setWatchlistId] = useState<string | null>(null);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userRating, setUserRating] = useState<number>(0)
   const [savingWatchlistId, setSavingWatchlistId] = useState<number | null>(null)
+  const [averageRating, setAverageRating] = useState<number | null>(null)
   const pathname = usePathname()
 
   // Get userId from the auth hook
   const userId = user?.id;
+
+  // Fetch watchlist status and user data on component mount
+  useEffect(() => {
+    if (!userId || !selectedFilm) {
+      setLoading(false);
+      return;
+    }
+
+    const filmId = selectedFilm.id;
+    const initialRatings = selectedFilm.averageRating || 0;
+
+    const fetchUserData = async () => {
+      try {
+        const watchlistResponse = await axios.get(`/api/films/${filmId}/watchlist`, { 
+          params: { userId } 
+        });
+
+        if (watchlistResponse.data) {
+          setInWatchlist(watchlistResponse.data.inWatchlist);
+          setWatchlistId(watchlistResponse.data.watchListId);
+        }
+        
+        // Fetch user's rating
+        const ratingResponse = await axios.get(`/api/films/${filmId}/user-rating`, { 
+          params: { userId } 
+        });
+
+        if (ratingResponse.data && ratingResponse.data.rating !== undefined) {
+          setUserRating(ratingResponse.data.rating);
+        }
+
+        // Fetch average rating
+        const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+        if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+          setAverageRating(avgResponse.data.averageRating);
+        } else {
+          setAverageRating(initialRatings);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setAverageRating(initialRatings);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [selectedFilm, userId]);
 
   const categoryTitles = categoryFilter
     ? [
@@ -151,8 +206,24 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
             // Continue with films but without watchlist data
           }
         }
+
+        // Use Promise.all to fetch updated ratings for all films in parallel
+        const filmsWithUpdatedRatings = await Promise.all(
+          filmsData.map(async (film) => {
+            try {
+              const ratingData = await getFilmRating(film.id);
+              return {
+                ...film,
+                averageRating: ratingData.averageRating || film.averageRating
+              };
+            } catch (err) {
+              console.error(`Error fetching rating for film ${film.id}:`, err);
+              return film;
+            }
+          })
+        );
         
-        setFilms(filmsData);
+        setFilms(filmsWithUpdatedRatings);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load films");
         console.error("Error fetching films:", err);
@@ -172,6 +243,14 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     }
     setSelectedFilm(film);
     setIsModalOpen(true);
+    
+    // Update inWatchlist and watchlistId states based on this film
+    if (film.inWatchlist !== undefined) {
+      setInWatchlist(film.inWatchlist);
+    }
+    if (film.watchlistId !== undefined) {
+      setWatchlistId(film.watchlistId);
+    }
   };
 
   const handleRatingUpdate = async (rating: number) => {
@@ -190,6 +269,27 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
             rating
           }),
         });
+
+        // After submitting a new rating, get the updated average rating
+        const updatedRating = await getFilmRating(selectedFilm.id);
+        
+        // Update the rating in our state
+        setFilms(prevFilms => 
+          prevFilms.map(f => {
+            if (f.id === selectedFilm.id) {
+              return { ...f, averageRating: updatedRating.averageRating };
+            }
+            return f;
+          })
+        );
+
+        // Also update the selected film if it's open in the modal
+        setSelectedFilm(prev => {
+          if (prev && prev.id === selectedFilm.id) {
+            return { ...prev, averageRating: updatedRating.averageRating };
+          }
+          return prev;
+        });
       } catch (error) {
         console.error("Error saving rating:", error);
       }
@@ -202,67 +302,96 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     // In a real app, you'd likely update some UI state here
   };
   
-  const handleToggleWatchlist = async (e: React.MouseEvent, film: Film) => {
+ 
+  const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>, film: Film) => {
+    e.preventDefault();
     e.stopPropagation();
-    
-    if (!isAuthenticated || !userId) {
+  
+    if (!userId) {
       alert("Please log in to manage your watchlist.");
       return;
     }
-    
-    setSavingWatchlistId(film.id);
-    
+  
+    const filmId = film.id;
+    setSavingWatchlistId(filmId);
+    const isInWatchlist = film.inWatchlist;
+  
     try {
-      // Update local state first for immediate UI feedback
+      // Optimistic UI update
       setFilms(prevFilms => 
         prevFilms.map(f => {
-          if (f.id === film.id) {
-            return { ...f, inWatchlist: !f.inWatchlist };
+          if (f.id === filmId) {
+            return { ...f, inWatchlist: !isInWatchlist };
+          }
+          return f;
+        })
+      );
+  
+      if (isInWatchlist) {
+        // Updated DELETE request using film ID in URL path
+        await axios.delete(`/api/watchlist/${filmId}`);
+      } else {
+        // Add to watchlist (existing POST request remains unchanged)
+        const response = await axios.post('/api/watchlist', {
+          userId,
+          filmId
+        });
+        
+        if (response.data?.id) {
+          setFilms(prevFilms => 
+            prevFilms.map(f => {
+              if (f.id === filmId) {
+                return { ...f, watchlistId: response.data.id };
+              }
+              return f;
+            })
+          );
+        }
+      }
+    } catch (error) {
+      // Rollback on error
+      setFilms(prevFilms => 
+        prevFilms.map(f => {
+          if (f.id === filmId) {
+            return { ...f, inWatchlist: isInWatchlist };
           }
           return f;
         })
       );
       
-      if (film.inWatchlist) {
-        // Remove from watchlist
-        await axios.delete(`/api/watchlist/${film.watchlistId}`, { 
-          data: { userId } 
-        });
-      } else {
-        // Add to watchlist
-        const response = await axios.post("/api/watchlist", { 
-          filmId: film.id, 
-          pathname, 
-          userId 
-        });
-        
-        // Update the film with the new watchlist ID
-        setFilms(prevFilms => 
-          prevFilms.map(f => {
-            if (f.id === film.id) {
-              return { 
-                ...f, 
-                inWatchlist: true, 
-                watchlistId: response.data.id 
-              };
-            }
-            return f;
-          })
-        );
-      }
-    } catch (error) {
-      console.error("Error toggling watchlist:", error);
-      // Revert the UI change on error
+      const axiosError = error as AxiosError;
+      console.error("Watchlist error:", axiosError.response?.data || error);
+      alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
+    } finally {
+      setSavingWatchlistId(null);
+    }
+  };
+
+  // Function to refresh the rating for a specific film
+  const refreshFilmRating = async (filmId: number) => {
+    try {
+      const ratingData = await getFilmRating(filmId);
+      
       setFilms(prevFilms => 
         prevFilms.map(f => {
-          if (f.id === film.id) {
-            return { ...f, inWatchlist: !f.inWatchlist };
+          if (f.id === filmId) {
+            return { ...f, averageRating: ratingData.averageRating };
           }
           return f;
         })
       );
-    } finally {
-      setSavingWatchlistId(null);
+
+      // Also update selected film if it's being viewed
+      if (selectedFilm && selectedFilm.id === filmId) {
+        setSelectedFilm(prev => {
+          if (prev) {
+            return { ...prev, averageRating: ratingData.averageRating };
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error(`Error refreshing rating for film ${filmId}:`, err);
     }
   };
 
@@ -321,17 +450,17 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
                   
                   {/* Heart Button (Watchlist) - Only show if user is authenticated */}
                   {isAuthenticated && userId && (
-                    <div className="absolute top-2 right-2 z-10">
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        className="bg-black/30 backdrop-blur-sm border-none heart-button hover:bg-black/50"
-                        onClick={(e) => handleToggleWatchlist(e, film)}
-                        disabled={savingWatchlistId === film.id}
-                      >
-                        <CiHeart className={`w-4 h-4 ${film.inWatchlist ? "text-red-500 fill-red-500" : "text-white"}`} />
-                      </Button>
-                    </div>
+                     <div className="absolute top-2 right-2 z-10">
+                     <Button 
+                       variant="outline" 
+                       size="icon"
+                       className="bg-black/50 hover:bg-black/70 heart-button" 
+                       onClick={(e) => handleToggleWatchlist(e, film)} 
+                       disabled={savingWatchlistId === film.id || loading}
+                     >
+                       <CiHeart className={`w-6 h-6 ${film.inWatchlist ? "text-red-500" : "text-white"}`} />
+                     </Button>
+                   </div>
                   )}
                        
                   {/* Play button overlay */}
@@ -399,6 +528,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
           filmId={selectedFilm.id}
           markAsWatched={markAsWatched}
           category={selectedFilm.category}
+          refreshRating={() => refreshFilmRating(selectedFilm.id)}
         />
       )}
     </section>

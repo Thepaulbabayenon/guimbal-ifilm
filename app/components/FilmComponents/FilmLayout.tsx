@@ -95,7 +95,7 @@ const FilmItem = memo(({
             initialRatings={film.initialRatings}
             watchList={film.watchList}
             category={film.category || "Uncategorized"}
-            onOpenModal={() => onClick()} // Pass the onClick handler to the FilmCard
+            onOpenModal={() => onClick()} 
           />
 
           {/* Display Average Rating */}

@@ -4,7 +4,7 @@ import { watchLists, users } from "@/app/db/schema";
 import { and, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 
-
+// Types - kept unchanged
 export type User = {
   id: string;
   role: "admin" | "user";
@@ -20,51 +20,83 @@ export type FullUser = {
   name: string;
 };
 
-// UUID validation helper
+// Cache user data with a simple in-memory cache with TTL
+const userCache = new Map<string, { data: any, expiry: number }>();
+const CACHE_TTL = 60 * 1000; // 1 minute cache
+
 function isValidUUID(str: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
-// Server-side function to get current user
-// This replaces the imported getCurrentUser function
+// Optimized to use caching
 async function getCurrentUser(): Promise<User | null> {
+  // Use a consistent cache key
+  const cacheKey = cookies().toString();
+  const cached = userCache.get(cacheKey);
+  
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data;
+  }
+  
   try {
-    // Since this is a server component, we need to access the API directly
-    // rather than using the client-side fetch approach
     const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://www.thebantayanfilmfestival.com'}/api/auth/user`, {
       headers: {
-        cookie: cookies().toString(),
+        cookie: cacheKey,
       },
     });
 
     if (!response.ok) {
-      console.error("Failed to fetch user, status:", response.status);
       return null;
     }
 
     const data = await response.json();
-    return data.user || null;
+    const userData = data.user || null;
+    
+    // Cache the result
+    userCache.set(cacheKey, {
+      data: userData,
+      expiry: Date.now() + CACHE_TTL
+    });
+    
+    return userData;
   } catch (error) {
     console.error("Error fetching current user:", error);
     return null;
   }
 }
 
-// ✅ Get user by ID, but validate userId first
+// Optimized to use caching and select only needed columns
 async function getUserById(userId: string) {
-  console.log("🔍 Checking user ID:", userId); // Debugging log
-
-  if (!userId) {
-    console.error("❌ User ID is missing!");
-    throw new Error("User ID is required");
+  if (!userId || !isValidUUID(userId)) {
+    throw new Error(userId ? "Invalid user ID format" : "User ID is required");
   }
 
-  if (!isValidUUID(userId)) {
-    console.error("❌ Invalid UUID detected in getUserById:", userId);
-    throw new Error("Invalid user ID format");
+  const cacheKey = `user-${userId}`;
+  const cached = userCache.get(cacheKey);
+  
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data;
   }
 
-  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  // Only select columns we need to minimize data transfer
+  const [user] = await db
+    .select({
+      id: users.id,
+      role: users.role,
+      name: users.name,
+      email: users.email,
+      image: users.image
+    })
+    .from(users)
+    .where(eq(users.id, userId));
+  
+  if (user) {
+    userCache.set(cacheKey, {
+      data: user,
+      expiry: Date.now() + CACHE_TTL
+    });
+  }
+  
   return user || null;
 }
 
@@ -77,26 +109,25 @@ export const addToWatchlist = async ({
   pathname: string;
   userId: string | undefined;
 }) => {
-  if (!userId) {
-    throw new Error("User is not logged in");
-  }
-
-  if (!isValidUUID(userId)) {
-    throw new Error("Invalid user ID format");
+  if (!userId || !isValidUUID(userId)) {
+    throw new Error(userId ? "Invalid user ID format" : "User is not logged in");
   }
 
   try {
-    const [entry] = await db
+    // Check if already exists with a composite key query instead of using id
+    const [existingEntry] = await db
       .select({ userId: watchLists.userId, filmId: watchLists.filmId })
       .from(watchLists)
-      .where(and(eq(watchLists.filmId, filmId), eq(watchLists.userId, userId)));
+      .where(and(eq(watchLists.filmId, filmId), eq(watchLists.userId, userId)))
+      .limit(1);
 
-    if (entry) {
-      return entry;
+    if (existingEntry) {
+      return { filmId, userId };
     }
 
-    const [newEntry] = await db.insert(watchLists).values({ filmId, userId }).returning();
-    return newEntry;
+    // Insert new entry with minimal return data
+    await db.insert(watchLists).values({ filmId, userId });
+    return { filmId, userId };
   } catch (error) {
     console.error("Error adding to watchlist:", error);
     throw error;
@@ -109,16 +140,12 @@ export async function deleteFromWatchlist(userId: string, filmId: number) {
   }
 
   try {
-    const deleted = await db
+    // More efficient deletion without returning data
+    const result = await db
       .delete(watchLists)
-      .where(and(eq(watchLists.filmId, filmId), eq(watchLists.userId, userId)))
-      .returning();
-
-    if (!deleted.length) {
-      throw new Error("Failed to delete from watchlist");
-    }
-
-    return deleted;
+      .where(and(eq(watchLists.filmId, filmId), eq(watchLists.userId, userId)));
+    
+    return { success: true };
   } catch (error) {
     console.error("Error deleting from watchlist:", error);
     throw error;
@@ -131,43 +158,44 @@ export async function getWatchListIdForFilm(filmId: number, userId: string): Pro
   }
 
   try {
-    const entry = await db
+    // Use userId and filmId directly instead of id field
+    const [entry] = await db
       .select({ userId: watchLists.userId, filmId: watchLists.filmId })
       .from(watchLists)
       .where(and(eq(watchLists.filmId, filmId), eq(watchLists.userId, userId)))
       .limit(1);
 
-    return entry.length > 0 ? `${entry[0].userId}-${entry[0].filmId}` : null;
+    return entry ? `${userId}-${filmId}` : null;
   } catch (error) {
-    console.error("Error fetching watchListId for movie:", error);
+    console.error("Error fetching watchListId:", error);
     return null;
   }
 }
 
+// Role management with improved validation flow
 export async function setRole(requestingUserId: string, targetUserId: string, role: "admin" | "user") {
-  console.log("🔍 Assigning role", role, "to user:", targetUserId, "Requested by:", requestingUserId);
-
   if (!isValidUUID(requestingUserId) || !isValidUUID(targetUserId)) {
-    console.error("❌ Invalid UUID detected in setRole:", { requestingUserId, targetUserId });
     throw new Error("Invalid user ID format");
   }
 
-  // Verify that requesting user is an admin
+  // Verify admin status
   const requestingUser = await getUserById(requestingUserId);
   if (!requestingUser || requestingUser.role !== "admin") {
     throw new Error("Not Authorized");
   }
 
   try {
-    const [updatedUser] = await db
+    await db
       .update(users)
       .set({ role })
-      .where(eq(users.id, targetUserId))
-      .returning();
-
-    return updatedUser;
+      .where(eq(users.id, targetUserId));
+    
+    // Clear cache for this user
+    userCache.delete(`user-${targetUserId}`);
+    
+    return { success: true };
   } catch (err) {
-    console.error("❌ Error setting role:", err);
+    console.error("Error setting role:", err);
     throw new Error("Failed to set role");
   }
 }
@@ -177,20 +205,22 @@ export async function removeRole(requestingUserId: string, targetUserId: string)
     throw new Error("Invalid user ID format");
   }
 
-  // Verify that requesting user is an admin
+  // Verify admin status
   const requestingUser = await getUserById(requestingUserId);
   if (!requestingUser || requestingUser.role !== "admin") {
     throw new Error("Not Authorized");
   }
 
   try {
-    const [updatedUser] = await db
+    await db
       .update(users)
       .set({ role: "user" })
-      .where(eq(users.id, targetUserId))
-      .returning();
-
-    return updatedUser;
+      .where(eq(users.id, targetUserId));
+    
+    // Clear cache for this user
+    userCache.delete(`user-${targetUserId}`);
+    
+    return { success: true };
   } catch (err) {
     console.error("Error removing role:", err);
     throw new Error("Failed to remove role");
@@ -199,10 +229,5 @@ export async function removeRole(requestingUserId: string, targetUserId: string)
 
 export async function checkRole(requiredRole: 'admin' | 'user') {
   const user = await getCurrentUser();
-
-  if (!user) {
-    return false;
-  }
-
-  return user.role === requiredRole;
+  return user ? user.role === requiredRole : false;
 }

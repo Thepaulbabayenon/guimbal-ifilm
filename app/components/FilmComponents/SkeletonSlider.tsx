@@ -15,7 +15,7 @@ interface FilmSliderSkeletonProps {
   itemCount?: number
 }
 
-const FilmSliderSkeleton = ({ title, itemCount = 5 }: FilmSliderSkeletonProps) => {
+const FilmSliderSkeleton: React.FC<FilmSliderSkeletonProps> = ({ title, itemCount = 5 }) => {
   return (
     <section className="py-8">
       <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-6 animate-pulse" />
@@ -32,7 +32,7 @@ const FilmSliderSkeleton = ({ title, itemCount = 5 }: FilmSliderSkeletonProps) =
             <CarouselItem key={index} className="md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
               <div className="relative overflow-hidden rounded-lg">
                 {/* Skeleton for the image */}
-                <div className="aspect-[2/3] w-full bg-gray-300 dark:bg-gray-800 animate-pulse rounded-lg" />
+                <div className="aspect-[3/3] w-full bg-gray-300 dark:bg-gray-800 animate-pulse rounded-lg" />
                 
                 {/* Skeleton for the text content */}
                 <div className="absolute bottom-0 left-0 right-0 p-4">

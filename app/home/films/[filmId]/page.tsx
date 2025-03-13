@@ -31,7 +31,7 @@ export default function FilmQueryPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-
+    
         if (query) {
           // ✅ Search API
           console.log("Fetching search results...");
@@ -39,13 +39,20 @@ export default function FilmQueryPage() {
           if (!response.ok) throw new Error("Failed to fetch search results.");
           const data = await response.json();
           console.log("Search Results:", data);
-
-          setFilms(
-            data.films.map((film: Film) => ({
-              ...film,
-              watchList: film.watchList ?? false,
-            }))
-          );          
+    
+          // Check if data.films exists before mapping
+          if (data && data.films && Array.isArray(data.films)) {
+            setFilms(
+              data.films.map((film: Film) => ({
+                ...film,
+                watchList: film.watchList ?? false,
+              }))
+            );
+          } else {
+            console.error("Invalid data structure:", data);
+            setFilms([]);
+            setError("Received invalid data structure from API");
+          }      
         } else if (filmId) {
           // ✅ Film details API
           console.log(`Fetching details for filmId: ${filmId}`);
@@ -53,16 +60,59 @@ export default function FilmQueryPage() {
           if (!response.ok) throw new Error("Failed to fetch film details.");
           const data = await response.json();
           console.log("Fetched Film Data:", data);
-          setFilms(
-            data.films.map((film: Film) => ({
-              ...film,
-              watchList: film.watchList ?? false,
-              producer: film.producer ?? "Unknown",
-              director: film.director ?? "Unknown",
-              coDirector: film.coDirector ?? "N/A",
-              studio: film.studio ?? "Unknown",
-            }))
-          );        
+          
+          // Handle single film object in the 'film' property
+          if (data && data.film) {
+            const filmData = data.film;
+            // Set the single film
+            setFilm({
+              ...filmData,
+              watchList: filmData.watchList ?? false,
+              producer: filmData.producer ?? "Unknown",
+              director: filmData.director ?? "Unknown",
+              coDirector: filmData.coDirector ?? "N/A",
+              studio: filmData.studio ?? "Unknown",
+            });
+            
+            // Also set the films array with the single film for consistency
+            setFilms([{
+              ...filmData,
+              watchList: filmData.watchList ?? false,
+              producer: filmData.producer ?? "Unknown",
+              director: filmData.director ?? "Unknown",
+              coDirector: filmData.coDirector ?? "N/A",
+              studio: filmData.studio ?? "Unknown",
+            }]);
+          } else if (data && data.films && Array.isArray(data.films)) {
+            // Original case - handle films array if it exists
+            setFilms(
+              data.films.map((film: Film) => ({
+                ...film,
+                watchList: film.watchList ?? false,
+                producer: film.producer ?? "Unknown",
+                director: film.director ?? "Unknown",
+                coDirector: film.coDirector ?? "N/A",
+                studio: film.studio ?? "Unknown",
+              }))
+            );
+            
+            // Set the first film as the selected film if available
+            if (data.films.length > 0) {
+              setFilm({
+                ...data.films[0],
+                watchList: data.films[0].watchList ?? false,
+                producer: data.films[0].producer ?? "Unknown",
+                director: data.films[0].director ?? "Unknown",
+                coDirector: data.films[0].coDirector ?? "N/A",
+                studio: data.films[0].studio ?? "Unknown",
+              });
+            }
+          } else {
+            console.error("Invalid data structure:", data);
+            setFilms([]);
+            setFilm(null);
+            setError("Received invalid data structure from API");
+          }
         }
       } catch (err) {
         console.error("API Fetch Error:", err);
@@ -70,7 +120,7 @@ export default function FilmQueryPage() {
       } finally {
         setLoading(false);
       }
-    };
+    };  
 
     if (query || filmId) {
       fetchData();

@@ -1,7 +1,6 @@
-// This file should be in a client-side location, e.g., lib/hooks/useAuth.ts
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export type FullUser = {
   id: string;
@@ -25,7 +24,6 @@ export type User = {
   twoFactorEnabled: boolean;
 };
 
-// Interfaces for auth hook return with 2FA methods
 export interface UseAuthReturn {
   user: User | FullUser | null;
   isAuthenticated: boolean;
@@ -48,12 +46,49 @@ export interface UseAuthReturn {
   updateProfile: (profile: Partial<Omit<FullUser, 'id' | 'role'>>) => Promise<boolean>;
 }
 
+// Create a singleton pattern for caching API responses
+class ApiCache {
+  private static instance: ApiCache;
+  private cache: Map<string, { data: any, expiry: number }> = new Map();
+  private DEFAULT_TTL = 60 * 1000; // 1 minute
+
+  private constructor() {}
+
+  static getInstance() {
+    if (!ApiCache.instance) {
+      ApiCache.instance = new ApiCache();
+    }
+    return ApiCache.instance;
+  }
+
+  get(key: string) {
+    const item = this.cache.get(key);
+    if (item && item.expiry > Date.now()) {
+      return item.data;
+    }
+    return null;
+  }
+
+  set(key: string, data: any, ttl = this.DEFAULT_TTL) {
+    this.cache.set(key, {
+      data,
+      expiry: Date.now() + ttl
+    });
+  }
+
+  invalidate(key: string) {
+    this.cache.delete(key);
+  }
+
+  invalidateUserData() {
+    // Clear user-related cache when auth state changes
+    this.invalidate('user');
+    this.invalidate('fullUser');
+  }
+}
+
 /**
- * Enhanced authentication hook that handles user data fetching, authentication state,
- * and auth-related actions including two-factor authentication
- * 
- * @param options Configuration options for the hook
- * @returns Authentication state and functions
+ * Enhanced authentication hook with optimized data fetching
  */
 export function useAuth({
   withFullUser = false,
@@ -61,81 +96,101 @@ export function useAuth({
   const [user, setUser] = useState<User | FullUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [is2FARequired, setIs2FARequired] = useState(false);
+  const apiCache = ApiCache.getInstance();
 
-  // Function to fetch user data with improved error handling
-  const fetchUser = async () => {
+  // Optimized API request handler with built-in error handling
+  const apiRequest = useCallback(async (url: string, options?: RequestInit) => {
+    try {
+      const response = await fetch(url, options);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          setUser(null);
+          return { error: 'Unauthorized' };
+        }
+        throw new Error(`Request failed with status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error(`API request failed for ${url}:`, error);
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }, []);
+
+  // Optimized user fetching with caching
+  const fetchUser = useCallback(async () => {
     setIsLoading(true);
 
     try {
-      // Use the full=true parameter when requested
-      const url = withFullUser ? "/api/auth/user?full=true" : "/api/auth/user";
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // User is not authenticated
-          setUser(null);
-          setIsLoading(false);
-          return;
-        }
-        throw new Error(`Failed to fetch user with status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const cacheKey = withFullUser ? 'fullUser' : 'user';
+      const cachedUser = apiCache.get(cacheKey);
       
-      // Extract user from response format
-      const userData = data.user || data;
-      
-      if (userData) {
-        // If 2FA is enabled but not verified for this session, set flag
-        if (userData.twoFactorEnabled && !userData.twoFactorVerified) {
+      if (cachedUser) {
+        setUser(cachedUser);
+        setIsLoading(false);
+        
+        // Check if 2FA is required
+        if (cachedUser?.twoFactorEnabled && !cachedUser?.twoFactorVerified) {
           setIs2FARequired(true);
         } else {
           setIs2FARequired(false);
         }
         
-        // Convert date strings to Date objects if they exist
-        if (userData.emailVerified) {
-          userData.emailVerified = new Date(userData.emailVerified);
-        }
-        
-        if (userData.createdAt) {
-          userData.createdAt = new Date(userData.createdAt);
-        }
-        
-        setUser(userData);
-      } else {
-        setUser(null);
+        return;
       }
-    } catch (error) {
-      console.error("Failed to fetch user:", error);
-      setUser(null);
+
+      const url = withFullUser ? "/api/auth/user?full=true" : "/api/auth/user";
+      const data = await apiRequest(url);
+      
+      if (data.error || !data.user) {
+        setUser(null);
+        return;
+      }
+      
+      const userData = data.user;
+      
+      // Handle date conversions
+      if (userData.emailVerified) {
+        userData.emailVerified = new Date(userData.emailVerified);
+      }
+      
+      if (userData.createdAt) {
+        userData.createdAt = new Date(userData.createdAt);
+      }
+      
+      // Update 2FA required state
+      if (userData.twoFactorEnabled && !userData.twoFactorVerified) {
+        setIs2FARequired(true);
+      } else {
+        setIs2FARequired(false);
+      }
+      
+      setUser(userData);
+      apiCache.set(cacheKey, userData);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [withFullUser, apiRequest]);
 
-  // Fetch user on component mount
+  // Fetch user on component mount or when full user preference changes
   useEffect(() => {
     fetchUser();
-  }, [withFullUser]);
+  }, [fetchUser]);
 
-  // Sign out function with improved error handling
+  // Sign out with cache invalidation
   const signOut = async () => {
     try {
-      const response = await fetch("/api/auth/signout", { 
+      await apiRequest("/api/auth/signout", { 
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`Sign-out failed with status: ${response.status}`);
-      }
-
       setUser(null);
       setIs2FARequired(false);
+      apiCache.invalidateUserData();
       window.location.href = "/sign-in";
     } catch (error) {
       console.error("Sign-out failed:", error);
@@ -143,221 +198,124 @@ export function useAuth({
     }
   };
 
-  // Get authentication token with improved error handling
+  // Optimized token fetching
   const getToken = async (): Promise<string | null> => {
-    try {
-      const res = await fetch("/api/auth/token");
+    const cachedToken = apiCache.get('token');
+    if (cachedToken) return cachedToken;
 
-      if (!res.ok) {
-        throw new Error(`Failed to fetch token with status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      return data.token;
-    } catch (error) {
-      console.error("Error getting token:", error);
-      return null;
-    }
+    const data = await apiRequest("/api/auth/token");
+    if (data.error || !data.token) return null;
+    
+    apiCache.set('token', data.token, 30 * 60 * 1000); // Cache for 30 minutes
+    return data.token;
   };
 
-  // Enable 2FA for user
-  const enable2FA = async (): Promise<{ qrCodeUrl: string, secretKey: string, backupCodes: string[] } | null> => {
-    try {
-      const response = await fetch("/api/auth/2fa/enable", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to enable 2FA with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return {
-        qrCodeUrl: data.qrCodeUrl,
-        secretKey: data.secretKey,
-        backupCodes: data.backupCodes
-      };
-    } catch (error) {
-      console.error("Failed to enable 2FA:", error);
-      return null;
-    }
+  // 2FA Methods - optimized for reduced requests
+  const enable2FA = async () => {
+    const data = await apiRequest("/api/auth/2fa/enable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    
+    if (data.error) return null;
+    
+    return {
+      qrCodeUrl: data.qrCodeUrl,
+      secretKey: data.secretKey,
+      backupCodes: data.backupCodes
+    };
   };
 
-  // Verify and activate 2FA after setup
   const verify2FA = async (code: string): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/auth/2fa/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ code })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to verify 2FA with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success) {
-        // Update user state to reflect 2FA is now enabled
-        await fetchUser();
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Failed to verify 2FA:", error);
-      return false;
+    const data = await apiRequest("/api/auth/2fa/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code })
+    });
+    
+    if (data.success) {
+      apiCache.invalidateUserData();
+      await fetchUser();
+      return true;
     }
+    
+    return false;
   };
 
-  // Disable 2FA
   const disable2FA = async (): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/auth/2fa/disable", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to disable 2FA with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success) {
-        // Update user state to reflect 2FA is now disabled
-        await fetchUser();
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Failed to disable 2FA:", error);
-      return false;
+    const data = await apiRequest("/api/auth/2fa/disable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    
+    if (data.success) {
+      apiCache.invalidateUserData();
+      await fetchUser();
+      return true;
     }
+    
+    return false;
   };
 
-  // Verify 2FA during login process
   const verify2FALogin = async (code: string): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/auth/2fa/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ code })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to verify 2FA login with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setIs2FARequired(false);
-        // Re-fetch user data after successful 2FA verification
-        await fetchUser();
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Failed to verify 2FA login:", error);
-      return false;
+    const data = await apiRequest("/api/auth/2fa/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code })
+    });
+    
+    if (data.success) {
+      setIs2FARequired(false);
+      apiCache.invalidateUserData();
+      await fetchUser();
+      return true;
     }
+    
+    return false;
   };
 
-  // Verify 2FA with backup code
   const verify2FAWithBackupCode = async (backupCode: string): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/auth/2fa/backup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ backupCode })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to verify backup code with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setIs2FARequired(false);
-        // Re-fetch user data after successful 2FA verification
-        await fetchUser();
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Failed to verify backup code:", error);
-      return false;
+    const data = await apiRequest("/api/auth/2fa/backup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ backupCode })
+    });
+    
+    if (data.success) {
+      setIs2FARequired(false);
+      apiCache.invalidateUserData();
+      await fetchUser();
+      return true;
     }
+    
+    return false;
   };
 
-  // Change password
+  // Password and profile management
   const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/auth/password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ currentPassword, newPassword })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to change password with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.success;
-    } catch (error) {
-      console.error("Failed to change password:", error);
-      return false;
-    }
+    const data = await apiRequest("/api/auth/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    
+    return !!data.success;
   };
 
-  // Update profile information
   const updateProfile = async (profile: Partial<Omit<FullUser, 'id' | 'role'>>): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/auth/profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(profile)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to update profile with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success) {
-        // Update user state to reflect profile changes
-        await fetchUser();
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Failed to update profile:", error);
-      return false;
+    const data = await apiRequest("/api/auth/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile)
+    });
+    
+    if (data.success) {
+      apiCache.invalidateUserData();
+      await fetchUser();
+      return true;
     }
+    
+    return false;
   };
 
   return {
@@ -367,23 +325,19 @@ export function useAuth({
     signOut,
     getToken,
     refetchUser: fetchUser,
-    // 2FA methods
     enable2FA,
     verify2FA,
     disable2FA,
     verify2FALogin,
     verify2FAWithBackupCode,
-    // 2FA state
     is2FARequired,
     setIs2FARequired,
-    // Password management
     changePassword,
-    // Profile management
     updateProfile
   };
 }
 
-// For backward compatibility, export useUser as an alias to useAuth
+// For backward compatibility
 export function useUser() {
   const auth = useAuth();
   

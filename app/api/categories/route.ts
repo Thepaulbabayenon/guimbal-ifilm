@@ -1,14 +1,14 @@
 // app/api/categories/route.ts
-import { db } from '@/app/db/drizzle'; // Ensure correct import path
+import { db } from '@/app/db/drizzle'; 
 import { sql } from 'drizzle-orm';
 
 export async function GET() {
   try {
-    // Fetch distinct categories from the database
+   
     const categories = await db.execute<{ category: string }>(
-      sql`SELECT DISTINCT "category" FROM film`
+      sql`SELECT DISTINCT "category" FROM films`
     );
-    const categoryList = categories.rows.map((row) => row.category); // Return an array of categories
+    const categoryList = categories.rows.map((row) => row.category); 
 
     // Return the response as JSON
     return new Response(JSON.stringify({ categories: categoryList }), {

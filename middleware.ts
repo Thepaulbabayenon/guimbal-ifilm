@@ -21,11 +21,6 @@ const AUTH_COOKIE_NAME = "session_token";
 
 // Route configuration maps for faster lookups
 const ROUTE_CONFIG = {
-  private: new Set([
-    "/home/user/favorites", 
-    "/home/user", 
-    "/home/user/recommended"
-  ]),
   admin: new Set([
     "/admin", 
     "/admin/upload", 
@@ -42,14 +37,23 @@ const ROUTE_CONFIG = {
 };
 
 // Performance optimization constants
-const SESSION_CACHE_DURATION = 900000; // 15 minutes in milliseconds
-const SESSION_UPDATE_INTERVAL = 3600000; // 1 hour in milliseconds
-const MIN_DB_OPERATION_INTERVAL = 1000; // 1 second in milliseconds
-const GRACE_PERIOD = 60000; // 1 minute in milliseconds
+const SESSION_CACHE_DURATION = 900000; 
+const SESSION_UPDATE_INTERVAL = 3600000; 
+const MIN_DB_OPERATION_INTERVAL = 1000; 
+const GRACE_PERIOD = 60000; 
 
 // Memory-efficient session cache
 const userSessionCache = new Map<string, CachedSession>();
 let lastDbOperationTime = 0;
+
+
+const DEBUG = true;
+
+function debugLog(...args: any[]) {
+  if (DEBUG) {
+    console.log("[Auth Middleware]", ...args);
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -58,6 +62,8 @@ export async function middleware(request: NextRequest) {
   if (shouldSkipMiddleware(pathname, request)) {
     return NextResponse.next();
   }
+
+  debugLog(`Processing request for: ${pathname}`);
 
   // Cookie helper object - created only when needed
   const cookies: Cookies = {
@@ -70,6 +76,14 @@ export async function middleware(request: NextRequest) {
   };
 
   const currentTime = Date.now();
+  
+  // Check for auth cookie first - early exit if missing and debug
+  const authCookie = cookies.get(AUTH_COOKIE_NAME);
+  if (!authCookie) {
+    debugLog(`No auth cookie found for ${pathname}`);
+  } else {
+    debugLog(`Auth cookie found: ${authCookie.name}=${authCookie.value.substring(0, 10)}...`);
+  }
   
   // Auth check and route protection
   const authResponse = await middlewareAuth(request, cookies, currentTime);
@@ -102,7 +116,7 @@ export async function middleware(request: NextRequest) {
             });
           }
         } catch (error) {
-          console.error("Session update error:", error);
+          debugLog("Session update error:", error);
         }
       });
     }
@@ -113,12 +127,15 @@ export async function middleware(request: NextRequest) {
 
 async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTime: number) {
   const sessionToken = cookies.get(AUTH_COOKIE_NAME)?.value;
+  const pathname = request.nextUrl.pathname;
+  
+  debugLog(`Auth check for ${pathname} - Token exists: ${!!sessionToken}`);
   
   // Fast path for no token
   if (!sessionToken) {
-    const { pathname } = request.nextUrl;
     // Check if route requires auth
     if (isProtectedRoute(pathname)) {
+      debugLog(`No auth token, redirecting from protected route: ${pathname}`);
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
     return null;
@@ -126,11 +143,14 @@ async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTim
   
   // User lookup with cache prioritization
   const cachedSession = userSessionCache.get(sessionToken);
+  debugLog(`Cache status for ${pathname}: ${cachedSession ? 'HIT' : 'MISS'}`);
+  
   let user: User | null = null;
   
   if (cachedSession && currentTime < cachedSession.expiresAt) {
     // Cache hit - use cached user data
     user = cachedSession.user;
+    debugLog(`Using cached user data: ${JSON.stringify(user)}`);
   } else {
     // Cache miss or expired cache
     if (currentTime - lastDbOperationTime > MIN_DB_OPERATION_INTERVAL) {
@@ -144,7 +164,9 @@ async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTim
       }
       
       try {
+        debugLog(`Retrieving user from database for token: ${sessionToken.substring(0, 10)}...`);
         user = await getUserFromSession(cookiesObject);
+        debugLog(`User from database: ${JSON.stringify(user)}`);
         
         // Update cache
         if (user) {
@@ -153,19 +175,25 @@ async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTim
             expiresAt: currentTime + SESSION_CACHE_DURATION,
             lastDatabaseUpdate: currentTime
           });
+          debugLog(`Updated user cache for: ${user.id}`);
         } else {
           // Invalid session - clean up
+          debugLog(`Invalid session, clearing token: ${sessionToken.substring(0, 10)}...`);
           userSessionCache.delete(sessionToken);
           cookies.delete(AUTH_COOKIE_NAME);
         }
       } catch (error) {
-        console.error("Session retrieval error:", error);
+        debugLog("Session retrieval error:", error);
         // Fallback to cached data if available during errors
-        if (cachedSession) user = cachedSession.user;
+        if (cachedSession) {
+          user = cachedSession.user;
+          debugLog(`Falling back to cached user during error: ${JSON.stringify(user)}`);
+        }
       }
     } else if (cachedSession) {
       // Throttling active - use slightly expired cache with grace period
       user = cachedSession.user;
+      debugLog(`Using expired cache with grace period: ${JSON.stringify(user)}`);
       userSessionCache.set(sessionToken, {
         ...cachedSession,
         expiresAt: currentTime + GRACE_PERIOD
@@ -173,29 +201,20 @@ async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTim
     }
   }
 
-  // Route authorization checks
-  const { pathname } = request.nextUrl;
-  
-  // Private route check
-  for (const route of ROUTE_CONFIG.private) {
-    if (pathname.startsWith(route)) {
-      if (!user) {
-        return NextResponse.redirect(new URL("/sign-in", request.url));
-      }
-      break;
-    }
-  }
-
   // Admin route check
   for (const route of ROUTE_CONFIG.admin) {
     if (pathname.startsWith(route)) {
       if (!user) {
+        debugLog(`No user found for admin route ${pathname}, redirecting to sign-in`);
         return NextResponse.redirect(new URL("/sign-in", request.url));
       }
       
       if (user.role !== "admin") {
+        debugLog(`User ${user.id} with role ${user.role} not authorized for admin route: ${pathname}`);
         return NextResponse.redirect(new URL("/", request.url));
       }
+      
+      debugLog(`Admin ${user.id} authorized for admin route: ${pathname}`);
       break;
     }
   }
@@ -228,12 +247,7 @@ function shouldSkipMiddleware(pathname: string, request: NextRequest): boolean {
 }
 
 function isProtectedRoute(pathname: string): boolean {
-  // Check private routes
-  for (const route of ROUTE_CONFIG.private) {
-    if (pathname.startsWith(route)) return true;
-  }
-  
-  // Check admin routes
+  // Check admin routes only
   for (const route of ROUTE_CONFIG.admin) {
     if (pathname.startsWith(route)) return true;
   }
@@ -244,7 +258,6 @@ function isProtectedRoute(pathname: string): boolean {
 // Focused matcher pattern
 export const config = {
   matcher: [
-    '/home/:path*',
     '/admin/:path*',
     '/api/((?!public).)*',
     '/sign-in',

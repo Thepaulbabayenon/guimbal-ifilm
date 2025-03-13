@@ -12,12 +12,14 @@ export default function AllFilmsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchFilms() {
-      try {
-        setLoading(true);
-        const allFilmsData = await getAllFilms();
-        
+useEffect(() => {
+  async function fetchFilms() {
+    try {
+      setLoading(true);
+      const allFilmsData = await getAllFilms();
+      
+      // Check if allFilmsData exists before mapping
+      if (allFilmsData && Array.isArray(allFilmsData)) {
         // Map the data to match the Film interface exactly
         const mappedFilms: Film[] = allFilmsData.map(film => ({
           id: film.id,
@@ -36,16 +38,19 @@ export default function AllFilmsPage() {
         
         setFilms(mappedFilms);
         setError(null);
-      } catch (err) {
-        console.error('Error fetching films:', err);
-        setError('Failed to load films. Please try again later.');
-      } finally {
-        setLoading(false);
+      } else {
+        throw new Error('Invalid data format received');
       }
+    } catch (err) {
+      console.error('Error fetching films:', err);
+      setError('Failed to load films. Please try again later.');
+    } finally {
+      setLoading(false);
     }
+  }
 
-    fetchFilms();
-  }, []);
+  fetchFilms();
+}, []);
 
   return (
     <main className="max-w-screen-2xl mx-auto">
