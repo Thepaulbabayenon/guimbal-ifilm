@@ -5,6 +5,7 @@ import FilmPoster from "@/app/components/LandingPageComponents/FilmPoster";
 import { LandingLogo } from "@/app/components/LandingPageComponents/LandingLogo";
 import { FilmPosterCard } from "@/app/components/LandingPageComponents/FilmPosterCard";
 import { getTopRatedFilms } from "@/app/api/getFilms";
+import { GlowEffect } from "@/components/motion-primitives/glow-effect";
 
 export default async function Home() {
   const cookiesObject = Object.fromEntries(
@@ -42,12 +43,17 @@ export default async function Home() {
           A COMMUNITY OF FILMMAKERS SINCE 2005
         </p>
 
-        <a
-          href="/sign-in"
-          className="mt-6 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-full shadow-lg hover:bg-yellow-400 transition-all duration-300 transform hover:scale-105"
-        >
-          Get Started
-        </a>
+        <div className="relative mt-6">
+  
+ <a href="/sign-in"
+  className="relative px-6 py-3 bg-yellow-500 text-black font-semibold rounded-full shadow-lg hover:bg-yellow-400 transition-all duration-900 transform hover:scale-105 animate-pulse"
+  style={{
+    boxShadow: "0 0 15px 5px rgba(255, 215, 0, 0.7), 0 0 30px 10px rgba(255, 165, 0, 0.5)"
+  }}
+>
+  Get Started
+</a>
+</div>
       </div>
 
       {/* TOP FILMS SECTION */}
@@ -59,16 +65,16 @@ export default async function Home() {
       </div>
 
       {/* Grid Layout for Film Posters */}
-      <div className="relative z-10 grid grid-cols-5 gap-2 w-full px-4 max-w-md py-6">
-        {top10Films.map((film) => (
-          <FilmPosterCard 
-            key={film.id} 
-            filmId={film.id} 
-            initialTitle={film.title} 
-            className="aspect-[2/3] w-full" 
-          />
-        ))}
-      </div>
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full px-4 max-w-6xl py-6">
+          {top10Films.map((film) => (
+            <FilmPosterCard 
+              key={film.id} 
+              filmId={film.id} 
+              initialTitle={film.title} 
+              className="aspect-[2/3] w-full" 
+            />
+          ))}
+        </div>
     </main>
   );
 }
