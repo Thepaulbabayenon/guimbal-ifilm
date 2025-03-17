@@ -4,7 +4,7 @@ import { db } from "@/app/db/drizzle";
 import { getUserFromSession, COOKIE_SESSION_KEY, CookiesHandler } from "@/app/auth/core/session";
 import { users } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
-import { hash, compare } from "bcrypt";
+import { hash, compare } from "bcryptjs";
 import { z } from "zod";
 
 // Schema for validating request body

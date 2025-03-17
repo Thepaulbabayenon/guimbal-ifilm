@@ -14,7 +14,6 @@ const QuizForm = ({ onSubmit }: { onSubmit: (data: Preferences) => void }) => {
     moods: [],
     themes: [],
   });
-
   return (
     <div className="p-6 bg-gray-800 text-white rounded-lg">
       <h2 className="text-xl font-bold">Personalized Film Quiz</h2>

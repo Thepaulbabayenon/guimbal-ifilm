@@ -1,29 +1,66 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/db/drizzle';
 import { comments, users } from '@/app/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
+
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const filmId = searchParams.get('filmId');
+  
+  if (!filmId) {
+    return NextResponse.json({ error: 'Film ID is required' }, { status: 400 });
+  }
+
+  try {
+    const fetchedComments = await db
+      .select({
+        id: comments.id,
+        userId: comments.userId,
+        content: comments.content,
+        createdAt: comments.createdAt,
+        username: users.name,
+      })
+      .from(comments)
+      .innerJoin(users, eq(comments.userId, users.id))
+      .where(eq(comments.filmId, parseInt(filmId)))
+      .orderBy(desc(comments.createdAt));
+
+    const formattedComments = fetchedComments.map((comment) => ({
+      ...comment,
+      createdAt: comment.createdAt.toISOString(),
+      username: comment.username || 'Anonymous',
+    }));
+
+    return NextResponse.json(formattedComments);
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 });
+  }
+}
+
 
 export async function POST(req: Request) {
   try {
-    // Parse JSON request body
+
     const { userId, filmId, username, content, email } = await req.json();
 
     console.log('Received payload:', { userId, filmId, username, content, email });
 
-    // Validate required fields
+
     if (!userId || !filmId || !content || !email) {
       console.error('Missing required fields:', { userId, filmId, content, email });
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Ensure userId is treated as a string (Drizzle expects it as string)
+
     const userIdFormatted = String(userId); 
 
-    // Check if user exists in the database
+
     const userExists = await db
       .select()
       .from(users)
-      .where(eq(users.id, userIdFormatted)) // Ensure comparison is string-based
+      .where(eq(users.id, userIdFormatted)) 
       .execute();
 
     console.log('User exists check result:', userExists);

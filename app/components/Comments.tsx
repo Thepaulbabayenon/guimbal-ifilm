@@ -19,7 +19,7 @@ interface Comment {
 }
 
 export default function Comments({ filmId }: CommentsProps) {
-  // Use the hook at the top level of your component
+
   const { user: currentUser, isLoading: userLoading } = useUser();
   
   const [commentsList, setCommentsList] = useState<Comment[]>([]);
@@ -27,7 +27,7 @@ export default function Comments({ filmId }: CommentsProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle adding a new comment
+ 
   const handleAddComment = async () => {
     if (!newComment.trim()) {
       setError('Comment cannot be empty.');
@@ -66,7 +66,7 @@ export default function Comments({ filmId }: CommentsProps) {
         throw new Error(data.error || 'Failed to add comment.');
       }
 
-      await fetchComments(); // Refresh comments after adding
+      await fetchComments(); 
       setNewComment('');
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -77,43 +77,31 @@ export default function Comments({ filmId }: CommentsProps) {
   };
 
   // Fetch comments from the database
-  const fetchComments = async () => {
-    if (!filmId) {
-      setError('Film ID is required to load comments.');
-      return;
+  // Modify your fetchComments function
+const fetchComments = async () => {
+  if (!filmId) {
+    setError('Film ID is required to load comments.');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await fetch(`/api/comments?filmId=${filmId}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch comments');
     }
-
-    setLoading(true);
-
-    try {
-      const fetchedComments = await db
-        .select({
-          id: comments.id,
-          userId: comments.userId,
-          content: comments.content,
-          createdAt: comments.createdAt,
-          username: users.name, // Join users table to get the username
-        })
-        .from(comments)
-        .innerJoin(users, eq(comments.userId, users.id)) // Join with users table
-        .where(eq(comments.filmId, filmId))
-        .orderBy(desc(comments.createdAt));
-
-      // Format dates for display
-      const formattedComments = fetchedComments.map((comment) => ({
-        ...comment,
-        createdAt: comment.createdAt.toISOString(),
-        username: comment.username || 'Anonymous', // Ensure username fallback
-      }));
-
-      setCommentsList(formattedComments);
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-      setError('Failed to load comments. Please refresh the page.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    
+    const data = await response.json();
+    setCommentsList(data);
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    setError('Failed to load comments. Please refresh the page.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchComments();
