@@ -5,6 +5,7 @@ import { Film } from "@/types/film";
 
 export const dynamic = "force-dynamic";
 
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.thebantayanfilmfestival.com';
 
 
 
@@ -279,16 +280,16 @@ export async function getComedyFilms() {
 
 export async function getAllFilmsWithDetails(userId: string): Promise<Film[]> {
  
-  const filmsResponse = await fetch("https://www.thebantayanfilmfestival.com/api/films");
+  const filmsResponse = await fetch(`${baseUrl}/api/films`);
   const films: Film[] = await filmsResponse.json();
 
-  const userWatchlistResponse = await fetch(`https://www.thebantayanfilmfestival.com/api/watchlist?userId=${userId}`);
+  const userWatchlistResponse = await fetch(`${baseUrl}/api/watchlist?userId=${userId}`);
   const userWatchlist: number[] = await userWatchlistResponse.json(); 
 
-  const userRatingsResponse = await fetch(`https://www.thebantayanfilmfestival.com/api/user-ratings?userId=${userId}`);
+  const userRatingsResponse = await fetch(`${baseUrl}/api/user-ratings?userId=${userId}`);
   const userRatings: Record<number, number> = await userRatingsResponse.json(); 
 
-  const averageRatingsResponse = await fetch(`https://www.thebantayanfilmfestival.com/api/average-ratings`);
+  const averageRatingsResponse = await fetch(`${baseUrl}/api/average-ratings`);
   const averageRatings: Record<number, number> = await averageRatingsResponse.json();
 
   return films.map((film: Film) => ({
@@ -340,7 +341,7 @@ export async function fetchCategories() {
 
 export async function getRecommendedFilms(userId: string): Promise<Film[]> {
   try {
-    const response = await fetch(`https://www.thebantayanfilmfestival.com/api/recommendations?userId=${userId}`);
+    const response = await fetch(`${baseUrl}/api/recommendations?userId=${userId}`);
     const data = await response.json();
 
     return data.films.map((film: any) => ({

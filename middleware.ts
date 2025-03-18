@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { 
   getUserFromSession, 
-  updateUserSessionExpiration, 
+  updateUserSessionExpiration,
+  COOKIE_SESSION_KEY,
   Cookies
 } from "@/app/auth/core/session";
 
@@ -16,10 +17,10 @@ interface CachedSession {
   lastDatabaseUpdate: number;
 }
 
-// Authentication configuration
-const AUTH_COOKIE_NAME = "session_token";
 
-// Route configuration maps for faster lookups
+const AUTH_COOKIE_NAME = COOKIE_SESSION_KEY;
+
+
 const ROUTE_CONFIG = {
   admin: new Set([
     "/admin", 
@@ -29,20 +30,19 @@ const ROUTE_CONFIG = {
     "/admin/users",
     "/admin/user-edit",
   ]),
-  // Static extensions to skip middleware for
+
   staticExtensions: new Set([
     '.ico', '.png', '.jpg', '.jpeg', '.svg', 
     '.css', '.js', '.woff', '.woff2', '.ttf'
   ])
 };
 
-// Performance optimization constants
 const SESSION_CACHE_DURATION = 900000; 
 const SESSION_UPDATE_INTERVAL = 3600000; 
 const MIN_DB_OPERATION_INTERVAL = 1000; 
 const GRACE_PERIOD = 60000; 
 
-// Memory-efficient session cache
+
 const userSessionCache = new Map<string, CachedSession>();
 let lastDbOperationTime = 0;
 
@@ -58,7 +58,6 @@ function debugLog(...args: any[]) {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   
-  // Fast path: Skip middleware for static resources and public routes
   if (shouldSkipMiddleware(pathname, request)) {
     return NextResponse.next();
   }

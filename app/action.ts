@@ -20,9 +20,11 @@ export type FullUser = {
   name: string;
 };
 
-// Cache user data with a simple in-memory cache with TTL
+
 const userCache = new Map<string, { data: any, expiry: number }>();
-const CACHE_TTL = 60 * 1000; // 1 minute cache
+const CACHE_TTL = 60 * 1000;
+
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.thebantayanfilmfestival.com';
 
 function isValidUUID(str: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -39,7 +41,7 @@ async function getCurrentUser(): Promise<User | null> {
   }
   
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://www.thebantayanfilmfestival.com'}/api/auth/user`, {
+    const response = await fetch(`${baseUrl || 'https://www.thebantayanfilmfestival.com'}/api/auth/user`, {
       headers: {
         cookie: cacheKey,
       },

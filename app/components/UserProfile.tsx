@@ -18,6 +18,7 @@ type Film = {
 
 // UserProfile Component
 const UserProfile = ({ userId }: { userId: string }) => {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thebantayanfilmfestival.com';
   const [films, setFilms] = useState<Film[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -26,7 +27,7 @@ const UserProfile = ({ userId }: { userId: string }) => {
     const fetchRecommendedFilms = async () => {
       try {
         // Fetch recommendations from your API
-        const response = await fetch(`https://www.thebantayanfilmfestival.com/api/recommendations?userId=${userId}`);
+        const response = await fetch(`${baseUrl}/api/recommendations?userId=${userId}`);
         const data = await response.json();
 
         // If no films are found, set an error message

@@ -11,6 +11,8 @@ import { eq, } from 'drizzle-orm';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thebantayanfilmfestival.com';
+
 // Initialize S3 client from AWS SDK v3
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -150,7 +152,7 @@ export async function sendPasswordReset(email: string) {
     await db.insert(resetTokens).values({ email, token, expiresAt });
 
     
-    const resetLink = `https://www.thebantayanfilmfestival.com/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+    const resetLink = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
    
     await resend.emails.send({

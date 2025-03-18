@@ -7,6 +7,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 
 async function saveResetToken(email: string, token: string) {
+ 
   await db.insert(resetTokens).values({
     email,
     token,
@@ -15,6 +16,7 @@ async function saveResetToken(email: string, token: string) {
 }
 
 export async function sendResetEmail(email: string) {
+  const baseUrl = process.env.NEXT_PUBLUC_APP_URL || 'https://thebantayanfilmfestival.com';
   try {
     // Generate a secure token
     const token = crypto.randomBytes(32).toString("hex")
@@ -23,7 +25,7 @@ export async function sendResetEmail(email: string) {
     await saveResetToken(email, token)
 
     // Construct reset link
-    const resetLink = `https://www.thebantayanfilmfestival.com/reset-password?token=${token}&email=${encodeURIComponent(email)}`
+    const resetLink = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(email)}`
 
     // Send email
     await resend.emails.send({
