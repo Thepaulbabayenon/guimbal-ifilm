@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/app/db/drizzle";
 import { and, eq, sql } from "drizzle-orm";
 
-// Seven days in seconds
+
 const SESSION_EXPIRATION_SECONDS = 60 * 60 * 24 * 7;
 export const COOKIE_SESSION_KEY = "session-id";
 
@@ -30,7 +30,6 @@ export type Cookies = {
   delete: (key: string) => void;
 };
 
-// CookiesHandler for App Router
 export class CookiesHandler implements Cookies {
   private req: NextRequest;
   private response: NextResponse | null;
@@ -119,10 +118,10 @@ export async function updateUserSessionData(
   }
 
   try {
-    // Validate user data
+
     const validatedUser = sessionSchema.parse(user);
     
-    // Find the session
+  
     const existingSession = await db.query.sessions.findFirst({
       where: eq(sessions.sessionToken, sessionToken),
     });
@@ -131,7 +130,7 @@ export async function updateUserSessionData(
       return;
     }
     
-    // Update the user role if needed
+  
     await db.update(users)
       .set({ role: validatedUser.role })
       .where(eq(users.id, validatedUser.id));
@@ -146,35 +145,35 @@ export async function createUserSession(
   cookies: Cookies
 ): Promise<void> {
   try {
-    // Validate user data
+  
     const validatedUser = sessionSchema.parse(user);
     
-    // Check if a session for this user already exists
+
     const existingSession = await findExistingUserSession(user.id);
     let sessionToken = existingSession?.sessionToken;
     
-    // Set expiration date
+  
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + SESSION_EXPIRATION_SECONDS);
     
-    // If no existing session, create a new one
+   
     if (!sessionToken) {
       sessionToken = await generateUUID();
       
-      // Create session in database
+    
       await db.insert(sessions).values({
         sessionToken,
         userId: user.id,
         expires: expiresAt,
       });
     } else {
-      // Update existing session expiration
+    
       await db.update(sessions)
         .set({ expires: expiresAt })
         .where(eq(sessions.sessionToken, sessionToken));
     }
     
-    // Set the cookie
+  
     if (typeof cookies.set === 'function') {
       await setCookie(sessionToken, cookies);
     } else {
@@ -186,10 +185,9 @@ export async function createUserSession(
   }
 }
 
-// Helper function to find existing session for a user
+
 async function findExistingUserSession(userId: string): Promise<{ sessionToken: string } | null> {
   try {
-    // Find valid (not expired) session
     const session = await db.query.sessions.findFirst({
       where: and(
         eq(sessions.userId, userId),
@@ -220,7 +218,7 @@ export async function updateUserSessionExpiration(
   const sessionToken = sessionCookie.value;
   
   try {
-    // Set new expiration date
+  
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + SESSION_EXPIRATION_SECONDS);
     
@@ -247,7 +245,7 @@ export async function removeUserFromSession(
 
   const sessionToken = sessionCookie.value;
   try {
-    // Delete the session from the database
+  
     await db.delete(sessions)
       .where(eq(sessions.sessionToken, sessionToken));
     
@@ -277,7 +275,7 @@ async function getUserSessionByToken(sessionToken: string): Promise<UserSession 
   }
 
   try {
-    // Find the session and join with user
+  
     const session = await db.query.sessions.findFirst({
       where: and(
         eq(sessions.sessionToken, sessionToken),
@@ -292,13 +290,12 @@ async function getUserSessionByToken(sessionToken: string): Promise<UserSession 
       return null;
     }
 
-    // Create user session object
+ 
     const userSession: UserSession = {
       id: session.userId,
       role: session.user.role,
     };
 
-    // Validate
     return sessionSchema.parse(userSession);
   } catch (error) {
     console.error("Error fetching user session:", error);
@@ -306,17 +303,16 @@ async function getUserSessionByToken(sessionToken: string): Promise<UserSession 
   }
 }
 
-// Function to generate UUID using Web Crypto API
+
 async function generateUUID(): Promise<string> {
-  // Generate 16 random bytes (128 bits) for UUID
+ 
   const buffer = new Uint8Array(16);
   crypto.getRandomValues(buffer);
   
-  // Set version (4) and variant (RFC4122)
   buffer[6] = (buffer[6] & 0x0f) | 0x40;
   buffer[8] = (buffer[8] & 0x3f) | 0x80;
   
-  // Convert to hex string with dashes inserted at standard positions
+
   const hexCodes = [...buffer].map(value => {
     const hexCode = value.toString(16);
     return hexCode.padStart(2, '0');
@@ -331,7 +327,6 @@ async function generateUUID(): Promise<string> {
   ].join('-');
 }
 
-// Add a cleanup function to delete expired sessions
 export async function cleanupExpiredSessions(): Promise<number> {
   try {
     const result = await db.delete(sessions)

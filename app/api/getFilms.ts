@@ -12,7 +12,7 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.thebantayanfilmf
 /**
  * Fetch all films from the database.
  */
-export async function getAllFilms() {
+export async function getAllFilms(branch?: string) {
   console.log("Fetching all films");
 
   const filmsData = await db

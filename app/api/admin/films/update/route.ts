@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { db } from "@/app/db/drizzle";
 import { film } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
@@ -16,6 +17,51 @@ const s3Client = new S3Client({
 
 export const dynamic = "force-dynamic";
 
+// POST handler for getting presigned URLs
+export async function POST(req: NextRequest) {
+  try {
+    // Get user session
+    const cookiesHandler = new CookiesHandler(req);
+    const cookieObject: Record<string, string> = {};
+
+    req.cookies.getAll().forEach(cookie => {
+      cookieObject[cookie.name] = cookie.value;
+    });
+
+    const userSession = await getUserFromSession(cookieObject);
+
+    if (!userSession || !userSession.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Parse the request body
+    const { fileName, fileType, fileSize, folder, releaseYear } = await req.json();
+    
+    // Generate a unique filename
+    const uniqueFileName = `${uuidv4()}-${fileName}`;
+    const fileKey = `film/${folder}/${releaseYear}/${uniqueFileName}`;
+    
+    // Create a presigned URL for uploading
+    const putObjectCommand = new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME!,
+      Key: fileKey,
+      ContentType: fileType,
+    });
+    
+    // Generate a presigned URL that expires in 5 minutes
+    const uploadUrl = await getSignedUrl(s3Client, putObjectCommand, { expiresIn: 300 });
+    
+    // Generate the final URL for the file
+    const fileUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
+    
+    return NextResponse.json({ uploadUrl, fileUrl });
+  } catch (err) {
+    console.error("Error generating presigned URL:", err);
+    return NextResponse.json({ error: "Error generating upload URL" }, { status: 500 });
+  }
+}
+
+// PUT handler for updating film details
 export async function PUT(req: NextRequest) {
   try {
     // Get user session
@@ -34,68 +80,35 @@ export async function PUT(req: NextRequest) {
 
     const userId = userSession.id; // Extract authenticated user ID
 
-    const formData = await req.formData();
-
-    const id = Number(formData.get("id"));
-    const title = formData.get("title") as string;
-    const ageRating = Number(formData.get("age"));
-    const duration = Number(formData.get("duration"));
-    const overview = formData.get("overview") as string;
-    const release = new Date(formData.get("release") as string);
-    const category = formData.get("category") as string;
-    const producer = formData.get("producer") as string;
-    const director = formData.get("director") as string;
-    const coDirector = formData.get("coDirector") as string;
-    const studio = formData.get("studio") as string;
+    // Parse the request body (assuming it's now JSON, not formData)
+    const data = await req.json();
+    
+    const id = Number(data.id);
+    const title = data.title;
+    const ageRating = Number(data.ageRating);
+    const duration = Number(data.duration);
+    const overview = data.overview;
+    const releaseYear = parseInt(data.release);
+    const category = data.category;
+    const producer = data.producer;
+    const director = data.director;
+    const coDirector = data.coDirector;
+    const studio = data.studio;
+    const imageUrl = data.imageUrl || "";
+    const videoSource = data.videoSource || "";
+    const trailerUrl = data.trailerUrl || "";
 
     if (isNaN(id)) {
       return NextResponse.json({ error: "Invalid Film ID" }, { status: 400 });
     }
 
-    if (isNaN(release.getTime())) {
-      return NextResponse.json({ error: "Invalid release date" }, { status: 400 });
-    }
+  
 
-    const releaseTimestamp = Math.floor(release.getTime() / 1000);
 
     const existingFilm = await db.select().from(film).where(eq(film.id, id)).limit(1);
     if (existingFilm.length === 0) {
       return NextResponse.json({ error: "Film not found" }, { status: 404 });
     }
-
-    const releaseYear = release.getFullYear();
-
-    const imageFile = formData.get("image") as File | null;
-    const videoFile = formData.get("video") as File | null;
-    const trailerFile = formData.get("trailer") as File | null;
-
-    async function uploadToS3(file: File | null, folder: string): Promise<string> {
-      if (!file || !(file instanceof File)) return "";
-
-      const fileKey = `film/${folder}/${releaseYear}/${uuidv4()}-${file.name}`;
-
-      if (typeof file.arrayBuffer !== "function") {
-        console.error("Invalid file type for S3 upload:", file);
-        throw new TypeError("Provided file does not support arrayBuffer()");
-      }
-
-      const buffer = Buffer.from(await file.arrayBuffer());
-
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.AWS_BUCKET_NAME!,
-          Key: fileKey,
-          Body: buffer,
-          ContentType: file.type,
-        })
-      );
-
-      return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
-    }
-
-    const imageUrl = imageFile ? await uploadToS3(imageFile, "img") : existingFilm[0].imageUrl;
-    const videoSource = videoFile ? await uploadToS3(videoFile, "videos") : existingFilm[0].videoSource;
-    const trailerUrl = trailerFile ? await uploadToS3(trailerFile, "trailers") : existingFilm[0].trailerUrl;
 
     await db
       .update(film)
@@ -104,7 +117,7 @@ export async function PUT(req: NextRequest) {
         ageRating,
         duration,
         overview,
-        releaseYear: releaseTimestamp,
+        releaseYear,
         category,
         producer,
         director,

@@ -7,27 +7,37 @@ import { useEffect, useState } from "react";
 interface Film {
   id: string;
   title: string;
+  releaseYear?: number;
+  duration?: number;
 }
+
+type SortField = "title" | "releaseYear" | "duration";
+type SortOrder = "asc" | "desc";
 
 export default function AdminDeletePage() {
   const [films, setFilms] = useState<Film[]>([]);
   const [selectedFilmId, setSelectedFilmId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [sortField, setSortField] = useState<SortField>("title");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+
+  // Define fetchFilms outside useEffect so it can be reused
+  const fetchFilms = async () => {
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/admin/films?t=${timestamp}`);
+      if (!response.ok) throw new Error("Failed to fetch films");
+      const data = await response.json();
+      setFilms(data);
+    } catch (error) {
+      console.error("Error fetching films:", error);
+      setMessage({ text: "Failed to load films. Please try again.", type: "error" });
+    }
+  };
 
   // Fetch all films when the page loads
   useEffect(() => {
-    async function fetchFilms() {
-      try {
-        const response = await fetch("/api/admin/films");
-        if (!response.ok) throw new Error("Failed to fetch films");
-        const data = await response.json();
-        setFilms(data);
-      } catch (error) {
-        console.error("Error fetching films:", error);
-        setMessage({ text: "Failed to load films. Please try again.", type: "error" });
-      }
-    }
     fetchFilms();
   }, []);
 
@@ -50,8 +60,8 @@ export default function AdminDeletePage() {
 
       if (!response.ok) throw new Error("Failed to delete film");
 
-      // Remove deleted film from state
-      setFilms((prev) => prev.filter((film) => film.id !== selectedFilmId));
+      // Refresh the film list after deletion
+      await fetchFilms();
       setSelectedFilmId(null);
 
       setMessage({ text: "Film deleted successfully!", type: "success" });
@@ -63,9 +73,72 @@ export default function AdminDeletePage() {
     }
   };
 
+  // Handle sorting change
+  const handleSortChange = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  // Get sorted films
+  const getSortedFilms = () => {
+    return [...films].sort((a, b) => {
+      if (sortField === "title") {
+        return sortOrder === "asc" 
+          ? a.title.localeCompare(b.title)
+          : b.title.localeCompare(a.title);
+      } else if (sortField === "releaseYear") {
+        const yearA = a.releaseYear || 0;
+        const yearB = b.releaseYear || 0;
+        return sortOrder === "asc" ? yearA - yearB : yearB - yearA;
+      } else if (sortField === "duration") {
+        const durationA = a.duration || 0;
+        const durationB = b.duration || 0;
+        return sortOrder === "asc" ? durationA - durationB : durationB - durationA;
+      }
+      return 0;
+    });
+  };
+
+  const sortedFilms = getSortedFilms();
+
   return (
     <div className="max-w-3xl mx-auto p-6 bg-gray-100 rounded-lg shadow-md text-black">
       <h1 className="text-2xl font-bold mb-4">Delete Film</h1>
+
+      {/* Sorting Controls */}
+      <div className="mb-4">
+        <label className="block font-semibold text-black mb-2">Sort By:</label>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className={`px-3 py-1 rounded ${
+              sortField === "title" ? "bg-blue-500 text-white" : "bg-gray-200 text-black"
+            }`}
+            onClick={() => handleSortChange("title")}
+          >
+            Title {sortField === "title" && (sortOrder === "asc" ? "↑" : "↓")}
+          </button>
+          <button
+            className={`px-3 py-1 rounded ${
+              sortField === "releaseYear" ? "bg-blue-500 text-white" : "bg-gray-200 text-black"
+            }`}
+            onClick={() => handleSortChange("releaseYear")}
+          >
+            Release Year {sortField === "releaseYear" && (sortOrder === "asc" ? "↑" : "↓")}
+          </button>
+          <button
+            className={`px-3 py-1 rounded ${
+              sortField === "duration" ? "bg-blue-500 text-white" : "bg-gray-200 text-black"
+            }`}
+            onClick={() => handleSortChange("duration")}
+          >
+            Duration {sortField === "duration" && (sortOrder === "asc" ? "↑" : "↓")}
+          </button>
+        </div>
+      </div>
 
       {/* Film Selection Dropdown */}
       <label className="block font-semibold text-black">Select a Film:</label>
@@ -77,8 +150,8 @@ export default function AdminDeletePage() {
         <option value="" disabled>
           -- Choose a film to delete --
         </option>
-        {films.length > 0 ? (
-          films.map((film) => (
+        {sortedFilms.length > 0 ? (
+          sortedFilms.map((film) => (
             <option key={film.id} value={film.id} className="text-black">
               {film.title}
             </option>
