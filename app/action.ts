@@ -41,7 +41,7 @@ async function getCurrentUser(): Promise<User | null> {
   }
   
   try {
-    const response = await fetch(`${baseUrl || 'https://www.thebantayanfilmfestival.com'}/api/auth/user`, {
+    const response = await fetch(`${baseUrl}/api/auth/user`, {
       headers: {
         cookie: cacheKey,
       },

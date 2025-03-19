@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic"; // Forces the API to run on every request
+export const dynamic = "force-dynamic"; 
 
 import { useEffect, useState } from "react";
 
@@ -42,7 +42,6 @@ export default function AdminDeletePage() {
     }
   };
 
-  // Fetch all films when the page loads
   useEffect(() => {
     fetchFilms();
   }, []);

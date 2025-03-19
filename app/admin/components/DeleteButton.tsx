@@ -19,7 +19,7 @@ const DeleteButton: React.FC<DeleteButtonProps> = ({ filmId }) => {
 
       if (res.ok) {
         alert('Film deleted successfully');
-        window.location.reload(); // Reload to update the list after deletion
+        window.location.reload();
       } else {
         alert('Failed to delete film');
       }

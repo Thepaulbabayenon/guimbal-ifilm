@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
 
     const userSession = await getUserFromSession(cookieObject);
 
-
     if (!userSession || !userSession.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -54,31 +53,38 @@ export async function POST(req: NextRequest) {
       studio,
     } = body;
 
-    // Extract release year
-    const releaseYear = new Date(release).getFullYear();
-    if (isNaN(releaseYear)) {
-      return NextResponse.json({ error: "Invalid release date" }, { status: 400 });
+    // Validate required fields
+    if (!title || !duration || !overview || !release || !category || !ageRating) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Generate S3 paths
-    const imageKey = `film/img/${releaseYear}/${fileNameImage}`;
-    const videoKey = `film/videos/${releaseYear}/${fileNameVideo}`;
-    const trailerKey = `film/trailers/${releaseYear}/${fileNameTrailer}`;
+    // Extract release year - handle both number and date string formats
+    let releaseYear;
+    if (typeof release === 'number') {
+      releaseYear = release;
+    } else {
+      releaseYear = parseInt(release);
+      if (isNaN(releaseYear)) {
+        return NextResponse.json({ error: "Invalid release year" }, { status: 400 });
+      }
+    }
+
+    // Generate S3 paths with unique identifiers to prevent overwriting
+    const timestamp = Date.now();
+    const imageKey = `film/img/${releaseYear}/${timestamp}_${fileNameImage}`;
+    const videoKey = `film/videos/${releaseYear}/${timestamp}_${fileNameVideo}`;
+    const trailerKey = `film/trailers/${releaseYear}/${timestamp}_${fileNameTrailer}`;
 
     const imageParams = { Bucket: process.env.AWS_BUCKET_NAME!, Key: imageKey, ContentType: fileTypeImage };
     const videoParams = { Bucket: process.env.AWS_BUCKET_NAME!, Key: videoKey, ContentType: fileTypeVideo };
     const trailerParams = { Bucket: process.env.AWS_BUCKET_NAME!, Key: trailerKey, ContentType: fileTypeTrailer };
 
-    const uploadURLImage = await getSignedUrl(s3Client, new PutObjectCommand(imageParams), { expiresIn: 60 });
-    const uploadURLVideo = await getSignedUrl(s3Client, new PutObjectCommand(videoParams), { expiresIn: 60 });
-    const uploadURLTrailer = await getSignedUrl(s3Client, new PutObjectCommand(trailerParams), { expiresIn: 60 });
+    const uploadURLImage = await getSignedUrl(s3Client, new PutObjectCommand(imageParams), { expiresIn: 600 });
+    const uploadURLVideo = await getSignedUrl(s3Client, new PutObjectCommand(videoParams), { expiresIn: 600 });
+    const uploadURLTrailer = await getSignedUrl(s3Client, new PutObjectCommand(trailerParams), { expiresIn: 600 });
 
     if (!uploadURLImage || !uploadURLVideo || !uploadURLTrailer) {
       return NextResponse.json({ error: "Error generating upload URLs" }, { status: 500 });
-    }
-
-    if (!ageRating) {
-      return NextResponse.json({ error: "Age rating is required" }, { status: 400 });
     }
 
     // S3 URLs
@@ -86,13 +92,14 @@ export async function POST(req: NextRequest) {
     const videoSource = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${videoKey}`;
     const trailerSource = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${trailerKey}`;
 
-    await db.insert(film).values({
+    console.log("Inserting film into database with the following details:");
+    console.log({
       title,
-      duration,
+      duration: Number(duration),
       overview,
       releaseYear,
       category,
-      ageRating,
+      ageRating: Number(ageRating),
       imageUrl: imageString,
       videoSource,
       trailerUrl: trailerSource,
@@ -100,14 +107,71 @@ export async function POST(req: NextRequest) {
       director,
       coDirector,
       studio,
-      createdAt: new Date(),
-      uploadedBy: userId,
-    })
-    .onConflictDoNothing(); // Prevent duplicate primary key error
+      uploadedBy: userId
+    });
 
-    return NextResponse.json({ uploadURLImage, uploadURLVideo, uploadURLTrailer });
-  } catch (err) {
+    try {
+      // Do not specify an ID - let the database auto-increment handle it
+      const insertResult = await db.insert(film).values({
+        title,
+        duration: Number(duration),
+        overview,
+        releaseYear,
+        category,
+        ageRating: Number(ageRating),
+        imageUrl: imageString,
+        videoSource,
+        trailerUrl: trailerSource,
+        producer,
+        director,
+        coDirector,
+        studio,
+        createdAt: new Date(),
+        uploadedBy: userId,
+      }).returning({ 
+        insertedId: film.id,
+        insertedTitle: film.title 
+      });
+      
+      console.log("Database insert result:", insertResult);
+      
+      return NextResponse.json({ 
+        success: true,
+        filmId: insertResult[0]?.insertedId,
+        uploadURLImage, 
+        uploadURLVideo, 
+        uploadURLTrailer,
+        filmData: {
+          title,
+          releaseYear,
+          imageUrl: imageString,
+          videoSource,
+          trailerUrl: trailerSource
+        }
+      });
+    } catch (error: unknown) {
+      const dbError = error instanceof Error ? error : new Error(String(error));
+      console.error("Database insert error:", dbError);
+      
+      // Check for duplicate key error
+      if (dbError.message.includes('duplicate key') || dbError.message.includes('23505')) {
+        return NextResponse.json({ 
+          error: "A film with this ID already exists. Try using a different title or try again.", 
+          details: dbError.message 
+        }, { status: 409 }); // 409 Conflict status code
+      }
+      
+      return NextResponse.json({ 
+        error: "Failed to insert film in database", 
+        details: dbError.message 
+      }, { status: 500 });
+    }
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error uploading film:", err);
-    return NextResponse.json({ error: "Error uploading film" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Error uploading film", 
+      details: err.message 
+    }, { status: 500 });
   }
 }
