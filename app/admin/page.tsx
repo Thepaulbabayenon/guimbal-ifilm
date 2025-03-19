@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Calendar, Clock, Film, Users, Star, Activity, TrendingUp, Loader2 } from 'lucide-react';
+import FileManager from '../components/FileManager';
 
 
 type Film = {
@@ -321,6 +322,7 @@ const Dashboard = () => {
                   <p className="text-slate-500">No category data available</p>
                 </div>
               )}
+              
             </div>
           </CardContent>
         </Card>
@@ -456,6 +458,11 @@ const Dashboard = () => {
               </div>
             )}
           </div>
+        </CardContent>
+
+        <CardContent>
+        <h1 className="text-3xl font-bold mb-8 text-center">S3 File Manager</h1>
+        <FileManager />
         </CardContent>
       </Card>
     </div>

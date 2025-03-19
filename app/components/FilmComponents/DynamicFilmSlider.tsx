@@ -122,7 +122,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
       
 
       if (userId && isAuthenticated) {
-        // Check cached watchlist first
+      
         let watchlistItems = cache.getWatchlistStatus(userId);
         
         if (!Array.isArray(watchlistItems)) {
@@ -136,7 +136,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
             
             watchlistItems = watchlistResponse.data || [];
             
-            // Cache the watchlist data
+          
             cache.setWatchlistStatus(userId, watchlistItems);
           } catch (err) {
             console.error("Error fetching watchlist:", err);
@@ -144,7 +144,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
           }
         }
         
-        // Add watchlist info to each film
+        
         filmsData = filmsData.map(film => {
           const watchlistItem = watchlistItems.find((item: any) => item.filmId === film.id);
           return {
@@ -155,11 +155,11 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         });
       }
 
-      // Batch ratings fetch for performance - use already loaded ratings when available
+  
       const filmsWithUpdatedRatings = await Promise.all(
         filmsData.map(async (film) => {
           try {
-            // Check cache first
+        
             const cachedRating = cache.getRating(film.id);
             
             if (cachedRating !== null) {
@@ -169,11 +169,10 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
               };
             }
             
-            // Only fetch if not in cache
+         
             const ratingData = await getFilmRating(film.id);
             const rating = ratingData.averageRating || film.averageRating;
-            
-            // Cache the result
+          
             cache.setRating(film.id, rating);
             
             return {
@@ -187,7 +186,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         })
       );
       
-      // Store in cache
+  
       cache.setFilms(cacheKey, filmsWithUpdatedRatings);
       
       setFilms(filmsWithUpdatedRatings);
@@ -199,10 +198,9 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     }
   }, [categoryFilter, limit, userId, isAuthenticated]);
 
-  // Updated film click handler that uses the consolidated API
+
   const handleFilmClick = useCallback(async (e: React.MouseEvent, film: Film) => {
     e.preventDefault();
-    // Don't open modal if click was on the heart button
     if ((e.target as HTMLElement).closest('button')?.className.includes('heart-button')) {
       return;
     }
@@ -210,16 +208,16 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     setSelectedFilm(film);
     setIsModalOpen(true);
     
-    // Immediately show what we know about the film
-    setUserRating(0); // Reset for new film
+
+    setUserRating(0); 
     
-    // If user is logged in, get consolidated film data
+  
     if (userId) {
       try {
-        // This gets all film data, watchlist status, and rating in ONE API call
+        
         const filmData = await getFilmWithUserData(film.id, userId);
         
-        // Update the film with the most current data
+     
         setSelectedFilm(prevFilm => {
           if (prevFilm) {
             return {
@@ -232,12 +230,12 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
           return prevFilm;
         });
         
-        // Set the user's rating
+    
         if (filmData.userRating !== undefined) {
           setUserRating(filmData.userRating);
         }
         
-        // Update cached rating
+  
         cache.setRating(film.id, filmData.averageRating);
       } catch (error) {
         console.error("Error fetching detailed film data:", error);
@@ -246,23 +244,22 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
   }, [userId]);
 
   const markAsWatched = async (userId: string, filmId: number) => {
-    // This function will be called by the PlayVideoModal component
     console.log(`Marking film ${filmId} as watched by user ${userId}`);
-    // In a real app, you'd likely update some UI state here
+
   };
 
-  // Optimized rating update with debounce
+
   const [ratingUpdateTimeout, setRatingUpdateTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const handleRatingUpdate = useCallback((rating: number) => {
     setUserRating(rating);
     
-    // Clear previous timeout if exists
+    
     if (ratingUpdateTimeout) {
       clearTimeout(ratingUpdateTimeout);
     }
     
-    // Set a new timeout to update the rating after delay
+    
     const timeoutId = setTimeout(async () => {
       if (selectedFilm && userId) {
         try {
@@ -277,14 +274,13 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
               rating
             }),
           });
-  
-          // After submitting a new rating, get the updated average rating
+
           const updatedRating = await getFilmRating(selectedFilm.id);
           
-          // Invalidate the cache for this film's rating
+       
           cache.setRating(selectedFilm.id, updatedRating.averageRating);
           
-          // Update the rating in our state
+        
           setFilms(prevFilms => 
             prevFilms.map(f => {
               if (f.id === selectedFilm.id) {
@@ -294,7 +290,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
             })
           );
   
-          // Also update the selected film if it's open in the modal
+      
           setSelectedFilm(prev => {
             if (prev && prev.id === selectedFilm.id) {
               return { ...prev, averageRating: updatedRating.averageRating };
@@ -305,12 +301,11 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
           console.error("Error saving rating:", error);
         }
       }
-    }, 500); // 500ms debounce delay
+    }, 500); 
     
     setRatingUpdateTimeout(timeoutId);
   }, [selectedFilm, userId, ratingUpdateTimeout]);
   
-  // Optimized watchlist toggle function
   const handleToggleWatchlist = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, film: Film) => {
     e.preventDefault();
     e.stopPropagation();
@@ -325,7 +320,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     const isInWatchlist = film.inWatchlist;
   
     try {
-      // Optimistic UI update
+      
       setFilms(prevFilms => 
         prevFilms.map(f => {
           if (f.id === filmId) {
@@ -355,13 +350,13 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         }
       }
       
-      // Invalidate the watchlist cache since it's been modified
+   
       cache.invalidateWatchlist(userId);
       
-      // Update the cache for this film's page
+    
       cache.setFilms(getCacheKey(), films);
     } catch (error) {
-      // Rollback on error
+     
       setFilms(prevFilms => 
         prevFilms.map(f => {
           if (f.id === filmId) {
@@ -379,14 +374,14 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     }
   }, [userId, films, getCacheKey]);
 
-  // Optimized rating refresh function
+ 
   const refreshFilmRating = useCallback(async (filmId: number) => {
     try {
-      // Check cache first
+     
       const cachedRating = cache.getRating(filmId);
       
       if (cachedRating !== null) {
-        // Update UI with cached rating
+      
         setFilms(prevFilms => 
           prevFilms.map(f => {
             if (f.id === filmId) {
@@ -396,7 +391,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
           })
         );
         
-        // Also update selected film if it's being viewed
+    
         if (selectedFilm && selectedFilm.id === filmId) {
           setSelectedFilm(prev => {
             if (prev) {
@@ -409,14 +404,14 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         return;
       }
       
-      // Only fetch if not in cache
+
       const ratingData = await getFilmRating(filmId);
       const rating = ratingData.averageRating;
       
-      // Update cache
+    
       cache.setRating(filmId, rating);
       
-      // Update UI
+    
       setFilms(prevFilms => 
         prevFilms.map(f => {
           if (f.id === filmId) {
@@ -426,7 +421,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         })
       );
 
-      // Also update selected film if it's being viewed
+    
       if (selectedFilm && selectedFilm.id === filmId) {
         setSelectedFilm(prev => {
           if (prev) {
@@ -440,16 +435,15 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     }
   }, [selectedFilm]);
 
-  // Load films only when necessary
   useEffect(() => {
-    // Only fetch films if authentication loading is complete
+  
     if (authLoading) {
       return;
     }
     
     fetchFilms();
     
-    // Clean up function
+
     return () => {
       if (ratingUpdateTimeout) {
         clearTimeout(ratingUpdateTimeout);
@@ -457,7 +451,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     };
   }, [fetchFilms, authLoading, ratingUpdateTimeout]);
 
-  // UI rendering code remains largely the same as the original
   const categoryTitles = categoryFilter
     ? [
         `${categoryFilter} Movies`,
