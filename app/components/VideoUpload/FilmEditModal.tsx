@@ -1,23 +1,26 @@
 import { useState } from "react";
 
+interface Film {
+  id: number;
+  title: string;
+  ageRating: number;
+  duration: number;
+  overview: string;
+  release: string;
+  category: string;
+  producer: string;
+  director: string;
+  coDirector: string;
+  studio: string;
+  imageString?: string;
+  videoSource?: string;
+  trailer?: string;
+}
+
 interface FilmEditModalProps {
-  film: {
-    id: number;
-    title: string;
-    ageRating: number;
-    duration: number;
-    overview: string;
-    release: string;
-    category: string;
-    producer: string;
-    director: string;
-    coDirector: string;
-    studio: string;
-    imageString?: string;
-    videoSource?: string;
-    trailer?: string;
-  };
+  film: Film; 
   onClose: () => void;
+  allFilms: Film[];
 }
 
 // Define a progress event type
@@ -27,12 +30,12 @@ interface ProgressEvent {
 }
 
 const FilmEditModal: React.FC<FilmEditModalProps> = ({ film, onClose }) => {
-  // Convert existing date to just year for initial state
+
   const initialReleaseYear = film.release ? new Date(film.release).getFullYear().toString() : "";
   
   const [formData, setFormData] = useState({ 
     ...film,
-    // Override the release with just the year
+ 
     release: initialReleaseYear
   });
   const [image, setImage] = useState<File | null>(null);
@@ -57,7 +60,7 @@ const FilmEditModal: React.FC<FilmEditModalProps> = ({ film, onClose }) => {
     if (type === "trailer") setTrailer(file);
   };
 
-  // Function to upload file with progress tracking
+ 
   const uploadFileWithProgress = async (
     url: string, 
     file: File, 

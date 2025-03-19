@@ -26,7 +26,13 @@ export default function AdminDeletePage() {
   const fetchFilms = async () => {
     try {
       const timestamp = new Date().getTime();
-      const response = await fetch(`/api/admin/films?t=${timestamp}`);
+      const response = await fetch(`/api/admin/films?t=${timestamp}`, {
+        cache: 'no-store',
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache'
+  }
+      });
       if (!response.ok) throw new Error("Failed to fetch films");
       const data = await response.json();
       setFilms(data);
