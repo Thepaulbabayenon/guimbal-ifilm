@@ -5,7 +5,7 @@ import { like, or } from "drizzle-orm";
 
 import UserManagementWrapper from "./UserManagementWrapper";
 
-// Server component that fetches data but doesn't handle auth
+
 const UserManagementServer = async ({ search }: { search?: string }) => {
   try {
    

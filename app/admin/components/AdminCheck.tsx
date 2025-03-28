@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useAuth } from '@/app/auth/nextjs/useUser'; // Adjust to your actual path
+import { useAuth } from '@/app/auth/nextjs/useUser'; 
 import { useRouter } from 'next/navigation';
 
 export default function AdminCheck() {

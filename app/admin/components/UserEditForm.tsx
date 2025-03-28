@@ -11,7 +11,7 @@ export interface UserFormData {
 
 export interface UserEditFormProps {
   userId?: string;
-  initialData?: Partial<UserFormData>; // Using Partial type to make all fields optional
+  initialData?: Partial<UserFormData>;
 }
 
 const UserEditForm: React.FC<UserEditFormProps> = ({ userId, initialData }) => {

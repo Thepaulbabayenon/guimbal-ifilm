@@ -12,7 +12,6 @@ type UserWithRole = {
   email: string;
   role: "admin" | "user";
   name?: string;
-  // Ensure emailAddresses is never undefined by setting a default empty array
   emailAddresses: { emailAddress: string }[];
 };
 
