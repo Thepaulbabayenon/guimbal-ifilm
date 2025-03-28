@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CiCircleInfo, CiVolumeHigh, CiVolumeMute, CiPlay1, CiVolume } from 'react-icons/ci';
 import PlayVideoModal from '@/app/components/PlayVideoModal';
-import LearnMoreModal from '../LearnMoreModal';
+import LearnMoreModal from '../learnMoreModal';
 import { gsap } from 'gsap';
 
 interface iAppProps {
