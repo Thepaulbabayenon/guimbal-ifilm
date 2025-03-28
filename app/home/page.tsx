@@ -15,7 +15,7 @@ import { AccessDenied } from "@/app/components/AccessDenied";
 export default function HomePage() {
   const { user, isAuthenticated, isLoading } = useUser();
   const [userId, setUserId] = useState<string | null>(null);
-  const [recommendedFilms, setRecommendedFilms] = useState<any[]>([]); // Store recommended films
+  const [recommendedFilms, setRecommendedFilms] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
