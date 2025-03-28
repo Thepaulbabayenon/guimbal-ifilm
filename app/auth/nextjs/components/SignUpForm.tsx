@@ -412,7 +412,7 @@ export function SignUpForm() {
                     <FormMessage className="text-red-400 text-xs" />
                   </FormItem>
                 )}
-              />;
+              />
               </div>
 
               {/* Submit Button with Glow Effect */}

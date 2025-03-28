@@ -461,7 +461,7 @@ const Dashboard = () => {
         </CardContent>
 
         <CardContent>
-        <h1 className="text-3xl font-bold mb-8 text-center">S3 File Manager</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center">Amazon Web Services S3 Bucket File Manager</h1>
         <FileManager />
         </CardContent>
       </Card>

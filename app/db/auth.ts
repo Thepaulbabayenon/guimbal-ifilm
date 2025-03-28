@@ -16,7 +16,7 @@ async function saveResetToken(email: string, token: string) {
 }
 
 export async function sendResetEmail(email: string) {
-  const baseUrl = process.env.NEXT_PUBLUC_APP_URL || 'https://www.thebantayanfilmfestival.com';
+  const baseUrl = process.env.NEXT_PUBLUC_APP_URL || 'https://www.Thebantayanfilmfestival.com';
   try {
     // Generate a secure token
     const token = crypto.randomBytes(32).toString("hex")

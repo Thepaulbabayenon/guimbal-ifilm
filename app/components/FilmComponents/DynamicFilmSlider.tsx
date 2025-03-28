@@ -465,7 +465,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
       ];
 
   if (loading || authLoading) {
-    return <FilmSliderSkeleton title={title} itemCount={limit > 5 ? 5 : limit} />;
+    return <FilmSliderSkeleton title={title} itemCount={limit > 5 ? 5 : limit} data-testid="film-slider-skeleton"  />;
   }
   
   if (error) {

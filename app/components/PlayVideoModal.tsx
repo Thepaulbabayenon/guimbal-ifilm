@@ -13,7 +13,7 @@ import { CiStar } from "react-icons/ci";
 import axios from "axios";
 import ReactPlayer from "react-player"; 
 import Comments from "@/app/components/Comments";
-import SimilarFilms from "@/app/components/similarFilms";
+import SimilarFilms from "@/app/components/SimilarFilms";
 
 interface PlayVideoModalProps {
   title: string;

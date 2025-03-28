@@ -18,7 +18,7 @@ interface FilmCardProps {
   initialRatings: number;
   category?: string;
   onOpenModal?: () => void;
-  onCloseModal?: () => void; // New prop for handling modal close events
+  onCloseModal?: () => void;
   watchList?: boolean;
 }
 

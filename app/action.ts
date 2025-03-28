@@ -24,8 +24,6 @@ export type FullUser = {
 const userCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 60 * 1000;
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.thebantayanfilmfestival.com';
-
 function isValidUUID(str: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
@@ -41,7 +39,7 @@ async function getCurrentUser(): Promise<User | null> {
   }
   
   try {
-    const response = await fetch(`${baseUrl}/api/auth/user`, {
+    const response = await fetch(`https://www.Thebantayanfilmfestival.com/api/auth/user`, {
       headers: {
         cookie: cacheKey,
       },

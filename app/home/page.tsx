@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import FilmSlider from "../components/FilmComponents/DynamicFilmSlider"; // Update import path to match your file structure
+import FilmSliderWrapper from "../components/FilmComponents/FilmsliderWrapper";
 import FilmVideo from "../components/FilmComponents/FilmVideo";
 import RecentlyAdded from "../components/RecentlyAdded";
 import { useUser } from "@/app/auth/nextjs/useUser";
@@ -98,7 +98,7 @@ export default function HomePage() {
               <span>{category.title.replace("FILMS", "CINEMA")}</span>
             </TextLoop>
           </h1>
-          <FilmSlider 
+          <FilmSliderWrapper
             title={category.title}
             categoryFilter={category.categoryFilter}
             limit={category.limit}
@@ -109,7 +109,7 @@ export default function HomePage() {
       {recommendedFilms.length > 0 && (
         <div className="mt-6">
           <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
-          <FilmSlider title="Recommended Films" films={recommendedFilms} />
+          <FilmSliderWrapper title="Recommended Films" films={recommendedFilms} />
         </div>
       )}
     </div>

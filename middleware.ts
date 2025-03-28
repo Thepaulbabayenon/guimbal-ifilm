@@ -6,6 +6,7 @@ import {
   Cookies
 } from "@/app/auth/core/session";
 
+// User and Session Interfaces
 interface User {
   id: string;
   role: string;
@@ -17,9 +18,13 @@ interface CachedSession {
   lastDatabaseUpdate: number;
 }
 
+interface RateLimitEntry {
+  count: number;
+  lastResetTime: number;
+}
 
+// Constants
 const AUTH_COOKIE_NAME = COOKIE_SESSION_KEY;
-
 
 const ROUTE_CONFIG = {
   admin: new Set([
@@ -37,93 +42,101 @@ const ROUTE_CONFIG = {
   ])
 };
 
-const SESSION_CACHE_DURATION = 900000; 
-const SESSION_UPDATE_INTERVAL = 3600000; 
+// Rate Limiting Configuration
+const RATE_LIMIT_CONFIG = {
+  // Maximum number of requests per time window
+  MAX_REQUESTS: 100,
+  // Time window in milliseconds (1 minute)
+  TIME_WINDOW: 60000,
+  // Sliding window for more precise rate limiting
+  SLIDING_WINDOW_SEGMENTS: 6,
+  // Block duration for IP after rate limit exceeded
+  BLOCK_DURATION: 300000, // 5 minutes
+};
+
+// Session and Caching Constants
+const SESSION_CACHE_DURATION = 900000;  // 15 minutes 
+const SESSION_UPDATE_INTERVAL = 3600000; // 1 hour
 const MIN_DB_OPERATION_INTERVAL = 1000; 
 const GRACE_PERIOD = 60000; 
 
-
+// Caches
 const userSessionCache = new Map<string, CachedSession>();
-let lastDbOperationTime = 0;
+const rateLimitCache = new Map<string, RateLimitEntry>();
+const blockedIPs = new Set<string>();
 
-
+// Debugging flag
 const DEBUG = true;
 
+// Debug logging function
 function debugLog(...args: any[]) {
   if (DEBUG) {
     console.log("[Auth Middleware]", ...args);
   }
 }
 
-export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-  
-  if (shouldSkipMiddleware(pathname, request)) {
-    return NextResponse.next();
-  }
+// Track last database operation time
+let lastDbOperationTime = 0;
 
-  debugLog(`Processing request for: ${pathname}`);
-
-  // Cookie helper object - created only when needed
-  const cookies: Cookies = {
-    set: (key, value, options) => {
-      request.cookies.set({ ...options, name: key, value });
-      return Promise.resolve();
-    },
-    get: (key) => request.cookies.get(key),
-    delete: (key) => request.cookies.delete(key)
-  };
-
-  const currentTime = Date.now();
+// Get client IP address
+function getClientIP(request: NextRequest): string {
+  // Attempt to get IP from various sources
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const realIP = request.headers.get('x-real-ip');
   
-  // Check for auth cookie first - early exit if missing and debug
-  const authCookie = cookies.get(AUTH_COOKIE_NAME);
-  if (!authCookie) {
-    debugLog(`No auth cookie found for ${pathname}`);
-  } else {
-    debugLog(`Auth cookie found: ${authCookie.name}=${authCookie.value.substring(0, 10)}...`);
-  }
-  
-  // Auth check and route protection
-  const authResponse = await middlewareAuth(request, cookies, currentTime);
-  if (authResponse) return authResponse;
-  
-  const response = NextResponse.next();
-  
-  // Session update logic - only for active sessions that need refreshing
-  const sessionToken = cookies.get(AUTH_COOKIE_NAME)?.value;
-  if (sessionToken) {
-    const cachedSession = userSessionCache.get(sessionToken);
-    
-    if (
-      cachedSession && 
-      currentTime - cachedSession.lastDatabaseUpdate > SESSION_UPDATE_INTERVAL &&
-      currentTime - lastDbOperationTime > MIN_DB_OPERATION_INTERVAL
-    ) {
-      lastDbOperationTime = currentTime;
-      
-      // Fire-and-forget session update
-      queueMicrotask(async () => {
-        try {
-          await updateUserSessionExpiration(cookies);
-          
-          const session = userSessionCache.get(sessionToken);
-          if (session) {
-            userSessionCache.set(sessionToken, {
-              ...session,
-              lastDatabaseUpdate: Date.now()
-            });
-          }
-        } catch (error) {
-          debugLog("Session update error:", error);
-        }
-      });
-    }
-  }
-  
-  return response;
+  // Prefer x-forwarded-for, then x-real-ip, fallback to unknown
+  return (forwardedFor?.split(',')[0] || realIP || 'unknown').trim();
 }
 
+// Rate limit checker
+function checkRateLimit(ip: string, currentTime: number): boolean {
+  // Check if IP is permanently blocked
+  if (blockedIPs.has(ip)) {
+    debugLog(`Blocked IP attempt: ${ip}`);
+    return false;
+  }
+
+  // Retrieve or initialize rate limit entry
+  const entry = rateLimitCache.get(ip) || { 
+    count: 0, 
+    lastResetTime: currentTime 
+  };
+
+  // Calculate sliding window segments
+  const segmentDuration = RATE_LIMIT_CONFIG.TIME_WINDOW / RATE_LIMIT_CONFIG.SLIDING_WINDOW_SEGMENTS;
+  const currentSegment = Math.floor((currentTime - entry.lastResetTime) / segmentDuration);
+
+  // Reset count if time window has passed
+  if (currentTime - entry.lastResetTime >= RATE_LIMIT_CONFIG.TIME_WINDOW) {
+    entry.count = 0;
+    entry.lastResetTime = currentTime;
+  }
+
+  // Increment request count
+  entry.count++;
+
+  // Update cache
+  rateLimitCache.set(ip, entry);
+
+  // Check if rate limit exceeded
+  if (entry.count > RATE_LIMIT_CONFIG.MAX_REQUESTS) {
+    // Block IP
+    blockedIPs.add(ip);
+    
+    // Schedule IP unblock
+    setTimeout(() => {
+      blockedIPs.delete(ip);
+      rateLimitCache.delete(ip);
+    }, RATE_LIMIT_CONFIG.BLOCK_DURATION);
+
+    debugLog(`Rate limit exceeded for IP: ${ip}`);
+    return false;
+  }
+
+  return true;
+}
+
+// Middleware authentication function
 async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTime: number) {
   const sessionToken = cookies.get(AUTH_COOKIE_NAME)?.value;
   const pathname = request.nextUrl.pathname;
@@ -221,7 +234,7 @@ async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTim
   return null;
 }
 
-// Optimized helper functions
+// Middleware skip check
 function shouldSkipMiddleware(pathname: string, request: NextRequest): boolean {
   // Check static path components first (most common case)
   if (
@@ -245,6 +258,7 @@ function shouldSkipMiddleware(pathname: string, request: NextRequest): boolean {
   return pathname === '/' && !request.cookies.has(AUTH_COOKIE_NAME);
 }
 
+// Protected route check
 function isProtectedRoute(pathname: string): boolean {
   // Check admin routes only
   for (const route of ROUTE_CONFIG.admin) {
@@ -254,7 +268,88 @@ function isProtectedRoute(pathname: string): boolean {
   return false;
 }
 
-// Focused matcher pattern
+// Main middleware function
+export async function middleware(request: NextRequest) {
+  const currentTime = Date.now();
+  const pathname = request.nextUrl.pathname;
+  const clientIP = getClientIP(request);
+
+  // Early rate limit check
+  if (!checkRateLimit(clientIP, currentTime)) {
+    return new NextResponse(null, {
+      status: 429, // Too Many Requests
+      headers: {
+        'Content-Type': 'text/plain',
+        'Retry-After': Math.ceil(RATE_LIMIT_CONFIG.BLOCK_DURATION / 1000).toString()
+      }
+    });
+  }
+  
+  if (shouldSkipMiddleware(pathname, request)) {
+    return NextResponse.next();
+  }
+
+  debugLog(`Processing request for: ${pathname}`);
+
+  // Cookie helper object - created only when needed
+  const cookies: Cookies = {
+    set: (key, value, options) => {
+      request.cookies.set({ ...options, name: key, value });
+      return Promise.resolve();
+    },
+    get: (key) => request.cookies.get(key),
+    delete: (key) => request.cookies.delete(key)
+  };
+
+  // Check for auth cookie first - early exit if missing and debug
+  const authCookie = cookies.get(AUTH_COOKIE_NAME);
+  if (!authCookie) {
+    debugLog(`No auth cookie found for ${pathname}`);
+  } else {
+    debugLog(`Auth cookie found: ${authCookie.name}=${authCookie.value.substring(0, 10)}...`);
+  }
+  
+  // Auth check and route protection
+  const authResponse = await middlewareAuth(request, cookies, currentTime);
+  if (authResponse) return authResponse;
+  
+  const response = NextResponse.next();
+  
+  // Session update logic - only for active sessions that need refreshing
+  const sessionToken = cookies.get(AUTH_COOKIE_NAME)?.value;
+  if (sessionToken) {
+    const cachedSession = userSessionCache.get(sessionToken);
+    
+    if (
+      cachedSession && 
+      currentTime - cachedSession.lastDatabaseUpdate > SESSION_UPDATE_INTERVAL &&
+      currentTime - lastDbOperationTime > MIN_DB_OPERATION_INTERVAL
+    ) {
+      lastDbOperationTime = currentTime;
+      
+      // Fire-and-forget session update
+      queueMicrotask(async () => {
+        try {
+          await updateUserSessionExpiration(cookies);
+          
+          const session = userSessionCache.get(sessionToken);
+          if (session) {
+            userSessionCache.set(sessionToken, {
+              ...session,
+              lastDatabaseUpdate: Date.now()
+            });
+          }
+        } catch (error) {
+          debugLog("Session update error:", error);
+        }
+      });
+    }
+  }
+  
+  return response;
+}
+
+// Matcher configuration
 export const config = {
   matcher: [
     '/admin/:path*',

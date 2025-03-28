@@ -4,7 +4,7 @@ import { db } from "@/app/db/drizzle";
 import { film } from "@/app/db/schema";
 import { desc } from "drizzle-orm";
 import FilmButtons from "./FilmButtons";
-import LoadingState from "../loading"; 
+import LoadingState from "../Loading"; 
 import { useUser } from "@/app/auth/nextjs/useUser";
 
 interface Film {

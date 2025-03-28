@@ -89,6 +89,11 @@ const UserNav: React.FC = () => {
                   Your Favorites
                 </DropdownMenuItem>
               </Link>
+              <Link href="/home/filmmakers">
+                <DropdownMenuItem className="cursor-pointer">
+                  Behind The Scences!
+                </DropdownMenuItem>
+              </Link>
               <DropdownMenuItem 
           onClick={handleSignOut} 
           className="hover:text-red-800 focus:text-red-800 cursor-pointer"

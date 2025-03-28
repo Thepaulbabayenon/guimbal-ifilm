@@ -1,4 +1,4 @@
-import { useUser } from "../auth/nextjs/useUser";
+import { useUser } from "@/app/auth/nextjs/useUser";
 
 /**
  * Check if the current user has a specific role

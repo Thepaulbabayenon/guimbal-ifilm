@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import {UpdateProvider} from "@/hooks/updateContext"
 import { AuthProvider } from "./auth/nextjs/components/AuthProvider";
+import { Analytics } from '@vercel/analytics/next';
 
 
 const geistSans = localFont({
@@ -34,6 +35,7 @@ export default function RootLayout({
         <AuthProvider>
         <UpdateProvider>
         {children}
+        <Analytics />
         </UpdateProvider>
         </AuthProvider>
       </body>
