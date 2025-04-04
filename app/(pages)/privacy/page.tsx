@@ -1,37 +1,45 @@
-import React from 'react';
+import Head from "next/head";
 
-const FAQPage: React.FC = () => {
-    const faqs = [
-        {
-            id: 1,
-            question: "What payment methods do you accept?",
-            answer: "We accept credit/debit cards (Visa, MasterCard, American Express) and PayPal."
-        },
-        {
-            id: 2,
-            question: "How can I track my order?",
-            answer: "You can track your order by logging into your account and visiting the order tracking page."
-        },
-        {
-            id: 3,
-            question: "Do you offer international shipping?",
-            answer: "Yes, we offer international shipping to most countries. Shipping rates and times may vary."
-        },
-    ];
+export default function PrivacyPolicy() {
+  return (
+    <div className="min-h-screen bg-gray-100 text-gray-800">
+      <Head>
+        <title>Privacy Policy - YourAppName</title>
+        <meta name="description" content="Privacy Policy of YourAppName" />
+      </Head>
 
-    return (
-        <div className="faq-page">
-            <h1>FAQ</h1>
-            <div className="faq-list">
-                {faqs.map(faq => (
-                    <div key={faq.id} className="faq-item">
-                        <h2>{faq.question}</h2>
-                        <p>{faq.answer}</p>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
+      <main className="max-w-3xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
+        <p className="mb-4">
+          Last updated: <strong>March 29, 2025</strong>
+        </p>
+
+        <p className="mb-4">
+          YourAppName ("we," "our," or "us") is committed to protecting your privacy. 
+          This Privacy Policy explains how we collect, use, and disclose your personal information.
+        </p>
+
+        <h2 className="text-2xl font-semibold mt-6">1. Information We Collect</h2>
+        <p className="mb-4">
+          We may collect information such as your name, email address, and usage data when you use our app.
+        </p>
+
+        <h2 className="text-2xl font-semibold mt-6">2. How We Use Your Information</h2>
+        <p className="mb-4">
+          We use your information to provide and improve our services, communicate with you, and ensure security.
+        </p>
+
+        <h2 className="text-2xl font-semibold mt-6">3. Third-Party Services</h2>
+        <p className="mb-4">
+          We may share your information with trusted third-party services for analytics and security purposes.
+        </p>
+
+        <h2 className="text-2xl font-semibold mt-6">4. Contact Us</h2>
+        <p className="mb-4">
+          If you have any questions, contact us at 
+          <a href="mailto:support@yourapp.com" className="text-blue-500"> support@yourapp.com</a>.
+        </p>
+      </main>
+    </div>
+  );
 }
-
-export default FAQPage;

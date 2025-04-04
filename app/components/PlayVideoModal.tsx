@@ -14,6 +14,8 @@ import axios from "axios";
 import ReactPlayer from "react-player"; 
 import Comments from "@/app/components/Comments";
 import SimilarFilms from "@/app/components/similarFilms";
+import { IoMdExpand, IoMdContract } from "react-icons/io";
+import { TbArrowsMinimize, TbRectangle } from "react-icons/tb";
 
 interface PlayVideoModalProps {
   title: string;
@@ -34,6 +36,9 @@ interface PlayVideoModalProps {
   refreshRating?: () => Promise<void>; 
 }
 
+// Define the ModalSize type explicitly
+type ModalSize = 'small' | 'desktop' | 'fullscreen';
+
 export default function PlayVideoModal({
   changeState,
   overview,
@@ -51,7 +56,6 @@ export default function PlayVideoModal({
   watchTimerDuration = 30000,
   category,
   refreshRating,
-  
 }: PlayVideoModalProps) {
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
@@ -61,19 +65,37 @@ export default function PlayVideoModal({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<ReactPlayer>(null);
 
-  const [modalWidth, setModalWidth] = useState(425);
-  const [modalHeight, setModalHeight] = useState(600);
+  // Modal size state and dimensions
+  const [modalSize, setModalSize] = useState<ModalSize>('desktop');
   const [isResizing, setIsResizing] = useState(false);
+  const [customWidth, setCustomWidth] = useState<number | null>(null);
+  const [customHeight, setCustomHeight] = useState<number | null>(null);
+
+  // Size configurations
+  const sizeConfigs: Record<ModalSize, { width: number | string, height: number | string }> = {
+    small: { width: 320, height: 480 },
+    desktop: { width: 640, height: 720 },
+    fullscreen: { width: '100vw', height: '100vh' }
+  };
 
   const handleRatingClick = (rating: number) => {
     setUserRating(rating);
   };
 
+  const toggleSize = () => {
+    const sizes: ModalSize[] = ['small', 'desktop', 'fullscreen'];
+    const currentIndex = sizes.indexOf(modalSize);
+    const nextIndex = (currentIndex + 1) % sizes.length;
+    setModalSize(sizes[nextIndex]);
+    
+    // Reset custom dimensions when switching to a preset size
+    setCustomWidth(null);
+    setCustomHeight(null);
+  };
 
   useEffect(() => {
     setIsPlaying(state);
   }, [state]);
-
 
   useEffect(() => {
     if (state) {
@@ -84,7 +106,6 @@ export default function PlayVideoModal({
       );
     }
   }, [state]);
-
 
   useEffect(() => {
     if (state && !hasWatched && userId && filmId && markAsWatched) {
@@ -111,9 +132,12 @@ export default function PlayVideoModal({
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (isResizing) {
-      setModalWidth(Math.max(e.clientX - dialogRef.current!.offsetLeft, 200));
-      setModalHeight(Math.max(e.clientY - dialogRef.current!.offsetTop, 200));
+    if (isResizing && dialogRef.current) {
+      const newWidth = Math.max(e.clientX - dialogRef.current.getBoundingClientRect().left, 200);
+      const newHeight = Math.max(e.clientY - dialogRef.current.getBoundingClientRect().top, 200);
+      
+      setCustomWidth(newWidth);
+      setCustomHeight(newHeight);
     }
   };
 
@@ -121,12 +145,9 @@ export default function PlayVideoModal({
     setIsResizing(false);
   };
 
-  
   const handleDialogChange = (newState: boolean) => {
     if (!newState) {
-     
       setIsPlaying(false);
-     
       if (playerRef.current) {
         playerRef.current.seekTo(0);
       }
@@ -134,6 +155,23 @@ export default function PlayVideoModal({
     changeState(newState);
   };
 
+  // Get current dimensions based on modal size and custom values
+  const getCurrentDimensions = () => {
+    const baseConfig = sizeConfigs[modalSize];
+    
+    if (modalSize === 'fullscreen') {
+      return { width: baseConfig.width, height: baseConfig.height, maxWidth: '100vw' };
+    }
+    
+    return {
+      width: customWidth ? `${customWidth}px` : `${baseConfig.width}px`,
+      height: customHeight ? `${customHeight}px` : `${baseConfig.height}px`,
+      maxWidth: 'unset'
+    };
+  };
+
+  const dimensions = getCurrentDimensions();
+  const playerHeight = modalSize === 'fullscreen' ? '60vh' : '300px';
 
   useEffect(() => {
     if (isResizing) {
@@ -154,21 +192,44 @@ export default function PlayVideoModal({
     <Dialog open={state} onOpenChange={handleDialogChange}>
       <DialogContent
         ref={dialogRef}
-        className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto p-4"
-        style={{ width: `${modalWidth}px`, height: `${modalHeight}px` }}
+        className={`overflow-y-auto p-4 transition-all duration-300 ${
+          modalSize === 'fullscreen' ? 'rounded-none max-w-none' : ''
+        }`}
+        style={{ 
+          width: dimensions.width, 
+          height: dimensions.height,
+          maxWidth: dimensions.maxWidth,
+        }}
       >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="line-clamp-3">{overview}</DialogDescription>
-          <div className="flex gap-x-2 items-center">
-            <p>{releaseYear}</p>
-            <p className="border py-0.5 px-1 border-gray-200 rounded">{ageRating}+</p>
-            <p className="font-normal text-sm">{duration}h</p>
-            <p>⭐ {ratings}</p>
+        <DialogHeader className="flex flex-row justify-between items-start">
+          <div>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription className="line-clamp-3">{overview}</DialogDescription>
+            <div className="flex gap-x-2 items-center">
+              <p>{releaseYear}</p>
+              {ageRating && <p className="border py-0.5 px-1 border-gray-200 rounded">{ageRating}+</p>}
+              {duration && <p className="font-normal text-sm">{duration}h</p>}
+              <p>⭐ {ratings}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={toggleSize} 
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              title={`Switch to ${
+                modalSize === 'small' ? 'desktop' : 
+                modalSize === 'desktop' ? 'fullscreen' : 'small'
+              } view`}
+            >
+              {modalSize === 'small' && <TbRectangle size={20} />}
+              {modalSize === 'desktop' && <IoMdExpand size={20} />}
+              {modalSize === 'fullscreen' && <TbArrowsMinimize size={20} />}
+            </button>
           </div>
         </DialogHeader>
 
-        <div className="relative w-full h-[300px]}">
+        <div className="relative w-full mt-4" style={{ height: playerHeight }}>
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="spinner-border animate-spin border-t-4 border-blue-500 rounded-full w-12 h-12"></div>
@@ -186,6 +247,16 @@ export default function PlayVideoModal({
               file: { attributes: { controlsList: "nodownload" } },
             }}
           />
+          
+          {/* Resize handle - moved inside the video container */}
+          {modalSize !== 'fullscreen' && (
+            <div
+              className="absolute bottom-2 right-2 cursor-se-resize p-2 bg-black bg-opacity-50 rounded-full hover:bg-opacity-70 z-10"
+              onMouseDown={handleMouseDown}
+            >
+              <div className="w-3 h-3 bg-white rounded-full"></div>
+            </div>
+          )}
         </div>
 
         <div className="mt-4">
@@ -205,22 +276,18 @@ export default function PlayVideoModal({
           </div>
         </div>
 
-        {filmId && (
+        {/* Components that are conditionally displayed based on modal size */}
+        {modalSize !== 'small' && filmId && (
           <div className="mt-8">
             <Comments filmId={filmId} />
           </div>
         )}
 
-        <div className="mt-8">
-          <SimilarFilms category={category} />
-        </div>
-
-        <div
-          className="absolute bottom-0 right-0 cursor-se-resize p-2"
-          onMouseDown={handleMouseDown}
-        >
-          <div className="w-4 h-4 bg-gray-300 rounded-full"></div>
-        </div>
+        {modalSize !== 'small' && (
+          <div className="mt-8">
+            <SimilarFilms category={category} />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

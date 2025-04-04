@@ -21,7 +21,7 @@ export const options = {
   }
 };
 
-const BASE_URL = 'http://localhost:3000/api/';
+const BASE_URL = 'https://www.Thebantayanfilmfestival.com/api/';
 
 // Prioritized endpoints
 const criticalEndpoints = [
