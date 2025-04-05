@@ -66,17 +66,14 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
 
   const userId = user?.id;
 
-
   const getCacheKey = () => {
     return `films-${categoryFilter || 'all'}-${limit}-${userId || 'guest'}`;
   };
-
 
   const fetchFilms = useCallback(async () => {
     try {
       setLoading(true);
       
-  
       const cacheKey = getCacheKey();
       const cachedFilms = cache.getFilms(cacheKey);
       
@@ -86,7 +83,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         return;
       }
       
-
       let url = '/api/films';
       const params = new URLSearchParams();
       
@@ -98,7 +94,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         params.append('limit', limit.toString());
       }
       
-  
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
@@ -120,9 +115,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         throw new Error("Invalid data format received from server");
       }
       
-
       if (userId && isAuthenticated) {
-      
         let watchlistItems = cache.getWatchlistStatus(userId);
         
         if (!Array.isArray(watchlistItems)) {
@@ -136,14 +129,12 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
             
             watchlistItems = watchlistResponse.data || [];
             
-          
             cache.setWatchlistStatus(userId, watchlistItems);
           } catch (err) {
             console.error("Error fetching watchlist:", err);
             watchlistItems = [];
           }
         }
-        
         
         filmsData = filmsData.map(film => {
           const watchlistItem = watchlistItems.find((item: any) => item.filmId === film.id);
@@ -155,11 +146,9 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         });
       }
 
-  
       const filmsWithUpdatedRatings = await Promise.all(
         filmsData.map(async (film) => {
           try {
-        
             const cachedRating = cache.getRating(film.id);
             
             if (cachedRating !== null) {
@@ -169,7 +158,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
               };
             }
             
-         
             const ratingData = await getFilmRating(film.id);
             const rating = ratingData.averageRating || film.averageRating;
           
@@ -186,7 +174,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         })
       );
       
-  
       cache.setFilms(cacheKey, filmsWithUpdatedRatings);
       
       setFilms(filmsWithUpdatedRatings);
@@ -198,7 +185,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     }
   }, [categoryFilter, limit, userId, isAuthenticated]);
 
-
   const handleFilmClick = useCallback(async (e: React.MouseEvent, film: Film) => {
     e.preventDefault();
     if ((e.target as HTMLElement).closest('button')?.className.includes('heart-button')) {
@@ -208,16 +194,12 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     setSelectedFilm(film);
     setIsModalOpen(true);
     
-
     setUserRating(0); 
     
-  
     if (userId) {
       try {
-        
         const filmData = await getFilmWithUserData(film.id, userId);
         
-     
         setSelectedFilm(prevFilm => {
           if (prevFilm) {
             return {
@@ -230,12 +212,10 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
           return prevFilm;
         });
         
-    
         if (filmData.userRating !== undefined) {
           setUserRating(filmData.userRating);
         }
         
-  
         cache.setRating(film.id, filmData.averageRating);
       } catch (error) {
         console.error("Error fetching detailed film data:", error);
@@ -245,20 +225,16 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
 
   const markAsWatched = async (userId: string, filmId: number) => {
     console.log(`Marking film ${filmId} as watched by user ${userId}`);
-
   };
-
 
   const [ratingUpdateTimeout, setRatingUpdateTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const handleRatingUpdate = useCallback((rating: number) => {
     setUserRating(rating);
     
-    
     if (ratingUpdateTimeout) {
       clearTimeout(ratingUpdateTimeout);
     }
-    
     
     const timeoutId = setTimeout(async () => {
       if (selectedFilm && userId) {
@@ -277,10 +253,8 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
 
           const updatedRating = await getFilmRating(selectedFilm.id);
           
-       
           cache.setRating(selectedFilm.id, updatedRating.averageRating);
           
-        
           setFilms(prevFilms => 
             prevFilms.map(f => {
               if (f.id === selectedFilm.id) {
@@ -290,7 +264,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
             })
           );
   
-      
           setSelectedFilm(prev => {
             if (prev && prev.id === selectedFilm.id) {
               return { ...prev, averageRating: updatedRating.averageRating };
@@ -320,7 +293,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     const isInWatchlist = film.inWatchlist;
   
     try {
-      
       setFilms(prevFilms => 
         prevFilms.map(f => {
           if (f.id === filmId) {
@@ -350,13 +322,9 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         }
       }
       
-   
       cache.invalidateWatchlist(userId);
-      
-    
       cache.setFilms(getCacheKey(), films);
     } catch (error) {
-     
       setFilms(prevFilms => 
         prevFilms.map(f => {
           if (f.id === filmId) {
@@ -374,14 +342,11 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
     }
   }, [userId, films, getCacheKey]);
 
- 
   const refreshFilmRating = useCallback(async (filmId: number) => {
     try {
-     
       const cachedRating = cache.getRating(filmId);
       
       if (cachedRating !== null) {
-      
         setFilms(prevFilms => 
           prevFilms.map(f => {
             if (f.id === filmId) {
@@ -391,7 +356,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
           })
         );
         
-    
         if (selectedFilm && selectedFilm.id === filmId) {
           setSelectedFilm(prev => {
             if (prev) {
@@ -404,14 +368,11 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         return;
       }
       
-
       const ratingData = await getFilmRating(filmId);
       const rating = ratingData.averageRating;
       
-    
       cache.setRating(filmId, rating);
       
-    
       setFilms(prevFilms => 
         prevFilms.map(f => {
           if (f.id === filmId) {
@@ -421,7 +382,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
         })
       );
 
-    
       if (selectedFilm && selectedFilm.id === filmId) {
         setSelectedFilm(prev => {
           if (prev) {
@@ -436,14 +396,12 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
   }, [selectedFilm]);
 
   useEffect(() => {
-  
     if (authLoading) {
       return;
     }
     
     fetchFilms();
     
-
     return () => {
       if (ratingUpdateTimeout) {
         clearTimeout(ratingUpdateTimeout);
@@ -465,7 +423,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
       ];
 
   if (loading || authLoading) {
-    return <FilmSliderSkeleton title={title} itemCount={limit > 5 ? 5 : limit} data-testid="film-slider-skeleton"  />;
+    return <FilmSliderSkeleton title={title} itemCount={limit > 5 ? 5 : limit} data-testid="film-slider-skeleton" />;
   }
   
   if (error) {
@@ -477,11 +435,11 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
   }
 
   return (
-    <section className="py-8">
-      <div className="mb-6">
+    <section className="py-4 sm:py-6 md:py-8">
+      <div className="mb-3 sm:mb-4 md:mb-6">
         <TextLoop
           interval={4}
-          className="text-2xl font-bold"
+          className="text-xl sm:text-2xl font-bold"
           transition={{ duration: 0.5 }}
           variants={{
             initial: { opacity: 0, y: 20 },
@@ -490,7 +448,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
           }}
         >
           {categoryTitles.map((text, index) => (
-            <h2 key={index} className="text-2xl font-bold">
+            <h2 key={index} className="text-xl sm:text-2xl font-bold">
               {text}
             </h2>
           ))}
@@ -503,40 +461,40 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
       >
         <CarouselContent>
           {films.map((film) => (
-            <CarouselItem key={film.id} className="md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
+            <CarouselItem key={film.id} className="basis-1/2 sm:basis-1/3 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
               <div 
                 className="relative overflow-hidden rounded-lg group cursor-pointer"
                 onClick={(e) => handleFilmClick(e, film)}
               >
-                <div className="aspect-[3/3] w-full relative">
+                <div className="aspect-[2/3] w-full relative">
                   <Image
                     src={film.imageUrl}
                     alt={film.title}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 20vw"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                   />
                   
                   {/* Heart Button (Watchlist) - Only show if user is authenticated */}
                   {isAuthenticated && userId && (
-                     <div className="absolute top-2 right-2 z-10">
-                     <Button 
-                       variant="outline" 
-                       size="icon"
-                       className="bg-black/50 hover:bg-black/70 heart-button" 
-                       onClick={(e) => handleToggleWatchlist(e, film)} 
-                       disabled={savingWatchlistId === film.id || loading}
-                     >
-                       <CiHeart className={`w-6 h-6 ${film.inWatchlist ? "text-red-500" : "text-white"}`} />
-                     </Button>
-                   </div>
+                    <div className="absolute top-1 sm:top-2 right-1 sm:right-2 z-10">
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        className="bg-black/50 hover:bg-black/70 heart-button w-6 h-6 sm:w-8 sm:h-8" 
+                        onClick={(e) => handleToggleWatchlist(e, film)} 
+                        disabled={savingWatchlistId === film.id || loading}
+                      >
+                        <CiHeart className={`w-4 h-4 sm:w-5 sm:h-5 ${film.inWatchlist ? "text-red-500" : "text-white"}`} />
+                      </Button>
+                    </div>
                   )}
                        
                   {/* Play button overlay */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/30">
-                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                       <svg 
-                        className="w-8 h-8 text-white" 
+                        className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" 
                         fill="currentColor" 
                         viewBox="0 0 24 24"
                       >
@@ -546,23 +504,23 @@ const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  
                   </div>
                 </div>
                 
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  <h3 className="text-white font-medium text-sm md:text-base truncate">
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-3 md:p-4">
+                  <h3 className="text-white font-medium text-xs sm:text-sm md:text-base truncate">
                     {film.title}
                   </h3>
-                  <div className="flex items-center text-xs text-gray-300 mt-1">
+                  <div className="flex items-center text-[10px] sm:text-xs text-gray-300 mt-0.5 sm:mt-1">
                     <span>{film.releaseYear}</span>
-                    <span className="mx-2">•</span>
+                    <span className="mx-1 sm:mx-2">•</span>
                     <span>{Math.floor(film.duration)} min</span>
                     {film.averageRating && (
                       <>
-                        <span className="mx-2">•</span>
+                        <span className="mx-1 sm:mx-2">•</span>
                         <span className="flex items-center">
                           <svg 
                             xmlns="http://www.w3.org/2000/svg" 
                             viewBox="0 0 24 24" 
                             fill="currentColor" 
-                            className="w-4 h-4 text-yellow-500 mr-1"
+                            className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 mr-0.5 sm:mr-1"
                           >
                             <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
                           </svg>
