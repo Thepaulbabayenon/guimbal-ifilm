@@ -3,16 +3,23 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { debounce } from "lodash";
 import gsap from "gsap";
-import { X } from "lucide-react";
+import { X, ThumbsUp } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface SearchBarProps {
   isMobile: boolean;
 }
 
+interface Film {
+  id: number;
+  title: string;
+  release: number;
+}
+
 const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
   const [query, setQuery] = useState<string>("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Film[]>([]);
+  const [recommendations, setRecommendations] = useState<Film[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [isClient, setIsClient] = useState<boolean>(false);
   const router = useRouter();
@@ -29,6 +36,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
   const handleSearch = debounce(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults([]);
+      setRecommendations([]);
       return;
     }
 
@@ -42,9 +50,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
       const response = await fetch(`/api/films/search?${searchParams}`);
       const data = await response.json();
       setResults(data.films || []);
+      setRecommendations(data.recommendations || []);
     } catch (error) {
       console.error("Search error:", error);
       setResults([]);
+      setRecommendations([]);
     }
 
     setLoading(false);
@@ -64,11 +74,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
   const clearSearch = () => {
     setQuery("");
     setResults([]);
+    setRecommendations([]);
     if (inputRef.current) inputRef.current.focus();
   };
 
-  
- 
   useEffect(() => {
     if (!isClient) return; // Prevent animations from running on the server
   
@@ -80,15 +89,14 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
       );
     }
   
-    if (results.length > 0 && resultsRef.current) {
+    if ((results.length > 0 || recommendations.length > 0) && resultsRef.current) {
       gsap.fromTo(
         resultsRef.current,
         { opacity: 0, y: -20 },
         { opacity: 1, y: 0, duration: 0.3 }
       );
     }
-  }, [results, isClient]);
-  
+  }, [results, recommendations, isClient]);
 
   return (
     <div className={`relative max-w-lg ${isMobile ? "mx-auto mt-4 px-6" : ""} bg-transparent`}>
@@ -141,28 +149,65 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
         </motion.div>
       )}
 
-      {/* Search Results */}
+      {/* Search Results and Recommendations */}
       {isClient && (
         <div className="absolute top-full left-0 w-full mt-2 rounded-lg shadow-lg bg-gray-900 z-10">
-          {results.length > 0 ? (
+          {results.length > 0 || recommendations.length > 0 ? (
             <motion.ul
               ref={resultsRef}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="max-h-64 overflow-y-auto bg-gray-900 rounded-lg"
+              className="max-h-96 overflow-y-auto bg-gray-900 rounded-lg"
             >
-              {results.map((result: any) => (
-                <motion.li
-                  key={result.id}
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                  className="px-4 py-3 border-b border-gray-700 hover:bg-gray-800 transition-all cursor-pointer"
-                  onClick={() => router.push(`/home/films/${result.id}`)}
-                >
-                  <div className="text-white text-lg font-semibold">{result.title}</div>
-                </motion.li>
-              ))}
+              {/* Main Search Results */}
+              {results.length > 0 && (
+                <>
+                  <li className="px-4 py-2 text-sm text-gray-400">Search Results</li>
+                  {results.map((result) => (
+                    <motion.li
+                      key={`result-${result.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                      className="px-4 py-3 border-b border-gray-700 hover:bg-gray-800 transition-all cursor-pointer"
+                      onClick={() => router.push(`/home/films/${result.id}`)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="text-white text-lg font-semibold">{result.title}</div>
+                        {result.release && (
+                          <div className="text-gray-400 text-sm">{result.release}</div>
+                        )}
+                      </div>
+                    </motion.li>
+                  ))}
+                </>
+              )}
+
+              {/* Recommendations Section */}
+              {recommendations.length > 0 && (
+                <>
+                  <li className="px-4 py-2 mt-2 text-sm bg-gray-800 text-blue-400 flex items-center">
+                    <ThumbsUp size={14} className="mr-2" />
+                    <span>Recommendations</span>
+                  </li>
+                  {recommendations.map((rec) => (
+                    <motion.li
+                      key={`rec-${rec.id}`}
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                      className="px-4 py-3 border-b border-gray-700 hover:bg-gray-700 transition-all cursor-pointer bg-gray-850"
+                      onClick={() => router.push(`/home/films/${rec.id}`)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="text-blue-100 text-lg">{rec.title}</div>
+                        {rec.release && (
+                          <div className="text-gray-400 text-sm">{rec.release}</div>
+                        )}
+                      </div>
+                    </motion.li>
+                  ))}
+                </>
+              )}
             </motion.ul>
           ) : query && !loading ? (
             <div className="px-4 py-2 text-center text-gray-500">No results found</div>

@@ -6,10 +6,10 @@ interface FilmDetailsProps {
   filmId: number;
   title: string;
   overview: string;
-  producer: string;
-  director: string;
-  coDirector: string;
-  studio: string;
+  producer: string | undefined; 
+  director: string | undefined; 
+  coDirector: string | undefined; 
+  studio: string | undefined; 
   averageRating: number | null;
   trailerUrl: string;
 }
