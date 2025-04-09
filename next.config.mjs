@@ -51,6 +51,7 @@ export default {
         hostname: "**",
       },
     ],
+    formats: ['image/avif', 'image/webp'],
   },
 
   webpack: (config) => {
