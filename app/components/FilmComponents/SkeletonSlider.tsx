@@ -51,7 +51,7 @@ const FilmSliderSkeleton = ({ title, itemCount = 5 }: FilmSliderSkeletonProps) =
             <CarouselItem key={index} className="basis-1/2 sm:basis-1/3 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
               <div className="relative overflow-hidden rounded-lg">
                 <div className="aspect-[2/3] w-full relative">
-                  <Skeleton className="h-full w-full rounded-lg" />
+                  <Skeleton className="object-cover transition-transform duration-300 group-hover:scale-105 rounded-lg" />
                 </div>
                 
                 <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 md:p-4">

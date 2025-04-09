@@ -34,7 +34,7 @@ interface PlayVideoModalProps {
   markAsWatched?: (userId: string, filmId: number) => void;
   watchTimerDuration?: number;
   category: string;
-  refreshRating?: () => Promise<void>; 
+  refreshRating?: (filmId?: number) => Promise<void>;
 }
 
 // Define the ModalSize type explicitly

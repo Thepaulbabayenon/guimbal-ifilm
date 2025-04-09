@@ -1,565 +1,436 @@
-"use client"
+"use client";
 
-import FilmSliderSkeleton from "@/app/components/FilmComponents/SkeletonSlider" 
-import { TextLoop } from "@/components/ui/text-loop"
-import React, { useEffect, useState, useCallback } from "react"
-import Image from "next/image"
-import { 
-  Carousel, 
-  CarouselContent, 
-  CarouselItem, 
-  CarouselNext, 
-  CarouselPrevious 
-} from "@/components/ui/carousel"
-import PlayVideoModal from "@/app/components/PlayVideoModal" 
-import Autoplay from "embla-carousel-autoplay"
-import { Button } from "@/components/ui/button"
-import { CiHeart } from "react-icons/ci"
-import axios, { AxiosError } from "axios"
-import { usePathname } from "next/navigation"
-import { useUser } from "@/app/auth/nextjs/useUser"
-import { getFilmRating, getFilmWithUserData } from "@/app/services/filmService"
-import cache from "@/app/services/cashService"
+import React, { useEffect, useState, useCallback, memo, useRef } from "react";
+import Image from "next/image";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious
+} from "@/components/ui/carousel";
+import PlayVideoModal from "@/app/components/PlayVideoModal"; // Ensure this path is correct
+import Autoplay from "embla-carousel-autoplay";
+import { Button } from "@/components/ui/button";
+import { CiHeart } from "react-icons/ci";
+import { FaStar } from "react-icons/fa"; // Using react-icons star
+import axios, { AxiosError } from "axios";
+import { useUser } from "@/app/auth/nextjs/useUser";
+import { getFilmRating, getFilmWithUserData } from "@/app/services/filmService"; // Ensure paths are correct
+import cache from "@/app/services/cashService"; // Ensure path is correct
+import FilmSliderSkeleton from "./SkeletonSlider"; // Ensure path is correct
+import { TextLoop } from "@/components/ui/text-loop"; // Use the library loop
 
 interface Film {
-  id: number
-  imageUrl: string
-  title: string
-  ageRating: number
-  duration: number
-  overview: string
-  releaseYear: number
-  videoSource: string
-  category: string
-  trailerUrl: string
-  createdAt: Date
-  updatedAt: Date
-  producer: string
-  director: string
-  coDirector: string
-  studio: string
-  rank: number
-  averageRating: number | null
-  watchList?: boolean;
-  inWatchlist?: boolean;
-  watchlistId?: string | null;
+  id: number;
+  imageUrl: string;
+  title: string;
+  ageRating: number;
+  duration: number;
+  overview: string;
+  releaseYear: number;
+  videoSource: string; // Keep if needed by modal
+  category: string;
+  trailerUrl: string;
+  createdAt?: Date; // Optional fields if not always present
+  updatedAt?: Date;
+  producer?: string;
+  director?: string;
+  coDirector?: string;
+  studio?: string;
+  rank?: number;
+  averageRating: number | null;
+  inWatchlist?: boolean; // Now expected from initial fetch if user logged in
+  watchlistId?: string | null; // Now expected from initial fetch if user logged in
 }
 
 interface FilmSliderProps {
-  title: string
-  categoryFilter?: string
-  limit?: number
-  films?: any[]; 
+  title: string; // For display title and cache key segment
+  categoryFilter?: string; // For filtering API call
+  limit?: number; // For limiting API call
+  filmsData?: (Film | RecommendedFilm)[]; // Optional: To pass pre-fetched data (like recommendations)
 }
 
-const FilmSlider = ({ title, categoryFilter, limit = 10 }: FilmSliderProps) =>  {
-  const { user, isAuthenticated, isLoading: authLoading } = useUser();
-  
-  const [films, setFilms] = useState<Film[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedFilm, setSelectedFilm] = useState<Film | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [userRating, setUserRating] = useState<number>(0)
-  const [savingWatchlistId, setSavingWatchlistId] = useState<number | null>(null)
-  const pathname = usePathname()
+interface RecommendedFilm {
+  id: number;
+  title: string;
+  imageUrl: string;
+  releaseYear: number;
+  duration: number;
+  averageRating: number | null;
+}
 
+// Renamed to avoid conflict if SimpleTextLoop is defined elsewhere
+const SliderTextLoop = TextLoop;
+
+const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSliderProps) => {
+  const { user, isAuthenticated, isLoading: authLoading } = useUser();
   const userId = user?.id;
 
-  const getCacheKey = () => {
-    return `films-${categoryFilter || 'all'}-${limit}-${userId || 'guest'}`;
-  };
+  const [films, setFilms] = useState<(Film | RecommendedFilm)[]>(filmsData || []); // Initialize with prop data if available
+  const [loading, setLoading] = useState(!filmsData); // Only loading if not pre-fetched
+  const [error, setError] = useState<string | null>(null);
+  const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [userRating, setUserRating] = useState<number>(0); // Initialize userRating state
+  const [savingWatchlistId, setSavingWatchlistId] = useState<number | null>(null);
 
-  const fetchFilms = useCallback(async () => {
+  // useRef to prevent fetching on mount if data is passed via props
+  const initialDataProvided = useRef(!!filmsData);
+  const hasFetched = useRef(!!filmsData); // Track if fetch has been attempted
+
+  // Generate cache key based on props that influence the fetch
+  const getCacheKey = useCallback(() => {
+    // Include userId in cache key if authenticated, to cache user-specific data like 'inWatchlist'
+    const userSegment = isAuthenticated && userId ? `user-${userId}` : 'guest';
+    return `films-${title.replace(/\s+/g, '-')}-${categoryFilter || 'all'}-${limit}-${userSegment}`;
+  }, [title, categoryFilter, limit, userId, isAuthenticated]);
+
+  // --- Data Fetching ---
+  const fetchFilms = useCallback(async (cacheKey: string) => {
+    // Prevent fetching if initial data was provided or already fetched
+    if (hasFetched.current) return;
+
+    setLoading(true);
+    setError(null);
+    hasFetched.current = true; // Mark as attempted
+
     try {
-      setLoading(true);
-      
-      const cacheKey = getCacheKey();
       const cachedFilms = cache.getFilms(cacheKey);
-      
       if (cachedFilms) {
         setFilms(cachedFilms);
         setLoading(false);
         return;
       }
-      
+
+      // --- Backend Fetch ---
+      // Assumption: Backend /api/films takes userId (if available), category, limit
+      // and returns films including 'averageRating' and 'inWatchlist'/'watchlistId'
       let url = '/api/films';
       const params = new URLSearchParams();
-      
-      if (categoryFilter) {
-        params.append('category', categoryFilter);
-      }
-      
-      if (limit) {
-        params.append('limit', limit.toString());
-      }
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`Error fetching films: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      let filmsData: Film[] = [];
-      
-      if (data && data.rows && Array.isArray(data.rows)) {
-        filmsData = data.rows;
-      } else if (Array.isArray(data)) {
-        filmsData = data;
-      } else {
-        throw new Error("Invalid data format received from server");
-      }
-      
-      if (userId && isAuthenticated) {
-        let watchlistItems = cache.getWatchlistStatus(userId);
-        
-        if (!Array.isArray(watchlistItems)) {
-          watchlistItems = []; 
-        }
-        if (!watchlistItems) {
-          try {
-            const watchlistResponse = await axios.get('/api/watchlist', {
-              params: { userId }
-            });
-            
-            watchlistItems = watchlistResponse.data || [];
-            
-            cache.setWatchlistStatus(userId, watchlistItems);
-          } catch (err) {
-            console.error("Error fetching watchlist:", err);
-            watchlistItems = [];
-          }
-        }
-        
-        filmsData = filmsData.map(film => {
-          const watchlistItem = watchlistItems.find((item: any) => item.filmId === film.id);
-          return {
-            ...film,
-            inWatchlist: !!watchlistItem,
-            watchlistId: watchlistItem?.id
-          };
-        });
-      }
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (limit) params.append('limit', limit.toString());
+      if (userId) params.append('userId', userId); // Send userId to backend
 
-      const filmsWithUpdatedRatings = await Promise.all(
-        filmsData.map(async (film) => {
-          try {
-            const cachedRating = cache.getRating(film.id);
-            
-            if (cachedRating !== null) {
-              return {
-                ...film,
-                averageRating: cachedRating
-              };
-            }
-            
-            const ratingData = await getFilmRating(film.id);
-            const rating = ratingData.averageRating || film.averageRating;
-          
-            cache.setRating(film.id, rating);
-            
-            return {
-              ...film,
-              averageRating: rating
-            };
-          } catch (err) {
-            console.error(`Error fetching rating for film ${film.id}:`, err);
-            return film;
-          }
-        })
-      );
-      
-      cache.setFilms(cacheKey, filmsWithUpdatedRatings);
-      
-      setFilms(filmsWithUpdatedRatings);
+      if (params.toString()) url += `?${params.toString()}`;
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const data = await response.json();
+
+      // Adjust based on your actual API response structure
+      const fetchedFilmsData: Film[] = (data && data.rows && Array.isArray(data.rows)) ? data.rows : (Array.isArray(data) ? data : []);
+
+       if (!Array.isArray(fetchedFilmsData)) {
+           throw new Error("Invalid data format received from server");
+       }
+
+      // Optionally: Refresh ratings here if needed, but ideally backend handles it
+      // Removed the Promise.all loop for ratings here for performance
+
+      cache.setFilms(cacheKey, fetchedFilmsData);
+      setFilms(fetchedFilmsData);
+
     } catch (err) {
+      console.error(`Error fetching films for category "${categoryFilter || 'all'}":`, err);
       setError(err instanceof Error ? err.message : "Failed to load films");
-      console.error("Error fetching films:", err);
+      setFilms([]); // Clear films on error
+      cache.removeFilms(cacheKey); // Optional: Remove potentially bad cache entry
     } finally {
       setLoading(false);
     }
-  }, [categoryFilter, limit, userId, isAuthenticated]);
+  }, [categoryFilter, limit, userId]); // Dependencies for fetching logic
 
-  const handleFilmClick = useCallback(async (e: React.MouseEvent, film: Film) => {
-    e.preventDefault();
-    if ((e.target as HTMLElement).closest('button')?.className.includes('heart-button')) {
-      return;
+  // Effect to trigger fetch only if data wasn't passed via props and not loading auth
+  useEffect(() => {
+    if (!initialDataProvided.current && !authLoading && !hasFetched.current) {
+        const cacheKey = getCacheKey();
+        fetchFilms(cacheKey);
     }
-    
-    setSelectedFilm(film);
+     // If filmsData prop changes, update the state
+     else if (filmsData && initialDataProvided.current) {
+        setFilms(filmsData);
+         // Optionally update cache if prop data changes significantly
+         // cache.setFilms(getCacheKey(), filmsData);
+    }
+  }, [filmsData, authLoading, fetchFilms, getCacheKey]);
+
+
+  // --- Event Handlers (Memoized) ---
+  const handleFilmClick = useCallback((film: Film | RecommendedFilm) => {
+    setSelectedFilm(film as Film); // Set the selected film immediately
     setIsModalOpen(true);
-    
-    setUserRating(0); 
-    
-    if (userId) {
-      try {
-        const filmData = await getFilmWithUserData(film.id, userId);
-        
-        setSelectedFilm(prevFilm => {
-          if (prevFilm) {
-            return {
-              ...prevFilm,
-              averageRating: filmData.averageRating,
-              inWatchlist: filmData.inWatchlist,
-              watchlistId: filmData.watchlistId
-            };
-          }
-          return prevFilm;
-        });
-        
-        if (filmData.userRating !== undefined) {
-          setUserRating(filmData.userRating);
-        }
-        
-        cache.setRating(film.id, filmData.averageRating);
-      } catch (error) {
-        console.error("Error fetching detailed film data:", error);
-      }
-    }
-  }, [userId]);
+    // Detailed data (like user rating) can be fetched *inside* the modal using refreshRating/filmId/userId
+  }, []); // No dependencies needed if only setting state
 
-  const markAsWatched = async (userId: string, filmId: number) => {
-    console.log(`Marking film ${filmId} as watched by user ${userId}`);
-  };
-
-  const [ratingUpdateTimeout, setRatingUpdateTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  const handleRatingUpdate = useCallback((rating: number) => {
-    setUserRating(rating);
-    
-    if (ratingUpdateTimeout) {
-      clearTimeout(ratingUpdateTimeout);
-    }
-    
-    const timeoutId = setTimeout(async () => {
-      if (selectedFilm && userId) {
-        try {
-          await fetch(`/api/films/${selectedFilm.id}/user-ratings`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              userId,
-              filmId: selectedFilm.id,
-              rating
-            }),
-          });
-
-          const updatedRating = await getFilmRating(selectedFilm.id);
-          
-          cache.setRating(selectedFilm.id, updatedRating.averageRating);
-          
-          setFilms(prevFilms => 
-            prevFilms.map(f => {
-              if (f.id === selectedFilm.id) {
-                return { ...f, averageRating: updatedRating.averageRating };
-              }
-              return f;
-            })
-          );
-  
-          setSelectedFilm(prev => {
-            if (prev && prev.id === selectedFilm.id) {
-              return { ...prev, averageRating: updatedRating.averageRating };
-            }
-            return prev;
-          });
-        } catch (error) {
-          console.error("Error saving rating:", error);
-        }
-      }
-    }, 500); 
-    
-    setRatingUpdateTimeout(timeoutId);
-  }, [selectedFilm, userId, ratingUpdateTimeout]);
-  
-  const handleToggleWatchlist = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, film: Film) => {
+  const handleToggleWatchlist = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, film: Film | RecommendedFilm) => {
     e.preventDefault();
     e.stopPropagation();
-  
-    if (!userId) {
-      alert("Please log in to manage your watchlist.");
+
+    if (!userId || !isAuthenticated) {
+      // Maybe show a toast/message asking user to log in
+      console.log("User not logged in, cannot toggle watchlist.");
       return;
     }
-  
+
     const filmId = film.id;
+    // Check if film is of type Film before accessing inWatchlist and watchlistId
+    const wasInWatchlist = 'inWatchlist' in film ? film.inWatchlist : false;
+    const oldWatchlistId = 'watchlistId' in film ? film.watchlistId : null;
+    const cacheKey = getCacheKey();
+
     setSavingWatchlistId(filmId);
-    const isInWatchlist = film.inWatchlist;
-  
+
+    // Optimistic UI Update
+    setFilms(prevFilms =>
+      prevFilms.map(f =>
+        f.id === filmId ? { ...f, inWatchlist: !wasInWatchlist, watchlistId: wasInWatchlist ? null : 'temp' } : f // Temporarily update
+      )
+    );
+
     try {
-      setFilms(prevFilms => 
-        prevFilms.map(f => {
-          if (f.id === filmId) {
-            return { ...f, inWatchlist: !isInWatchlist };
-          }
-          return f;
-        })
-      );
-  
-      if (isInWatchlist) {
-        await axios.delete(`/api/watchlist/${filmId}`);
+      let newWatchlistId = null;
+      if (wasInWatchlist) {
+        // Use filmId or preferably watchlistId if available for deletion
+        const deleteId = oldWatchlistId || filmId; // Adjust based on your API expectation
+        await axios.delete(`/api/watchlist/${deleteId}`); // Adjust endpoint if needed
       } else {
-        const response = await axios.post('/api/watchlist', {
-          userId,
-          filmId
-        });
-        
-        if (response.data?.id) {
-          setFilms(prevFilms => 
-            prevFilms.map(f => {
-              if (f.id === filmId) {
-                return { ...f, watchlistId: response.data.id };
-              }
-              return f;
-            })
-          );
-        }
+        const response = await axios.post('/api/watchlist', { userId, filmId });
+        newWatchlistId = response.data?.id; // Assuming API returns the new watchlist item ID
+         if (!newWatchlistId) {
+           console.warn("Watchlist POST did not return an ID.");
+         }
       }
-      
-      cache.invalidateWatchlist(userId);
-      cache.setFilms(getCacheKey(), films);
+
+      // Update state with actual ID after successful API call
+      setFilms(prevFilms =>
+         prevFilms.map(f =>
+           f.id === filmId ? { ...f, inWatchlist: !wasInWatchlist, watchlistId: newWatchlistId } : f
+         )
+       );
+
+       // Update cache with the final state
+       cache.setFilms(cacheKey, films.map(f =>
+           f.id === filmId ? { ...f, inWatchlist: !wasInWatchlist, watchlistId: newWatchlistId } : f
+         ));
+       // Invalidate general watchlist status cache if you have one
+       cache.invalidateWatchlist(userId);
+
     } catch (error) {
-      setFilms(prevFilms => 
-        prevFilms.map(f => {
-          if (f.id === filmId) {
-            return { ...f, inWatchlist: isInWatchlist };
-          }
-          return f;
-        })
-      );
-      
-      const axiosError = error as AxiosError;
-      console.error("Watchlist error:", axiosError.response?.data || error);
-      alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
+      console.error("Watchlist toggle error:", error);
+       // Revert optimistic UI on error
+        setFilms(prevFilms =>
+            prevFilms.map(f =>
+                f.id === filmId ? { ...f, inWatchlist: wasInWatchlist, watchlistId: oldWatchlistId } : f
+            )
+        );
+       // Optionally show an error message to the user
+      alert("Failed to update watchlist. Please try again.");
     } finally {
       setSavingWatchlistId(null);
     }
-  }, [userId, films, getCacheKey]);
+  }, [userId, isAuthenticated, getCacheKey, films]); // Added 'films' dependency for correct state in callback
 
-  const refreshFilmRating = useCallback(async (filmId: number) => {
-    try {
-      const cachedRating = cache.getRating(filmId);
-      
-      if (cachedRating !== null) {
-        setFilms(prevFilms => 
-          prevFilms.map(f => {
-            if (f.id === filmId) {
-              return { ...f, averageRating: cachedRating };
-            }
-            return f;
-          })
-        );
-        
-        if (selectedFilm && selectedFilm.id === filmId) {
-          setSelectedFilm(prev => {
-            if (prev) {
-              return { ...prev, averageRating: cachedRating };
-            }
-            return prev;
-          });
-        }
-        
-        return;
-      }
-      
-      const ratingData = await getFilmRating(filmId);
-      const rating = ratingData.averageRating;
-      
-      cache.setRating(filmId, rating);
-      
-      setFilms(prevFilms => 
-        prevFilms.map(f => {
-          if (f.id === filmId) {
-            return { ...f, averageRating: rating };
-          }
-          return f;
-        })
+
+   // Function to refresh rating for a specific film (e.g., after user rates in modal)
+  // In DynamicFilmSlider.tsx
+const refreshFilmRating = useCallback(async (filmId?: number) => {
+  // Handle case when filmId is undefined
+  if (filmId === undefined) {
+    console.warn("refreshFilmRating called without filmId");
+    return;
+  }
+
+  try {
+    const ratingData = await getFilmRating(filmId); // Fetch fresh rating
+    const newRating = ratingData.averageRating;
+
+    cache.setRating(filmId, newRating); // Update cache
+
+    // Update the film in the main list state
+    setFilms(prevFilms =>
+      prevFilms.map(f => (f.id === filmId ? { ...f, averageRating: newRating } : f))
+    );
+
+    // Update selected film if it's the one being refreshed
+    setSelectedFilm(prevSelected =>
+      prevSelected && prevSelected.id === filmId ? { ...prevSelected, averageRating: newRating } : prevSelected
+    );
+
+    // Update the main cache for the slider
+    const cacheKey = getCacheKey();
+    const currentCachedFilms = cache.getFilms(cacheKey);
+    if(currentCachedFilms) {
+      const updatedCachedFilms = currentCachedFilms.map((f: Film) => 
+        (f.id === filmId ? { ...f, averageRating: newRating } : f)
       );
-
-      if (selectedFilm && selectedFilm.id === filmId) {
-        setSelectedFilm(prev => {
-          if (prev) {
-            return { ...prev, averageRating: rating };
-          }
-          return prev;
-        });
-      }
-    } catch (err) {
-      console.error(`Error refreshing rating for film ${filmId}:`, err);
+      cache.setFilms(cacheKey, updatedCachedFilms);
     }
-  }, [selectedFilm]);
+  } catch (err) {
+    console.error(`Error refreshing rating for film ${filmId}:`, err);
+  }
+}, [getCacheKey]); // Dependency on getCacheKey to update the correct cache
+   // Placeholder: Actual rating update logic should ideally live within the modal
+   // or be passed to it. This is just a placeholder if needed here.
+  const handleRatingUpdate = useCallback((filmId: number, rating: number) => {
+       console.log(`Placeholder: Rating update called for film ${filmId} with rating ${rating}`);
+       // This function might be passed to the modal, which then calls refreshFilmRating
+       // after successfully submitting the rating via API.
+   }, []);
 
-  useEffect(() => {
-    if (authLoading) {
-      return;
-    }
-    
-    fetchFilms();
-    
-    return () => {
-      if (ratingUpdateTimeout) {
-        clearTimeout(ratingUpdateTimeout);
-      }
-    };
-  }, [fetchFilms, authLoading, ratingUpdateTimeout]);
-
-  const categoryTitles = categoryFilter
-    ? [
-        `${categoryFilter} Movies`,
-        `Best ${categoryFilter} Films`,
-        `Top ${categoryFilter} Picks`
-      ]
-    : [
-        "Popular Films",
-        "Trending Now",
-        "Editor's Choice",
-        "Binge-Worthy Picks"
-      ];
-
+  // --- Render Logic ---
   if (loading || authLoading) {
     return <FilmSliderSkeleton title={title} itemCount={limit > 5 ? 5 : limit} data-testid="film-slider-skeleton" />;
   }
-  
+
   if (error) {
-    return <div className="w-full py-8 text-center text-red-500">Error: {error}</div>;
+    return <div className="w-full py-8 text-center text-red-500 px-4">Error loading films for {title}: {error}</div>;
   }
 
+  // Use films state which is initialized/updated from props or fetch
   if (!films || films.length === 0) {
-    return <div className="w-full py-8 text-center">No films found in this category.</div>;
+     // Only show "No films" if not loading and not erroring, and fetch was attempted or initial data was empty
+    if(!loading && !error && (hasFetched.current || initialDataProvided.current)) {
+        return <div className="w-full py-8 text-center text-gray-500 px-4">No films found in the "{title}" category.</div>;
+    }
+    // Otherwise, it might still be loading initial state or has an error handled above
+    return null;
   }
+
+  // Dynamic Titles for TextLoop based on category/title
+  const getSliderTitles = () => {
+    if (categoryFilter === 'comedy') return ["Comedy Films", "Laugh Out Loud", "Funny Flicks"];
+    if (categoryFilter === 'drama') return ["Drama Films", "Critically Acclaimed", "Emotional Journeys"];
+    // Add more specific titles based on filter or use generics
+    return [title, "Trending Now", "Top Picks"];
+  };
 
   return (
     <section className="py-4 sm:py-6 md:py-8">
-      <div className="mb-3 sm:mb-4 md:mb-6">
-        <TextLoop
-          interval={4}
-          className="text-xl sm:text-2xl font-bold"
-          transition={{ duration: 0.5 }}
-          variants={{
-            initial: { opacity: 0, y: 20 },
-            animate: { opacity: 1, y: 0 },
-            exit: { opacity: 0, y: -20 }
-          }}
-        >
-          {categoryTitles.map((text, index) => (
-            <h2 key={index} className="text-xl sm:text-2xl font-bold">
-              {text}
-            </h2>
-          ))}
-        </TextLoop>
-      </div>
+        {/* Title using TextLoop - ensure `SliderTextLoop` is defined correctly */}
+        {/* Removed TextLoop to match HomePage's SimpleTextLoop usage */}
+        {/* <div className="mb-3 sm:mb-4 md:mb-6 h-8">
+             <SliderTextLoop
+                 interval={4000} // Adjusted interval
+                 className="text-xl sm:text-2xl font-bold"
+                 // Removed complex transition variants for simplicity
+             >
+                 {getSliderTitles().map((text) => (
+                     <h2 key={text} className="text-xl sm:text-2xl font-bold text-white"> {/* Ensure text color contrasts */}
+                       {/* {text}
+                    </h2>
+                ))}
+             </SliderTextLoop>
+         </div> */}
+
       <Carousel
-        plugins={[Autoplay({ delay: 4000 })]}
-        opts={{ align: "start", loop: true }}
+        plugins={[Autoplay({ delay: 5000, stopOnInteraction: true })]} // Slightly longer delay, stop on interaction
+        opts={{ align: "start", loop: films.length > 4 }} // Loop only if enough items
         className="w-full"
       >
-        <CarouselContent>
+        <CarouselContent className="-ml-2 md:-ml-4"> {/* Adjust margin based on padding */}
           {films.map((film) => (
-            <CarouselItem key={film.id} className="basis-1/2 sm:basis-1/3 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
-              <div 
-                className="relative overflow-hidden rounded-lg group cursor-pointer"
-                onClick={(e) => handleFilmClick(e, film)}
+            <CarouselItem key={film.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6"> {/* Adjust basis for more items */}
+              <div
+                className="relative overflow-hidden rounded-lg group cursor-pointer shadow-lg transition-shadow duration-300 hover:shadow-xl bg-gray-800" // Added background placeholder
+                onClick={() => handleFilmClick(film)}
+                role="button" // Accessibility
+                tabIndex={0} // Accessibility
+                onKeyDown={(e) => e.key === 'Enter' && handleFilmClick(film)} // Accessibility
               >
                 <div className="aspect-[2/3] w-full relative">
                   <Image
-                    src={film.imageUrl}
+                    src={film.imageUrl || '/placeholder-image.png'} // Fallback image
                     alt={film.title}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.6vw" // Updated sizes
+                    // Consider adding priority={index < 3} if this slider is above the fold initially
+                    // For lazy-loaded sliders, priority should be false (default)
+                    loading="lazy" // Explicit lazy loading
                   />
-                  
-                  {/* Heart Button (Watchlist) - Only show if user is authenticated */}
-                  {isAuthenticated && userId && (
-                    <div className="absolute top-1 sm:top-2 right-1 sm:right-2 z-10">
-                      <Button 
-                        variant="outline" 
+
+                  {/* Watchlist Button */}
+                  {isAuthenticated && userId && 'inWatchlist' in film && (
+                    <div className="absolute top-1 sm:top-2 right-1 sm:right-2 z-20">
+                      <Button
+                        variant="outline"
                         size="icon"
-                        className="bg-black/50 hover:bg-black/70 heart-button w-6 h-6 sm:w-8 sm:h-8" 
-                        onClick={(e) => handleToggleWatchlist(e, film)} 
-                        disabled={savingWatchlistId === film.id || loading}
+                        aria-label={film.inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+                        className={`bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-full border-none heart-button w-7 h-7 sm:w-8 sm:h-8 transition-colors duration-200 ${savingWatchlistId === film.id ? 'animate-pulse' : ''}`}
+                        onClick={(e) => handleToggleWatchlist(e, film)}
+                        disabled={savingWatchlistId === film.id}
                       >
-                        <CiHeart className={`w-4 h-4 sm:w-5 sm:h-5 ${film.inWatchlist ? "text-red-500" : "text-white"}`} />
+                        <CiHeart className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${film.inWatchlist ? "text-red-500 fill-current" : "text-white"}`} />
                       </Button>
                     </div>
                   )}
-                       
-                  {/* Play button overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/30">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <svg 
-                        className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" 
-                        fill="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M8 5v14l11-7z" />
+
+                  {/* Play Icon Overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/60 via-black/30 to-transparent pointer-events-none">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/25 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                       </svg>
                     </div>
                   </div>
                 </div>
-                
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-3 md:p-4">
-                  <h3 className="text-white font-medium text-xs sm:text-sm md:text-base truncate">
-                    {film.title}
-                  </h3>
-                  <div className="flex items-center text-[10px] sm:text-xs text-gray-300 mt-0.5 sm:mt-1">
-                    <span>{film.releaseYear}</span>
-                    <span className="mx-1 sm:mx-2">•</span>
-                    <span>{Math.floor(film.duration)} min</span>
-                    {film.averageRating && (
-                      <>
-                        <span className="mx-1 sm:mx-2">•</span>
-                        <span className="flex items-center">
-                          <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            viewBox="0 0 24 24" 
-                            fill="currentColor" 
-                            className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 mr-0.5 sm:mr-1"
-                          >
-                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                          </svg>
-                          {film.averageRating.toFixed(1)}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
+
+                 {/* Info Overlay */}
+                 <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 bg-gradient-to-t from-black/90 via-black/70 to-transparent pointer-events-none">
+                    <h3 className="text-white font-semibold text-xs sm:text-sm md:text-base truncate" title={film.title}>
+                        {film.title}
+                    </h3>
+                    <div className="flex items-center text-[10px] sm:text-xs text-gray-300 mt-1 space-x-2">
+                        <span>{film.releaseYear}</span>
+                        <span>•</span>
+                        <span>{ 'duration' in film ? Math.floor(film.duration) : 'NaN'} min</span>
+                        {film.averageRating !== null && film.averageRating > 0 && (
+                            <>
+                                <span>•</span>
+                                <span className="flex items-center">
+                                    <FaStar className="w-3 h-3 sm:w-[14px] sm:h-[14px] text-yellow-400 mr-1" />
+                                    {film.averageRating.toFixed(1)}
+                                </span>
+                            </>
+                        )}
+                    </div>
+                 </div>
               </div>
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden md:flex left-0 translate-x-0" />
-        <CarouselNext className="hidden md:flex right-0 translate-x-0" />
+        {/* Show arrows only if enough items to scroll */}
+        {films.length > 5 && ( 
+            <>
+                <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex disabled:opacity-50" />
+                <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex disabled:opacity-50" />
+            </>
+        )}
       </Carousel>
 
       {/* Video Modal */}
-      {selectedFilm && (
+      {selectedFilm && isModalOpen && (
         <PlayVideoModal
+          // --- Pass necessary data ---
           title={selectedFilm.title}
           overview={selectedFilm.overview}
           trailerUrl={selectedFilm.trailerUrl}
-          state={isModalOpen}
-          changeState={setIsModalOpen}
           releaseYear={selectedFilm.releaseYear}
           ageRating={selectedFilm.ageRating}
           duration={selectedFilm.duration}
-          ratings={selectedFilm.averageRating || 0}
-          setUserRating={handleRatingUpdate}
-          userId={userId || ""}
-          filmId={selectedFilm.id}
-          markAsWatched={markAsWatched}
+          ratings={selectedFilm.averageRating ?? 0}
           category={selectedFilm.category}
-          refreshRating={() => refreshFilmRating(selectedFilm.id)}
+          filmId={selectedFilm.id}
+          userId={userId || ""}
+          setUserRating={setUserRating}
+          state={isModalOpen}
+          changeState={setIsModalOpen}
         />
       )}
     </section>
   );
 };
 
-export default FilmSlider;
+export default memo(FilmSlider);

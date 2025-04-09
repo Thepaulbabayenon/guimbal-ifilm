@@ -20,6 +20,10 @@ const cache = {
   
       return item.data;
     },
+
+    removeFilms(cacheKey: string): void {
+      this.films.delete(cacheKey);
+    },
   
     // Set film data in cache with expiration
     setFilms(key: string | number, data: any): void {
@@ -55,6 +59,7 @@ const cache = {
       this.films.delete(filmIdStr);
       this.ratings.delete(filmIdStr);
     },
+    
   
     // Get watchlist status
     getWatchlistStatus(userId: string | number): any | null {
@@ -116,6 +121,7 @@ export const startCacheCleanup = () => {
     
     console.log('Cache cleanup completed');
   }, cleanupInterval);
+  
 };
   
   export default cache;
