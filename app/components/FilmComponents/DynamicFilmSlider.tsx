@@ -330,25 +330,24 @@ const refreshFilmRating = useCallback(async (filmId?: number) => {
         className="w-full"
       >
         <CarouselContent className="-ml-2 md:-ml-4"> {/* Adjust margin based on padding */}
-          {films.map((film) => (
-            <CarouselItem key={film.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6"> {/* Adjust basis for more items */}
+          {films.map((film, index) => (
+            <CarouselItem key={film.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
               <div
-                className="relative overflow-hidden rounded-lg group cursor-pointer shadow-lg transition-shadow duration-300 hover:shadow-xl bg-gray-800" // Added background placeholder
+                className="relative overflow-hidden rounded-lg group cursor-pointer shadow-lg transition-shadow duration-300 hover:shadow-xl bg-gray-800"
                 onClick={() => handleFilmClick(film)}
-                role="button" // Accessibility
-                tabIndex={0} // Accessibility
-                onKeyDown={(e) => e.key === 'Enter' && handleFilmClick(film)} // Accessibility
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && handleFilmClick(film)}
               >
                 <div className="aspect-[2/3] w-full relative">
                   <Image
-                    src={film.imageUrl || '/placeholder-image.png'} // Fallback image
+                    src={film.imageUrl || '/placeholder-image.png'}
                     alt={film.title}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.6vw" // Updated sizes
-                    // Consider adding priority={index < 3} if this slider is above the fold initially
-                    // For lazy-loaded sliders, priority should be false (default)
-                    loading="lazy" // Explicit lazy loading
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33.33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.66vw"
+                    priority={index < 5 && (title === "Featured" || title === "Popular")}
+                    loading={index < 5 && (title === "Featured" || title === "Popular") ? "eager" : "lazy"}
                   />
 
                   {/* Watchlist Button */}
