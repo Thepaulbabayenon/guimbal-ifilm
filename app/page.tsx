@@ -1,11 +1,19 @@
 import { getUserFromSession } from "@/app/auth/core/session";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { Suspense } from "react";
+import { unstable_cache } from "next/cache";
 import FilmPoster from "@/app/components/LandingPageComponents/FilmPoster";
 import { LandingLogo } from "@/app/components/LandingPageComponents/LandingLogo";
 import { FilmPosterCard } from "@/app/components/LandingPageComponents/FilmPosterCard";
 import { getTopRatedFilms } from "@/app/api/getFilms";
-import { GlowEffect } from "@/components/motion-primitives/glow-effect";
+
+// Cache the top rated films data for 1 hour
+const getTopRatedFilmsCached = unstable_cache(
+  async () => getTopRatedFilms(),
+  ["top-rated-films"],
+  { revalidate: 3600 } // 1 hour
+);
 
 export default async function Home() {
   const cookiesObject = Object.fromEntries(
@@ -18,22 +26,24 @@ export default async function Home() {
     redirect("/home");
   }
 
-  // Fetch the top 10 films
-  const top10Films = await getTopRatedFilms(); 
+  // Fetch the top 10 films with caching
+  const top10Films = await getTopRatedFilmsCached();
 
   return (
     <main className="relative flex flex-col items-center justify-between w-full min-h-screen bg-black text-white overflow-hidden">
       
-      {/* Background Film Poster Covering Entire Screen */}
-      <div className="absolute inset-0 w-full h-full top-0 left-0">
-        <FilmPoster />
+      {/* Background Film Poster with Suspense boundary */}
+      <div className="absolute inset-0 w-full h-full">
+        <Suspense fallback={<div className="absolute inset-0 bg-black"></div>}>
+          <FilmPoster />
+        </Suspense>
         {/* Dark overlay for better readability */}
         <div className="absolute inset-0 bg-black/60"></div>
       </div>
 
       {/* Foreground Content */}
       <div className="relative z-10 flex flex-col items-center text-center w-full px-4 pt-12">
-        <LandingLogo  />
+        <LandingLogo />
 
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white drop-shadow-lg">
           <span className="text-yellow-400">THE BANTAYAN FILM FESTIVAL</span>
@@ -44,16 +54,15 @@ export default async function Home() {
         </p>
 
         <div className="relative mt-6">
-  
- <a href="/sign-in"
-  className="relative px-6 py-3 bg-yellow-500 text-black font-semibold rounded-full shadow-lg hover:bg-yellow-400 transition-all duration-900 transform hover:scale-105 animate-pulse"
-  style={{
-    boxShadow: "0 0 15px 5px rgba(255, 215, 0, 0.7), 0 0 30px 10px rgba(255, 165, 0, 0.5)"
-  }}
->
-  Get Started
-</a>
-</div>
+          <a href="/sign-in"
+            className="relative px-6 py-3 bg-yellow-500 text-black font-semibold rounded-full hover:bg-yellow-400 transition-all duration-300"
+            style={{
+              boxShadow: "0 0 10px 2px rgba(255, 215, 0, 0.5)"
+            }}
+          >
+            Get Started
+          </a>
+        </div>
       </div>
 
       {/* TOP FILMS SECTION */}
@@ -65,16 +74,16 @@ export default async function Home() {
       </div>
 
       {/* Grid Layout for Film Posters */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full px-4 max-w-6xl py-6">
-          {top10Films.map((film) => (
-            <FilmPosterCard 
-              key={film.id} 
-              filmId={film.id} 
-              initialTitle={film.title} 
-              className="aspect-[2/3] w-full" 
-            />
-          ))}
-        </div>
+      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full px-4 max-w-6xl py-6">
+        {top10Films.slice(0, 10).map((film) => (
+          <FilmPosterCard 
+            key={film.id} 
+            filmId={film.id} 
+            initialTitle={film.title}
+            className="aspect-[2/3] w-full" 
+          />
+        ))}
+      </div>
     </main>
   );
 }
