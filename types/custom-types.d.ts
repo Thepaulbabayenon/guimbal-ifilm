@@ -5,5 +5,5 @@ declare module '@/app/components/LoadingSpinner' {
     size?: string;
   }
   
-  export const LoadingSpinner: React.FC<LoadingSpinnerProps>;
+  
 }
