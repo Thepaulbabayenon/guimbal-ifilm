@@ -12,6 +12,7 @@ interface FilmCardProps {
   overview: string;
   title: string;
   trailerUrl?: string; 
+  imageUrl?: string,
   releaseYear: number;
   ageRating?: number;
   time?: number;
@@ -25,6 +26,7 @@ interface FilmCardProps {
 export function FilmCard({
   filmId,
   overview,
+
   title,
   releaseYear,
   ageRating,

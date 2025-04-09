@@ -191,7 +191,7 @@ export function useAuth({
       setUser(null);
       setIs2FARequired(false);
       apiCache.invalidateUserData();
-      window.location.href = "/sign-in";
+      window.location.href = "/";
     } catch (error) {
       console.error("Sign-out failed:", error);
       throw error;

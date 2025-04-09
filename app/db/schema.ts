@@ -340,7 +340,6 @@ export const userPreferences = pgTable("user_preferences", {
     .$onUpdate(() => new Date()),
 });
 
-// ===== Admin Features =====
 export const announcements = pgTable("announcements", {
   id: serial("id").primaryKey(),
 

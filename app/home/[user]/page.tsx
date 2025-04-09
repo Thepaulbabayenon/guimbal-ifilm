@@ -10,6 +10,7 @@ import PlayVideoModal from "@/app/components/PlayVideoModal";
 import { Logo } from "@/app/components/Logo";
 import UserProfileDropdown from "@/app/components/ProfileComponents/UserProfileDropdown";
 import axios from "axios";
+import FilmSliderWrapper from "@/app/components/FilmComponents/FilmsliderWrapper";
 import { Film } from "@/types/film";
 
 
@@ -118,56 +119,33 @@ export default function UserHome() {
       setWatchlist(formattedWatchlist);
   
       // Fetch Top 10 Films from DB
-     // Fetch Top 10 Films from DB
-const top10Res = await db.select().from(film).limit(10);
-setTop10Films(
-  top10Res.map((film) => ({
-    id: film.id,
-    title: film.title,
-    overview: film.overview,
-    watchList: false,
-    trailerUrl: film.trailerUrl || "",
-    releaseYear: film.releaseYear || 0, // Use 'year' instead of 'releaseYear'
-    ageRating: Number(film.ageRating) || 0, // Use 'age' instead of 'ageRating'
-    time: film.duration || 0, // Use 'time' for duration
-    initialRatings: film.averageRating ?? 0,
-    category: film.category,
-    imageUrl: film.imageUrl,
-    producer: "",
-    director: "",
-    coDirector: "",
-    studio: "",
-    averageRating: film.averageRating ?? 0,
-  }))
-);
+      const top10Res = await db.select().from(film).limit(10);
+      setTop10Films(
+        top10Res.map((film) => ({
+          id: film.id,
+          title: film.title,
+          overview: film.overview,
+          watchList: false,
+          trailerUrl: film.trailerUrl || "",
+          releaseYear: film.releaseYear || 0,
+          ageRating: Number(film.ageRating) || 0,
+          time: film.duration || 0,
+          initialRatings: film.averageRating ?? 0,
+          category: film.category,
+          imageUrl: film.imageUrl,
+          producer: "",
+          director: "",
+          coDirector: "",
+          studio: "",
+          averageRating: film.averageRating ?? 0,
+        }))
+      );
   
       // Fetch recommended films from API
-      // Fetch recommended films from API
-const recommendedRes = await axios.get(`/api/recommendations`, {
-  params: { userId: user.id },
-});
+      const recommendedRes = await axios.get(`/api/recommendations`, {
+        params: { userId: user.id },
+      });
 
-setRecommendedFilms(
-  recommendedRes.data.map((film: any) => ({
-    id: film.id,
-    title: film.title,
-    overview: film.overview,
-    watchList: false,
-    trailerUrl: film.trailer || "",
-    year: film.release || 0, // Use 'year'
-    age: film.age || 0,
-    time: film.duration || 0,
-    initialRatings: film.averageRating ?? 0,
-    category: film.category,
-    imageString: film.imageString || film.imageUrl || "",
-    // Add missing properties
-    producer: film.producer || "",
-    director: film.director || "",
-    coDirector: film.coDirector || "",
-    studio: film.studio || "",
-  }))
-);
-  
       setRecommendedFilms(
         recommendedRes.data.map((film: any) => ({
           id: film.id,
@@ -177,16 +155,15 @@ setRecommendedFilms(
           trailerUrl: film.trailer || "",
           releaseYear: film.release || 0,
           ageRating: film.age || 0,
-          duration: film.duration || 0,
-          averageRating: film.averageRating ?? 0,
-          category: film.category,
-          imageUrl: film.imageString || film.imageUrl || "",
-          // Add properties to match the expected Film type
-          year: film.release || 0,
-          age: film.age || 0,
           time: film.duration || 0,
           initialRatings: film.averageRating ?? 0,
-          imageString: film.imageString || film.imageUrl || "",
+          category: film.category || "Uncategorized",
+          imageUrl: film.imageString || film.imageUrl || "",
+          producer: film.producer || "",
+          director: film.director || "",
+          coDirector: film.coDirector || "",
+          studio: film.studio || "",
+          averageRating: film.averageRating ?? 0
         }))
       );
     } catch (err) {
@@ -201,17 +178,11 @@ setRecommendedFilms(
     setProfile((prev) => ({ ...prev, ...updatedUser }));
   };
 
-  const openModal = (film: Film) => {
-    setSelectedFilm(film);
-    setModalOpen(true);
-  };
-
   return (
     <div className="min-h-screen bg-black text-white p-6">
       <Logo />
 
       {/* Profile Section */}
-      {/* Change isLoaded to isAuthenticated */}
       {isAuthenticated && user && (
         <div className="flex flex-col items-center mb-10">
           <UserProfileDropdown user={profile} onUpdate={handleUpdateProfile} />
@@ -224,27 +195,32 @@ setRecommendedFilms(
       {/* Top 10 Films */}
       <FilmLayout title="Top 10 Films" films={top10Films} loading={loading} error={error} />
 
-      {/* Recommended Films */}
-      <FilmLayout title="Recommended For You" films={recommendedFilms} loading={loading} error={error} />
+      {/* Recommended Films - Now using FilmSliderWrapper like in HomePage */}
+      {recommendedFilms.length > 0 && (
+        <div className="mt-6">
+          <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
+          <FilmSliderWrapper title="Recommended For You" films={recommendedFilms} />
+        </div>
+      )}
 
       {/* Play Video Modal */}
       {selectedFilm && (
-  <PlayVideoModal
-    title={selectedFilm.title}
-    overview={selectedFilm.overview}
-    trailerUrl={selectedFilm.trailerUrl}
-    state={modalOpen}
-    changeState={setModalOpen}
-    releaseYear={selectedFilm.releaseYear} 
-    ageRating={selectedFilm.ageRating} 
-    duration={selectedFilm.time} 
-    ratings={selectedFilm.averageRating ?? 0}
-    userId={user?.id || ""}
-    filmId={selectedFilm.id}
-    category={selectedFilm.category}
-    setUserRating={() => {}}
-  />
-)}
+        <PlayVideoModal
+          title={selectedFilm.title}
+          overview={selectedFilm.overview}
+          trailerUrl={selectedFilm.trailerUrl}
+          state={modalOpen}
+          changeState={setModalOpen}
+          releaseYear={selectedFilm.releaseYear} 
+          ageRating={selectedFilm.ageRating} 
+          duration={selectedFilm.time} 
+          ratings={selectedFilm.averageRating ?? 0}
+          userId={user?.id || ""}
+          filmId={selectedFilm.id}
+          category={selectedFilm.category}
+          setUserRating={() => {}}
+        />
+      )}
     </div>
   );
 }

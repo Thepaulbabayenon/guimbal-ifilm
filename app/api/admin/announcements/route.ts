@@ -1,10 +1,9 @@
-export const dynamic = "force-dynamic";
-
-
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/drizzle"; 
 import { announcements } from "@/app/db/schema";
 import { desc } from "drizzle-orm";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
@@ -33,7 +32,6 @@ export async function GET(req: Request) {
     const totalAnnouncements = await db.select().from(announcements);
     const total = totalAnnouncements.length;
 
-  
     const latestAnnouncements = await db
       .select()
       .from(announcements)
@@ -47,4 +45,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to fetch announcements" }, { status: 500 });
   }
 }
-

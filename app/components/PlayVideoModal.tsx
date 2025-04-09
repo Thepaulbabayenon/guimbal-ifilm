@@ -28,6 +28,7 @@ interface PlayVideoModalProps {
   duration?: number;
   ratings: number;
   setUserRating: (rating: number) => void;
+  userRating?: number; // Added userRating prop
   userId?: string;
   filmId?: number;
   markAsWatched?: (userId: string, filmId: number) => void;
@@ -50,6 +51,7 @@ export default function PlayVideoModal({
   releaseYear,
   ratings,
   setUserRating,
+  userRating = 0, // Default to 0 if not provided
   userId,
   filmId,
   markAsWatched,
@@ -113,8 +115,31 @@ export default function PlayVideoModal({
     };
   }, []);
 
-  const handleRatingClick = (rating: number) => {
-    setUserRating(rating);
+  const handleRatingClick = async (rating: number) => {
+    try {
+      if (!userId || !filmId) {
+        console.error("Missing userId or filmId");
+        return;
+      }
+      
+      const response = await axios.post(`/api/films/${filmId}/user-rating`, {
+        rating,
+        userId
+      });
+      
+      if (response.data.success) {
+        // Update local state
+        setUserRating(rating);
+        
+        // Refresh ratings if the function is provided
+        if (refreshRating) {
+          await refreshRating();
+        }
+      }
+    } catch (error) {
+      console.error("Error setting film rating:", error);
+      // You could add a toast notification here to inform the user
+    }
   };
 
   const toggleSize = () => {
@@ -270,7 +295,6 @@ export default function PlayVideoModal({
               <p>{releaseYear}</p>
               {ageRating && <p className="border py-0.5 px-1 border-gray-200 rounded">{ageRating}+</p>}
               {duration && <p className="font-normal">{duration}h</p>}
-              <p>⭐ {ratings}</p>
             </div>
           </div>
           
@@ -290,7 +314,22 @@ export default function PlayVideoModal({
           </div>
         </DialogHeader>
 
-        <div className="relative w-full mt-4" style={{ height: playerHeight }}>
+        {/* Average film rating display above the player */}
+        <div className="flex items-center gap-1 mt-2 mb-1">
+          <div className="flex items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <CiStar
+                key={`avg-${star}`}
+                size={isMobile ? 16 : 20}
+                color={ratings >= star ? "#FFD700" : "#e4e5e9"}
+                className="inline"
+              />
+            ))}
+            <span className="ml-1 text-sm font-medium">{ratings.toFixed(1)}</span>
+          </div>
+        </div>
+
+        <div className="relative w-full mt-2" style={{ height: playerHeight }}>
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="spinner-border animate-spin border-t-4 border-blue-500 rounded-full w-12 h-12"></div>
@@ -327,7 +366,10 @@ export default function PlayVideoModal({
               <CiStar
                 key={star}
                 size={isMobile ? 20 : 24}
-                color={(hoverRating || ratings) >= star ? "#FFD700" : "#e4e5e9"}
+                // Use userRating when not hovering, and hoverRating when hovering
+                color={hoverRating > 0 
+                  ? (hoverRating >= star ? "#FFD700" : "#e4e5e9") 
+                  : (userRating >= star ? "#FFD700" : "#e4e5e9")}
                 onClick={() => handleRatingClick(star)}
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}

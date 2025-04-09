@@ -85,7 +85,8 @@ const FilmItem = memo(({
 
           <FilmCard
             key={film.id}
-            ageRating={film.ageRating}  
+            imageUrl={film.imageUrl }
+            ageRating={film.ageRating ?? 0}  
             filmId={film.id}
             overview={film.overview}
             time={film.time}
@@ -96,14 +97,7 @@ const FilmItem = memo(({
             watchList={film.watchList}
             category={film.category || "Uncategorized"}
             onOpenModal={() => onClick()} 
-          />
-
-          {/* Display Average Rating */}
-          <div className="absolute bottom-5 left-5 bg-black bg-opacity-70 px-3 py-1 rounded">
-            <p className="text-white text-sm">
-              ⭐ Average Rating: {rating?.toFixed(2) || "N/A"} / 5
-            </p>
-          </div>
+          />  
         </div>
       </motion.div>
     </motion.div>

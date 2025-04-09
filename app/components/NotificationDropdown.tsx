@@ -24,24 +24,29 @@ const NotificationDropdown = () => {
     setError(null);
     try {
       const res = await fetch("/api/announcements");
-      const data = await res.json();
-  
-      console.log("Raw API Response:", data);
-  
-      if (!data.announcements || !Array.isArray(data.announcements)) {
-        console.error("API returned:", data);
-        throw new Error("API response is not an array");
+      
+      if (!res.ok) {
+        throw new Error(`API returned status: ${res.status}`);
       }
-  
-      setNotifications(data.announcements); // ✅ Extract the announcements array
+      
+      const data = await res.json();
+      console.log("Raw API Response:", data);
+      
+      if (!data.announcements) {
+        console.error("API returned:", data);
+        throw new Error("API response doesn't contain announcements array");
+      }
+      
+      console.log("Found announcements:", data.announcements.length);
+      setNotifications(data.announcements);
     } catch (err) {
+      console.error("Error fetching notifications:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
   };
   
-
   // Fetch Dismissed Announcements
   const fetchDismissedAnnouncements = async () => {
     try {
@@ -98,11 +103,27 @@ const NotificationDropdown = () => {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-64 bg-gray-800 text-white rounded-md shadow-md p-2">
-        <Link href="/home/announcements">
-          <DropdownMenuLabel className="text-xs font-semibold cursor-pointer hover:text-yellow-400 transition-all">
-            Notifications
-          </DropdownMenuLabel>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/home/announcements">
+            <DropdownMenuLabel className="text-xs font-semibold cursor-pointer hover:text-yellow-400 transition-all">
+              Notifications
+            </DropdownMenuLabel>
+          </Link>
+          
+          {/* Refresh Button */}
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.preventDefault();
+              fetchNotifications();
+            }}
+            className="text-gray-300 hover:text-white transition-all p-1 rounded-full hover:bg-gray-700"
+            title="Refresh notifications"
+          >
+            <RefreshCcw className="h-4 w-4" />
+          </motion.button>
+        </div>
 
         {/* Error / Loading State */}
         {loading ? (
@@ -117,7 +138,7 @@ const NotificationDropdown = () => {
              <DropdownMenuItem 
                 className="p-2 hover:bg-gray-700 text-xs flex justify-between items-center cursor-pointer"
                 onClick={(e) => {
-                    e.preventDefault(); // ✅ Prevent closing the dropdown
+                    e.preventDefault();
                     setExpandedId(expandedId === notification.id ? null : notification.id);
                 }}
                 >
@@ -125,7 +146,7 @@ const NotificationDropdown = () => {
                 <Trash2
                     className="h-4 w-4 text-gray-400 cursor-pointer hover:text-red-500 transition-all"
                     onClick={(e) => {
-                    e.stopPropagation(); // ✅ Prevent triggering parent onClick
+                    e.stopPropagation();
                     dismissNotification(notification.id, e);
                     }}
                 />
