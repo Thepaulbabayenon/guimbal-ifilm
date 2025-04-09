@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback, memo } from "react";
 import Image from "next/image";
 import axios from "axios";
-import { motion } from "framer-motion";
 import { FilmCard } from "@/app/components/FilmComponents/FilmCard";
 import PlayVideoModal from "@/app/components/PlayVideoModal";
 import { Film } from "@/types/film";
@@ -14,31 +13,6 @@ interface FilmLayoutProps {
   userId?: string;
 }
 
-// Animation variants for staggered animations
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
-  show: { 
-    y: 0, 
-    opacity: 1,
-    transition: {
-      type: "spring",
-      stiffness: 100,
-      damping: 15
-    }
-  }
-};
-
-
 const FilmItem = memo(({ 
   film, 
   rating, 
@@ -49,12 +23,9 @@ const FilmItem = memo(({
   onClick: () => void;
 }) => {
   return (
-    <motion.div 
-      variants={itemVariants}
-      className="relative h-60 cursor-pointer" 
+    <div 
+      className="relative h-60 cursor-pointer transition-transform duration-300 hover:scale-105" 
       onClick={onClick}
-      whileHover={{ scale: 1.05 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
     >
       {/* Film Thumbnail */}
       <Image
@@ -67,11 +38,8 @@ const FilmItem = memo(({
       />
 
       {/* Overlay with hover animation */}
-      <motion.div 
-        className="h-60 relative z-10 w-full rounded-lg"
-        initial={{ opacity: 0 }}
-        whileHover={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
+      <div 
+        className="h-60 relative z-10 w-full rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-300"
       >
         <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center">
           <Image
@@ -85,7 +53,7 @@ const FilmItem = memo(({
 
           <FilmCard
             key={film.id}
-            imageUrl={film.imageUrl }
+            imageUrl={film.imageUrl}
             ageRating={film.ageRating ?? 0}  
             filmId={film.id}
             overview={film.overview}
@@ -99,8 +67,8 @@ const FilmItem = memo(({
             onOpenModal={() => onClick()} 
           />  
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 });
 
@@ -113,10 +81,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
   const [userRating, setUserRating] = useState<number>(0);
   const [fetchedInitial, setFetchedInitial] = useState(false);
 
-
   useEffect(() => {
-    console.log("films.length", films.length);
-  console.log("Dependency change detected!");
     let isMounted = true;
   
     const fetchRatings = async () => {
@@ -124,7 +89,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
       
       try { 
         // Process films in smaller batches to prevent UI freezing
-        const batchSize = 4;
+        const batchSize = 10; // Increased batch size since we're using less animations
         const batches = Math.ceil(films.length / batchSize);
         
         for (let i = 0; i < batches; i++) {
@@ -159,9 +124,6 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
               return newRatings;
             });
           }
-          
-       
-          await new Promise(resolve => setTimeout(resolve, 10));
         }
         
         setFetchedInitial(true);
@@ -216,57 +178,37 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
   return (
     <div className="recently-added-container mb-20">
       {/* Title Section */}
-      <motion.div 
-        className="flex items-center justify-center"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <div className="flex items-center justify-center">
         <h1 className="text-gray-400 text-4xl font-bold mt-10 px-5 sm:px-0">
           {title}
         </h1>
-      </motion.div>
+      </div>
 
       {/* Loading Spinner */}
       {loading && (
-        <motion.div 
-          className="text-center text-white mt-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
+        <div className="text-center text-white mt-6">
           <div className="spinner-border animate-spin border-t-4 border-blue-500 rounded-full w-12 h-12"></div>
-        </motion.div>
+        </div>
       )}
 
       {/* Error Handling */}
       {error && (
-        <motion.div 
-          className="text-center text-red-500 mt-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
+        <div className="text-center text-red-500 mt-4">
           {error}
-        </motion.div>
+        </div>
       )}
 
-      {/* Film Grid with Framer Motion */}
-      <motion.div 
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-       {films.map((film, index) => (
-        <FilmItem
-          key={`${film.id}-${index}`} 
-          film={film}
-          rating={filmRatings[film.id] || null}
-          onClick={() => handleFilmClick(film)}
-        />
-      ))}
-      </motion.div>
+      {/* Film Grid without Framer Motion */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6">
+        {films.map((film, index) => (
+          <FilmItem
+            key={`${film.id}-${index}`} 
+            film={film}
+            rating={filmRatings[film.id] || null}
+            onClick={() => handleFilmClick(film)}
+          />
+        ))}
+      </div>
 
       {/* Single Video Modal controlled at the layout level */}
       {selectedFilm && (
