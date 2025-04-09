@@ -67,13 +67,15 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
   const { user, isAuthenticated, isLoading: authLoading } = useUser();
   const userId = user?.id;
 
-  const [films, setFilms] = useState<(Film | RecommendedFilm)[]>(filmsData || []); // Initialize with prop data if available
   const [loading, setLoading] = useState(!filmsData); // Only loading if not pre-fetched
   const [error, setError] = useState<string | null>(null);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userRating, setUserRating] = useState<number>(0); // Initialize userRating state
   const [savingWatchlistId, setSavingWatchlistId] = useState<number | null>(null);
+
+  const films = React.useMemo(() => filmsData || [], [filmsData]);
+  const setFilms = useState<(Film | RecommendedFilm)[]>([])[1];
 
   // useRef to prevent fetching on mount if data is passed via props
   const initialDataProvided = useRef(!!filmsData);
