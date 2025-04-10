@@ -228,14 +228,16 @@ async function getUserComprehensiveData(userId: string) {
       
       // Get interaction patterns
       const interactionPatterns = await db
-        .select({
-          timestamp: userInteractions.timestamp,
-          actionType: userInteractions.actionType,
-        })
-        .from(userInteractions)
-        .where(eq(userInteractions.userId, userId))
-        .orderBy(desc(userInteractions.timestamp))
-        .limit(100);  // Limit to last 100 interactions
+  .select({
+    timestamp: userInteractions.timestamp,
+    // Use an existing column instead, like 'ratings'
+    ratings: userInteractions.ratings, 
+    // Or completely remove actionType if not needed
+  })
+  .from(userInteractions)
+  .where(eq(userInteractions.userId, userId))
+  .orderBy(desc(userInteractions.timestamp))
+  .limit(100);
       
       userData = {
         profile: userProfile[0],
@@ -371,7 +373,7 @@ async function processRecommendationGroup(group: any, context: any, groupIndex: 
           // Clean up the explanation
           return content.replace(/^["']|["']$/g, '');
         }
-        return null;
+        return undefined;
       });
       
       // Cache the AI explanation for future use
@@ -397,90 +399,103 @@ async function processRecommendationGroup(group: any, context: any, groupIndex: 
 /**
  * Create an AI-specific recommendation category
  */
+// The problematic code around line 336 is likely in the createAISpecificCategory function
+// where you're creating a cache key using context.preferredCategories
+
 async function createAISpecificCategory(userData: any, context: any) {
-  const cacheKey = `ai:category:${context.preferredCategories.slice(0, 3).join(',')}:${context.watchedFilmIds.length}`;
-  let aiCategory = recommendationsCache.get<any>(cacheKey);
-  
-  if (aiCategory === undefined) {
-    try {
-      // Get top categories
-      const topCategories = context.preferredCategories.slice(0, 3);
-      
-      if (topCategories.length === 0) {
-        return null;
-      }
-      
-      // Find films in preferred categories that user hasn't watched
-      const newRecommendations = await db
-        .select({
-          id: film.id,
-          title: film.title,
-          imageUrl: film.imageUrl,
-          overview: film.overview,
-          category: film.category,
-          releaseYear: film.releaseYear,
-          averageRating: film.averageRating,
-        })
-        .from(film)
-        .where(
-          and(
-            inArray(film.category, topCategories),
-            gt(film.averageRating, 3.5),
-            sql`${film.id} NOT IN (${context.watchedFilmIds.join(',')})`
-          )
-        )
-        .orderBy(desc(film.averageRating))
-        .limit(12);
-      
-      // Only create a category if we have enough films
-      if (newRecommendations.length >= 4) {
-        // Generate an explanation for this category
-        let explanation;
-        try {
-          const completion = await aiLimit(async () => {
-            return await openai.chat.completions.create({
-              model: "gpt-3.5-turbo",
-              messages: [
-                {
-                  role: "system",
-                  content: "Create a personalized, enthusiastic one-sentence recommendation under 80 characters."
-                },
-                {
-                  role: "user",
-                  content: `Create a personalized recommendation for a user who enjoys ${topCategories.join(', ')} films. 
-                    Some films they've rated highly include: ${context.highlyRatedFilms.slice(0, 3).join(', ')}.
-                    The recommendation should explain why they might enjoy a collection of ${topCategories[0]} and ${topCategories[1] || topCategories[0]} films.`
-                }
-              ],
-              temperature: 0.8,
-              max_tokens: 80
-            });
-          });
-          
-          explanation = completion.choices[0]?.message?.content?.replace(/^["']|["']$/g, '') || 
-            `AI-curated selection based on your preference for ${topCategories.join(', ')}`;
-        } catch (error) {
-          explanation = `Specially selected ${topCategories[0]} films just for you`;
+    // Fix: Ensure preferredCategories exists and convert null to empty array if needed
+    const preferredCategories = context.preferredCategories || [];
+    const watchedFilmCount = (context.watchedFilmIds || []).length;
+    
+    // Create cache key using non-null values
+    const cacheKey = `ai:category:${preferredCategories.slice(0, 3).join(',')}:${watchedFilmCount}`;
+    let aiCategory = recommendationsCache.get<any>(cacheKey);
+    
+    if (aiCategory === undefined) {
+      try {
+        // Get top categories with null safety
+        const topCategories = preferredCategories.slice(0, 3);
+        
+        if (topCategories.length === 0) {
+          return null;
         }
         
-        aiCategory = {
-          reason: explanation,
-          films: newRecommendations.slice(0, 8),
-          isAIEnhanced: true,
-          isCustomCategory: true
-        };
+        // Find films in preferred categories that user hasn't watched
+        const watchedFilmIds = context.watchedFilmIds || [];
         
-        // Cache this category
-        recommendationsCache.set(cacheKey, aiCategory, 7200); // 2 hours
+        // Rest of the function remains the same...
+        const newRecommendations = await db
+          .select({
+            id: film.id,
+            title: film.title,
+            imageUrl: film.imageUrl,
+            overview: film.overview,
+            category: film.category,
+            releaseYear: film.releaseYear,
+            averageRating: film.averageRating,
+          })
+          .from(film)
+          .where(
+            and(
+              inArray(film.category, topCategories),
+              gt(film.averageRating, 3.5),
+              watchedFilmIds.length > 0 
+                ? sql`${film.id} NOT IN (${watchedFilmIds.join(',')})` 
+                : sql`1=1`
+            )
+          )
+          .orderBy(desc(film.averageRating))
+          .limit(12);
+        
+        // Only create a category if we have enough films
+        if (newRecommendations.length >= 4) {
+          // Generate an explanation for this category
+          let explanation;
+          try {
+            const completion = await aiLimit(async () => {
+              return await openai.chat.completions.create({
+                model: "gpt-3.5-turbo",
+                messages: [
+                  {
+                    role: "system",
+                    content: "Create a personalized, enthusiastic one-sentence recommendation under 80 characters."
+                  },
+                  {
+                    role: "user",
+                    content: `Create a personalized recommendation for a user who enjoys ${topCategories.join(', ')} films. 
+                      Some films they've rated highly include: ${(context.highlyRatedFilms || []).slice(0, 3).join(', ')}.
+                      The recommendation should explain why they might enjoy a collection of ${topCategories[0]} and ${topCategories[1] || topCategories[0]} films.`
+                  }
+                ],
+                temperature: 0.8,
+                max_tokens: 80
+              });
+            });
+            
+            explanation = completion.choices[0]?.message?.content?.replace(/^["']|["']$/g, '') || 
+              `AI-curated selection based on your preference for ${topCategories.join(', ')}`;
+          } catch (error) {
+            explanation = `Specially selected ${topCategories[0]} films just for you`;
+          }
+          
+          aiCategory = {
+            reason: explanation,
+            films: newRecommendations.slice(0, 8),
+            isAIEnhanced: true,
+            isCustomCategory: true
+          };
+          
+          // Cache this category
+          recommendationsCache.set(cacheKey, aiCategory, 7200); // 2 hours
+        }
+      } catch (error) {
+        console.error("❌ Error generating AI category:", error);
+        return null;
       }
-    } catch (error) {
-      console.error("❌ Error generating AI category:", error);
-      return null;
     }
+    
+    return aiCategory;
   }
-  
-  return aiCategory;
-}
 
 /**
  * Increment AI usage metric for monitoring
