@@ -179,7 +179,7 @@ const HomePage = () => {
         setRecommendedFilms([]);
     }
     // Dependencies: user?.id and isAuthenticated trigger re-fetch if they change
-  }, [user?.id, isAuthenticated, recommendedFilms.length, recommendationsLoading]);
+  }, [user?.id, isAuthenticated, recommendationsLoading]);
 
 
   // Loading State for Auth
