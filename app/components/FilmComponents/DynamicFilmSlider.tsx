@@ -18,6 +18,7 @@ import { useUser } from "@/app/auth/nextjs/useUser";
 import { getFilmRating } from "@/app/services/filmService";
 import cache from "@/app/services/cashService";
 import FilmSliderSkeleton from "./SkeletonSlider";
+import { TextLoop } from "@/components/ui/text-loop";
 
 interface Film {
   id: number;
@@ -58,6 +59,8 @@ interface RecommendedFilm {
   averageRating: number | null;
 }
 
+const SliderTextLoop = TextLoop;
+
 const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSliderProps) => {
   const { user, isAuthenticated, isLoading: authLoading } = useUser();
   const userId = user?.id;
@@ -69,16 +72,9 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userRating, setUserRating] = useState<number>(0);
   const [savingWatchlistId, setSavingWatchlistId] = useState<number | null>(null);
-  
-  // Track if component has been mounted
-  const [mounted, setMounted] = useState(false);
+
   const initialDataProvided = useRef(!!filmsData);
   const hasFetched = useRef(!!filmsData);
-
-  // Set mounted state on client side
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const getCacheKey = useCallback(() => {
     const userSegment = isAuthenticated && userId ? `user-${userId}` : 'guest';
@@ -264,10 +260,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
       >
         <CarouselContent className="-ml-2 md:-ml-4">
           {films.map((film, index) => (
-            <CarouselItem 
-              key={film.id} 
-              className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6"
-            >
+            <CarouselItem key={film.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
               <div
                 className="relative overflow-hidden rounded-lg group cursor-pointer shadow-lg transition-shadow duration-300 hover:shadow-xl bg-gray-800"
                 onClick={() => handleFilmClick(film)}
@@ -276,21 +269,17 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
                 onKeyDown={(e) => e.key === 'Enter' && handleFilmClick(film)}
               >
                 <div className="aspect-[2/3] w-full relative">
-                  {mounted && (
-                    <Image
-                      src={film.imageUrl || '/placeholder-image.png'}
-                      alt={film.title}
-                      fill
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33.33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.66vw"
-                      priority={index < 6} // More aggressive priority loading
-                      loading="eager" // Force eager loading for all images
-                      unoptimized={false}
-                      quality={90} // Higher quality
-                      placeholder="blur"
-                      blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjYwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMjEyMTIxIi8+PC9zdmc+"
-                    />
-                  )}
+                  <Image
+                    src={film.imageUrl || '/placeholder-image.png'}
+                    alt={film.title}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33.33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.66vw"
+                    priority={index < 3}
+                    loading={index < 3 ? "eager" : "lazy"}
+                    unoptimized={false}
+                    quality={85}
+                  />
 
                   {isAuthenticated && userId && 'inWatchlist' in film && (
                     <div className="absolute top-1 sm:top-2 right-1 sm:right-2 z-20">
