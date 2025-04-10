@@ -247,4 +247,4 @@ const HomePage = () => {
   );
 };
 
-export default memo(HomePage); // Memoize HomePage
+export default memo(HomePage);

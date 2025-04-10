@@ -22,19 +22,33 @@ const FilmItem = memo(({
   rating: number | null; 
   onClick: () => void;
 }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Handle image loading errors
+  const handleImageError = () => {
+    console.error(`Failed to load image for film: ${film.title}`);
+    setImageError(true);
+  };
+  
+  // Use a placeholder image if the original image fails to load
+  const imageSrc = imageError ? '/placeholder-movie.jpg' : film.imageUrl;
+  
   return (
     <div 
       className="relative h-60 cursor-pointer transition-transform duration-300 hover:scale-105" 
       onClick={onClick}
     >
-      {/* Film Thumbnail */}
+      {/* Film Thumbnail with error handling */}
       <Image
-        src={film.imageUrl}
+        src={imageSrc}
         alt={film.title}
         width={500}
         height={400}
         className="rounded-sm absolute w-full h-full object-cover"
         loading="lazy"
+        onError={handleImageError}
+        placeholder="blur"
+        blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAEhgJA/bYOUwAAAABJRU5ErkJggg=="
       />
 
       {/* Overlay with hover animation */}
@@ -43,12 +57,13 @@ const FilmItem = memo(({
       >
         <div className="bg-gradient-to-b from-transparent via-black/50 to-black z-10 w-full h-full rounded-lg flex items-center justify-center">
           <Image
-            src={film.imageUrl}
+            src={imageSrc}
             alt={film.title}
             width={800}
             height={800}
             className="absolute w-full h-full -z-10 rounded-lg object-cover"
             loading="lazy"
+            onError={handleImageError}
           />
 
           <FilmCard

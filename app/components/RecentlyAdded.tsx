@@ -6,28 +6,12 @@ import { db } from "@/app/db/drizzle";
 import { and, eq, sql } from "drizzle-orm";
 import { film, userRatings, watchLists } from "@/app/db/schema";
 import FilmLayout from "@/app/components/FilmComponents/FilmLayout";
-
-interface Film {
-  id: number;
-  overview: string;
-  title: string;
-  watchList: boolean;
-  imageUrl: string;
-  trailerUrl: string;
-  ageRating: number;
-  duration: number;
-  category: string;
-  averageRating: number;
-  releaseYear: number; 
-  time: number; 
-  initialRatings: number; 
-}
-
-
-
+import { Film } from "@/types/film"; 
 
 async function getData(userId: string): Promise<Film[]> {
   try {
+    console.log("Fetching films for user:", userId);
+    
     const userFilms = await db
       .select({
         id: film.id,
@@ -40,7 +24,7 @@ async function getData(userId: string): Promise<Film[]> {
         releaseYear: film.releaseYear,
         duration: film.duration,
         category: film.category,
-        averageRating: sql<number>`AVG(${userRatings.rating})`.as("averageRating"),
+        averageRating: sql<number>`COALESCE(AVG(${userRatings.rating}), 0)`.as("averageRating"),
       })
       .from(film)
       .leftJoin(
@@ -48,43 +32,88 @@ async function getData(userId: string): Promise<Film[]> {
         and(eq(watchLists.filmId, film.id), eq(watchLists.userId, userId))
       )
       .leftJoin(userRatings, eq(userRatings.filmId, film.id))
-      .groupBy(film.id, watchLists.userId) 
-      .orderBy(sql<number>`AVG(${userRatings.rating}) DESC`)
+      .groupBy(film.id, watchLists.userId, film.imageUrl, film.trailerUrl) 
+      .orderBy(sql`RANDOM()`)
       .limit(4);
 
-    return userFilms.map(f => ({
-      ...f,
-      year: f.releaseYear, 
+    console.log("Films fetched from DB:", userFilms);
+    
+    
+    const transformedFilms: Film[] = userFilms.map(f => ({
+      id: f.id,
+      overview: f.overview,
+      title: f.title,
+      watchList: f.watchList,
+      imageUrl: f.imageUrl,
+      trailerUrl: f.trailerUrl,
+      ageRating: f.ageRating,
+      releaseYear: f.releaseYear,
       time: f.duration, 
-      initialRatings: f.averageRating || 0, 
+      category: f.category || "Uncategorized",
+      initialRatings: f.averageRating || 0,
+      averageRating: f.averageRating || 0 
     }));
+    
+    console.log("Transformed films:", transformedFilms);
+    return transformedFilms;
   } catch (error) {
     console.error("Database error:", error);
     return [];
   }
 }
 
-
 export default function RecentlyAdded() {
-  
   const { user, isAuthenticated, isLoading } = useUser();
   const [films, setFilms] = useState<Film[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user && isAuthenticated) {
-      getData(user.id).then(setFilms);
+    async function fetchFilms() {
+      if (user && isAuthenticated) {
+        try {
+          setLoading(true);
+          setError(null);
+          const fetchedFilms = await getData(user.id);
+          
+          if (fetchedFilms.length === 0) {
+            setError("No films found in your recently added list.");
+          }
+          
+          // Check if image URLs are valid
+          const validatedFilms = fetchedFilms.map(film => {
+           
+            if (!film.imageUrl || film.imageUrl.trim() === '') {
+              return {
+                ...film,
+                imageUrl: '/default-placeholder.png' 
+              };
+            }
+            return film;
+          });
+          
+          setFilms(validatedFilms);
+        } catch (err) {
+          console.error("Error fetching films:", err);
+          setError("Failed to load films. Please try again later.");
+        } finally {
+          setLoading(false);
+        }
+      } else if (!isLoading && !isAuthenticated) {
+        setError("Please sign in to view recently added films.");
+        setLoading(false);
+      }
     }
-  }, [user, isAuthenticated]);
 
-  if (isLoading) return <p>Loading...</p>;
-  if (!isAuthenticated) return <p>Please sign in to view recently added films.</p>;
+    fetchFilms();
+  }, [user, isAuthenticated, isLoading]);
 
   return (
     <FilmLayout
       title=""
       films={films}
-      loading={isLoading}
-      error={films.length === 0 ? "No films found" : null}
+      loading={loading}
+      error={error}
       userId={user?.id}
     />
   );
