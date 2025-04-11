@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS "films" (
 	"average_rating" real,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"uploaded_by" uuid
+	"uploader_by" uuid
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "film_genres" (
@@ -263,7 +263,7 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "films" ADD CONSTRAINT "films_uploaded_by_users_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+ ALTER TABLE "films" ADD CONSTRAINT "films_uploader_by_users_id_fk" FOREIGN KEY ("uploader_by") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

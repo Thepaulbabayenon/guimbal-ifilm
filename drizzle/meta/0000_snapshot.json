@@ -1,5 +1,5 @@
 {
-  "id": "f802dd27-0661-41bb-bc24-4083f7163208",
+  "id": "2eb2fbf1-4751-42e9-9fbb-43878e11d7d5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -457,8 +457,8 @@
           "notNull": true,
           "default": "now()"
         },
-        "uploaded_by": {
-          "name": "uploaded_by",
+        "uploader_by": {
+          "name": "uploader_by",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -466,12 +466,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "films_uploaded_by_users_id_fk": {
-          "name": "films_uploaded_by_users_id_fk",
+        "films_uploader_by_users_id_fk": {
+          "name": "films_uploader_by_users_id_fk",
           "tableFrom": "films",
           "tableTo": "users",
           "columnsFrom": [
-            "uploaded_by"
+            "uploader_by"
           ],
           "columnsTo": [
             "id"
