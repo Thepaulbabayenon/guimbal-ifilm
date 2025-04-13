@@ -54,15 +54,16 @@ export default async function Home() {
         </p>
 
         <div className="relative mt-6">
-          <a href="/sign-in"
-            className="relative px-6 py-3 bg-yellow-500 text-black font-semibold rounded-full hover:bg-yellow-400 transition-all duration-300"
+          <a
+            href="/sign-in"
+            className="relative px-6 py-3 bg-yellow-500 text-black font-semibold rounded-full hover:bg-yellow-400 transition-all duration-300 mb-2"
             style={{
               boxShadow: "0 0 10px 2px rgba(255, 215, 0, 0.5)"
             }}
           >
             Get Started
           </a>
-          <p className="text-xs mt-1">
+          <p className="text-xs mt-4">
             Google, Discord and Github sign-in only available using external browser
           </p>
         </div>

@@ -72,6 +72,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userRating, setUserRating] = useState<number>(0);
   const [savingWatchlistId, setSavingWatchlistId] = useState<number | null>(null);
+  const [showingTrailer, setShowingTrailer] = useState(true);
 
   const initialDataProvided = useRef(!!filmsData);
   const hasFetched = useRef(!!filmsData);
@@ -340,6 +341,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
         <PlayVideoModal
           title={selectedFilm.title}
           overview={selectedFilm.overview}
+          videoSource={selectedFilm.videoSource}
           trailerUrl={selectedFilm.trailerUrl}
           releaseYear={selectedFilm.releaseYear}
           ageRating={selectedFilm.ageRating}

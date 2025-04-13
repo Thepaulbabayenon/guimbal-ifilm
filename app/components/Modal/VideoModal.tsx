@@ -13,10 +13,8 @@ import { FaStar, FaRegStar, FaExpand, FaCompress } from "react-icons/fa";
 import { MdMovie, MdMovieFilter } from "react-icons/md";
 import axios from "axios";
 import ReactPlayer from "react-player"; 
-import Comments from "@/app/components/Comments";
-import SimilarFilms from "@/app/components/similarFilms";
 
-interface PlayVideoModalProps {
+interface VideoModalProps {
   title: string;
   overview: string;
   trailerUrl: string;
@@ -35,14 +33,13 @@ interface PlayVideoModalProps {
   watchTimerDuration?: number;
   category: string;
   refreshRating?: (filmId?: number) => Promise<void>;
-  // New props for video source toggling
   toggleVideoSource?: () => void;
   showingTrailer?: boolean;
 }
 
 type ModalSize = 'small' | 'desktop' | 'fullscreen';
 
-export default function PlayVideoModal({
+export default function VideoModal({
   changeState,
   overview,
   state,
@@ -61,21 +58,16 @@ export default function PlayVideoModal({
   watchTimerDuration = 30000,
   category,
   refreshRating,
-  // New props with defaults
   toggleVideoSource,
   showingTrailer = true,
-}: PlayVideoModalProps) {
+}: VideoModalProps) {
   // State hooks
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  // Only initialize internal state if no external control is provided
   const [internalShowingTrailer, setInternalShowingTrailer] = useState(showingTrailer !== undefined ? showingTrailer : true);
   const [modalSize, setModalSize] = useState<ModalSize>('desktop');
-  const [isResizing, setIsResizing] = useState(false);
-  const [customWidth, setCustomWidth] = useState<number | null>(null);
-  const [customHeight, setCustomHeight] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{text: string, type: 'success' | 'error' | null}>({text: '', type: null});
   
@@ -85,10 +77,10 @@ export default function PlayVideoModal({
   const playerRef = useRef<ReactPlayer>(null);
   const feedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Ensure ratings is a number (default to 0 if null or undefined)
+  // Ensure ratings is a number
   const ratingsValue = typeof ratings === 'number' ? ratings : 0;
   
-  // Size configurations with improved responsiveness
+  // Size configurations with responsiveness
   const sizeConfigs = {
     small: { 
       width: 400, 
@@ -176,9 +168,6 @@ export default function PlayVideoModal({
       const nextIndex = (currentIndex + 1) % sizes.length;
       setModalSize(sizes[nextIndex]);
     }
-    
-    setCustomWidth(null);
-    setCustomHeight(null);
   };
 
   // Handle video source toggling
@@ -191,7 +180,7 @@ export default function PlayVideoModal({
       setInternalShowingTrailer(!internalShowingTrailer);
     }
     
-    // Reset player position regardless of which state we're using
+    // Reset player position
     if (playerRef.current) {
       playerRef.current.seekTo(0);
     }
@@ -252,27 +241,6 @@ export default function PlayVideoModal({
     };
   }, []);
 
-  // Resize handling
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isMobile) {
-      setIsResizing(true);
-    }
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (isResizing && dialogRef.current && !isMobile) {
-      const newWidth = Math.max(e.clientX - dialogRef.current.getBoundingClientRect().left, 320);
-      const newHeight = Math.max(e.clientY - dialogRef.current.getBoundingClientRect().top, 400);
-      
-      setCustomWidth(newWidth);
-      setCustomHeight(newHeight);
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsResizing(false);
-  };
-
   // Dialog state change handling
   const handleDialogChange = (newState: boolean) => {
     if (!newState) {
@@ -284,7 +252,7 @@ export default function PlayVideoModal({
     changeState(newState);
   };
 
-  // Get current dimensions based on modal size, custom values, and device type
+  // Get current dimensions based on modal size and device type
   const getCurrentDimensions = () => {
     const baseConfig = sizeConfigs[modalSize];
     
@@ -301,8 +269,8 @@ export default function PlayVideoModal({
     }
     
     return {
-      width: customWidth ? `${customWidth}px` : `${baseConfig.width}px`,
-      height: customHeight ? `${customHeight}px` : `${baseConfig.height}px`,
+      width: `${baseConfig.width}px`,
+      height: `${baseConfig.height}px`,
       maxWidth: 'unset'
     };
   };
@@ -318,22 +286,6 @@ export default function PlayVideoModal({
   };
   
   const playerHeight = getPlayerHeight();
-
-  // Add/remove event listeners for resize
-  useEffect(() => {
-    if (isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    } else {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isResizing]);
 
   // Format duration in hours and minutes
   const formatDuration = (durationInHours: number) => {
@@ -463,16 +415,6 @@ export default function PlayVideoModal({
           <div className="absolute top-2 right-2 bg-black bg-opacity-50 p-1 px-2 rounded text-xs">
             {isShowingTrailer ? "Trailer" : "Movie"}
           </div>
-          
-          {/* Resize handle */}
-          {!isMobile && modalSize !== 'fullscreen' && (
-            <div
-              className="absolute bottom-3 right-3 cursor-se-resize p-2 bg-white bg-opacity-10 hover:bg-opacity-20 rounded-full transition-all z-10"
-              onMouseDown={handleMouseDown}
-            >
-              <div className="w-3 h-3 bg-white rounded-full"></div>
-            </div>
-          )}
         </div>
 
         {/* Rating section */}
@@ -501,21 +443,6 @@ export default function PlayVideoModal({
             )}
           </div>
         </div>
-
-        {/* Comments & Similar Films section - conditionally displayed */}
-        {((isMobile && modalSize === 'fullscreen') || (!isMobile && modalSize !== 'small')) && filmId && (
-          <div className="mt-6 bg-gray-900 p-4 rounded-md">
-            <h4 className={`font-semibold mb-3 ${isMobile ? 'text-base' : 'text-lg'}`}>Comments</h4>
-            <Comments filmId={filmId} />
-          </div>
-        )}
-
-        {((isMobile && modalSize === 'fullscreen') || (!isMobile && modalSize !== 'small')) && (
-          <div className="mt-6 bg-gray-900 p-4 rounded-md mb-4">
-            <h4 className={`font-semibold mb-3 ${isMobile ? 'text-base' : 'text-lg'}`}>Similar Films</h4>
-            <SimilarFilms category={category} />
-          </div>
-        )}
       </DialogContent>
     </Dialog>
   );

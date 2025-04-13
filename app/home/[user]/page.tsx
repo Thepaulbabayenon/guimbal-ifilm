@@ -39,6 +39,7 @@ async function fetchWatchlist(userId: string) {
         watchListId: watchLists.userId,
         category: film.category,
         averageRating: film.averageRating,
+        videoSource: film.videoSource,
       })
       .from(film)
       .leftJoin(watchLists, eq(film.id, watchLists.filmId))
@@ -112,7 +113,8 @@ export default function UserHome() {
         director: "",
         coDirector: "",
         studio: "",
-        averageRating: film.averageRating ?? null, 
+        averageRating: film.averageRating ?? null,
+        videoSource: film.videoSource,
       }));
       
   
@@ -138,6 +140,7 @@ export default function UserHome() {
           coDirector: "",
           studio: "",
           averageRating: film.averageRating ?? 0,
+          videoSource: film.videoSource,
         }))
       );
   
@@ -163,7 +166,8 @@ export default function UserHome() {
           director: film.director || "",
           coDirector: film.coDirector || "",
           studio: film.studio || "",
-          averageRating: film.averageRating ?? 0
+          averageRating: film.averageRating ?? 0,
+          videoSource: film.videoSource,
         }))
       );
     } catch (err) {
@@ -209,6 +213,7 @@ export default function UserHome() {
           title={selectedFilm.title}
           overview={selectedFilm.overview}
           trailerUrl={selectedFilm.trailerUrl}
+          videoSource={selectedFilm.videoSource}
           state={modalOpen}
           changeState={setModalOpen}
           releaseYear={selectedFilm.releaseYear} 

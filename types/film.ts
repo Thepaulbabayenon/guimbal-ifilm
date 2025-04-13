@@ -11,6 +11,7 @@ export interface Film {
   category: string;
   imageUrl: string;
   producer?: string;
+  videoSource: string;
   director?: string;
   coDirector?: string;
   studio?: string;
@@ -47,5 +48,3 @@ export interface Film {
      email: string;
      isAdmin: boolean; // Add this property
    }
-   
-   

@@ -12,13 +12,14 @@ interface FilmCardProps {
   overview: string;
   title: string;
   trailerUrl?: string; 
-  imageUrl?: string,
+  imageUrl?: string;
   releaseYear: number;
+  videoSource?: string;
   ageRating?: number;
   time?: number;
   initialRatings: number;
   category?: string;
-  onOpenModal?: () => void;
+  onOpenModal?: (videoSource?: string, trailerUrl?: string) => void; // Updated to pass video info
   onCloseModal?: () => void;
   watchList?: boolean;
 }
@@ -26,14 +27,15 @@ interface FilmCardProps {
 export function FilmCard({
   filmId,
   overview,
-
+  videoSource,
   title,
+  trailerUrl,
   releaseYear,
   ageRating,
   time,
   initialRatings,
   onOpenModal,
-  onCloseModal, // Receive the onCloseModal prop
+  onCloseModal,
 }: FilmCardProps) {
   
   const auth = useAuth();
@@ -164,7 +166,6 @@ const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => 
 
     if (previousWatchlistState) {
       // Remove from watchlist using the filmId directly in the URL
-      // This matches your existing route structure
       await axios.delete(`/api/watchlist/${filmId}`);
       
       // Reset the watchlist ID
@@ -272,19 +273,23 @@ const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => 
       <p className="font-normal text-sm mt-2">
         Average Rating: {isNaN(safeAverageRating) ? "N/A" : safeAverageRating.toFixed(2)} / 5
       </p>
+      {videoSource && <p className="font-normal text-xs text-gray-400 mt-1">Source: {videoSource}</p>}
     </>
   );
 
   // Handle modal state changes
-  const handleOpenModal = () => {
-    setOpen(true);
-    if (userId) markAsWatched(userId, filmId);
-    if (onOpenModal) onOpenModal();
-  };
+ const handleOpenModal = () => {
+  setOpen(true);
+  if (userId) markAsWatched(userId, filmId);
+  if (onOpenModal) {
+    // Pass videoSource as the primary source 
+    onOpenModal(videoSource, trailerUrl);
+  }
+};
 
   const handleCloseModal = () => {
     setOpen(false);
-    if (onCloseModal) onCloseModal(); // Call the onCloseModal prop function
+    if (onCloseModal) onCloseModal();
   };
 
   // Make this component aware of modal close events
@@ -308,6 +313,7 @@ const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => 
           handleOpenModal();
         }} 
         className="-mt-14"
+        title={videoSource ? `Play ${title} from ${videoSource}` : `Play ${title}`}
       >
         <CiPlay1 className="h-20 w-20 transition-colors duration-300 hover:text-red-500" />
       </button>

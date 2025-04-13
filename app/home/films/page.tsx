@@ -32,8 +32,9 @@ useEffect(() => {
           time: film.time,
           initialRatings: film.initialRatings,
           category: film.category,
-          imageUrl: film.imageUrl, 
-          averageRating: null 
+          imageUrl: film.imageUrl,
+          averageRating: null,
+          videoSource: film.videoSource,
         }));
         
         setFilms(mappedFilms);

@@ -19,11 +19,12 @@ async function getData(userId: string): Promise<Film[]> {
         title: film.title,
         watchList: sql<boolean>`COALESCE(${watchLists.userId} IS NOT NULL, FALSE)`.as("watchList"),
         imageUrl: film.imageUrl,
-        trailerUrl: film.trailerUrl,
+        videoSource: film.videoSource,
         ageRating: film.ageRating,
         releaseYear: film.releaseYear,
         duration: film.duration,
         category: film.category,
+        trailerUrl: film.trailerUrl,
         averageRating: sql<number>`COALESCE(AVG(${userRatings.rating}), 0)`.as("averageRating"),
       })
       .from(film)
@@ -32,7 +33,7 @@ async function getData(userId: string): Promise<Film[]> {
         and(eq(watchLists.filmId, film.id), eq(watchLists.userId, userId))
       )
       .leftJoin(userRatings, eq(userRatings.filmId, film.id))
-      .groupBy(film.id, watchLists.userId, film.imageUrl, film.trailerUrl) 
+      .groupBy(film.id, watchLists.userId, film.imageUrl, film.trailerUrl, film.videoSource, film.ageRating, film.releaseYear, film.duration, film.category)
       .orderBy(sql`RANDOM()`)
       .limit(4);
 
@@ -45,13 +46,14 @@ async function getData(userId: string): Promise<Film[]> {
       title: f.title,
       watchList: f.watchList,
       imageUrl: f.imageUrl,
-      trailerUrl: f.trailerUrl,
+      videoSource: f.videoSource,
       ageRating: f.ageRating,
       releaseYear: f.releaseYear,
-      time: f.duration, 
+      time: f.duration,
       category: f.category || "Uncategorized",
       initialRatings: f.averageRating || 0,
-      averageRating: f.averageRating || 0 
+      averageRating: f.averageRating || 0,
+      trailerUrl: f.trailerUrl || ""
     }));
     
     console.log("Transformed films:", transformedFilms);
