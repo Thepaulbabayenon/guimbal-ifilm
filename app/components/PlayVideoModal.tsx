@@ -20,7 +20,7 @@ import { TbArrowsMinimize, TbRectangle } from "react-icons/tb";
 interface PlayVideoModalProps {
   title: string;
   overview: string;
-  trailerUrl: string;
+  videoSource: string;
   state: boolean;
   changeState: (state: boolean) => void;
   releaseYear: number;
@@ -45,7 +45,7 @@ export default function PlayVideoModal({
   overview,
   state,
   title,
-  trailerUrl,
+  videoSource,
   ageRating,
   duration,
   releaseYear,
@@ -337,7 +337,7 @@ export default function PlayVideoModal({
           )}
           <ReactPlayer
             ref={playerRef}
-            url={trailerUrl}
+            url={videoSource}
             playing={isPlaying}
             controls
             width="100%"
