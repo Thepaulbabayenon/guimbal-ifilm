@@ -21,17 +21,25 @@ const BlogPage: React.FC = () => {
     ];
 
     return (
-        <div className="blog-page">
-            <h1>Blog</h1>
-            <div className="blog-posts">
-                {blogPosts.map(post => (
-                    <div key={post.id} className="blog-post">
-                        <h2>{post.title}</h2>
-                        <p><strong>Author:</strong> {post.author}</p>
-                        <p><strong>Date:</strong> {post.date}</p>
-                        <p>{post.content}</p>
+        <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center relative overflow-hidden sm:py-12">
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h1 className="text-3xl font-bold text-gray-900 text-center">Blog</h1>
+                <div className="mt-6">
+                    <div className="bg-white shadow-lg rounded-lg divide-y divide-gray-200">
+                        {blogPosts.map(post => (
+                            <div key={post.id} className="py-4 px-6">
+                                <h2 className="text-2xl font-semibold text-gray-800">{post.title}</h2>
+                                <p className="text-gray-600">
+                                    <strong>Author:</strong> {post.author}
+                                </p>
+                                <p className="text-gray-600">
+                                    <strong>Date:</strong> {post.date}
+                                </p>
+                                <p className="mt-2 text-gray-700">{post.content}</p>
+                            </div>
+                        ))}
                     </div>
-                ))}
+                </div>
             </div>
         </div>
     );

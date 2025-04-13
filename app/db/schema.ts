@@ -133,7 +133,33 @@ export const film = pgTable("films", {
     uploadedBy: uuid("uploader_by").references(() => users.id, { onDelete: "cascade" })
 });
 
+// New categories table
+export const categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
 
+// New junction table for film-categories many-to-many relationship
+export const filmCategories = pgTable(
+  "film_categories", 
+  {
+    filmId: integer("film_id")
+      .notNull()
+      .references(() => film.id, { onDelete: "cascade" }),
+    categoryId: integer("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+  },
+  (t) => ({
+    primaryKey: primaryKey({ columns: [t.filmId, t.categoryId] }),
+  })
+);
 
 // UserInteractions Table (Existing)
 export const userInteractions = pgTable(
@@ -402,6 +428,8 @@ export const insertFilmSchema = z.object({
   producer: z.string().optional(),
   studio: z.string().optional(),
   rank: z.number().int().positive().optional(),
+  // Add categories array for multiple categories
+  categories: z.array(z.number()).optional(),
 });
 
 // ===== Relations =====
@@ -435,6 +463,7 @@ export const sessionRelations = relations(sessions, ({ one }) => ({
 
 export const filmRelations = relations(film, ({ many, one}) => ({
   genres: many(filmGenres),
+  categories: many(filmCategories), // Add relation to film categories
   ratings: many(userRatings),
   watchedBy: many(watchedFilms),
   inWatchLists: many(watchLists),
@@ -458,6 +487,23 @@ export const filmGenreRelations = relations(filmGenres, ({ one }) => ({
   genre: one(genres, {
     fields: [filmGenres.genreId],
     references: [genres.id],
+  }),
+}));
+
+// Add relations for categories
+export const categoryRelations = relations(categories, ({ many }) => ({
+  films: many(filmCategories),
+}));
+
+// Add relations for film categories junction table
+export const filmCategoryRelations = relations(filmCategories, ({ one }) => ({
+  film: one(film, {
+    fields: [filmCategories.filmId],
+    references: [film.id],
+  }),
+  category: one(categories, {
+    fields: [filmCategories.categoryId],
+    references: [categories.id],
   }),
 }));
 

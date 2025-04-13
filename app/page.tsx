@@ -62,6 +62,9 @@ export default async function Home() {
           >
             Get Started
           </a>
+          <p className="text-xs mt-1">
+            Google, Discord and Github sign-in only available using external browser
+          </p>
         </div>
       </div>
 
