@@ -1,14 +1,22 @@
-"use client"
+"use client" // Keep client directive if ResetPasswordForm uses client-side hooks
 
 import { Suspense } from "react"
-import ResetPasswordForm from "@/app/components/Modal/ResetPasswordForm"
+// Assuming ResetPasswordForm is the actual form component you want to render
+import ResetPasswordForm from "@/app/components/Modal/ResetPasswordForm" // Adjust path as needed
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<p className="text-center text-gray-400">Loading...</p>}>
-      <div className="flex items-center justify-center min-h-screen">
-        <ResetPasswordForm />
-      </div>
-    </Suspense>
+     // Apply the consistent background gradient used in ForgotPasswordPage
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-black via-gray-900 to-red-900 p-4">
+        <Suspense fallback={
+            <div className="text-center">
+                <p className="text-gray-400 text-lg">Loading Form...</p>
+                 {/* Optional: Add a spinner */}
+            </div>
+        }>
+            {/* The actual form component is rendered here */}
+            <ResetPasswordForm />
+        </Suspense>
+    </div>
   )
 }

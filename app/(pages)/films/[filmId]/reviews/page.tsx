@@ -1,5 +1,4 @@
-// This is a static page for reviews - you'd need to get the filmId from somewhere
-// such as query parameters, context, or a default value
+// This is a dynamic route page for film reviews where the filmId comes from the URL
 
 import { Suspense } from 'react';
 import FilmReviewsSection from '@/app/components/FilmComponents/FilmReviewSection'; // Adjust path if needed
@@ -13,15 +12,14 @@ function getCurrentUser() {
   // return { id: "user123", name: "John Doe" };
 }
 
-export default function ReviewsPage({
-  searchParams,
-}: {
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
-  // Get filmId from query parameters or use a default
-  const filmId = typeof searchParams?.filmId === 'string' 
-    ? searchParams.filmId 
-    : 'default-film-id';
+interface FilmReviewsPageProps {
+  params: {
+    filmId: string;
+  };
+}
+
+export default function FilmReviewsPage({ params }: FilmReviewsPageProps) {
+  const { filmId } = params;
   
   // Get current user info
   const currentUser = getCurrentUser();

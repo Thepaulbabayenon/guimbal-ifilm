@@ -24,8 +24,8 @@ export default function PageLayout({children} : {children : ReactNode}) {
         transition={{ duration: 0.5 }}
         >
         <div className="layout">
-            <div className="centered-content relative flex h-screen flex-col
-        bg-black md:items-center md:justify-center
+            <div className="centered-content relative flex h-screen flex-col p-4
+        bg-gray-100 md:items-center md:justify-center
         md:bg-transparent">
                 {children}
             </div>
@@ -33,4 +33,3 @@ export default function PageLayout({children} : {children : ReactNode}) {
         </motion.div>
     );
 }
-
