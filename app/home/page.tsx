@@ -24,34 +24,34 @@ interface LazySectionProps {
 
 interface FilmCategory {
   id: string;
-  title: string; // Main title used for ID generation
-  displayTitles: string[]; // All titles for the loop
+  title: string;
+  displayTitles: string[]; 
   categoryFilter?: string;
   limit: number;
 }
 
 interface RecommendedFilm {
-  // Define the structure of your recommended film object
+
   id: number;
   title: string;
   imageUrl: string;
   releaseYear: number;
   duration: number;
   averageRating: number | null;
-  // ... other necessary film properties
+  
 }
 
-// Simplified Text Loop (as defined in the original code, keep if preferred)
+
 const SimpleTextLoop = memo(({ texts }: SimpleTextLoopProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % texts.length);
-    }, 3000); // Change text every 3 seconds
+    }, 3000); 
 
     return () => clearInterval(interval);
-  }, [texts]); // Dependency array fix: use texts directly if stable, or texts.length
+  }, [texts]);
 
   return (
     <div className="h-8 overflow-hidden relative">
@@ -86,35 +86,32 @@ const LazySection = memo(({ children, title, altTitles = [] }: LazySectionProps)
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          observer.disconnect(); // Disconnect after becoming visible
+          observer.disconnect(); 
         }
       },
-      { rootMargin: "250px" } // Load slightly earlier
+      { rootMargin: "250px" } 
     );
 
     observer.observe(sectionRef);
 
     return () => observer.disconnect();
-  }, [sectionId]); // Depend on sectionId
+  }, [sectionId]);
 
   return (
-    // Use min-height to prevent layout shift before content loads
+
     <div id={sectionId} className="mt-6 min-h-[200px]">
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6">
-        {/* Use SimpleTextLoop if preferred, otherwise use the library one */}
+      
         <SimpleTextLoop texts={allTitles} />
-        {/* Or use the library one:
-         <TextLoop interval={3000}>
-           {allTitles.map(t => <span key={t}>{t}</span>)}
-         </TextLoop> */}
+    
       </h1>
-      {/* Render placeholder or spinner until visible and loaded */}
+    
       {isVisible ? (
         <Suspense fallback={<div className="h-40 flex items-center justify-center"><LoadingSpinner /></div>}>
           {children}
         </Suspense>
       ) : (
-        <div className="h-40" /> // Placeholder height
+        <div className="h-40" /> 
       )}
     </div>
   );
@@ -135,11 +132,11 @@ const filmCategories: FilmCategory[] = [
 // Main component
 const HomePage = () => {
   const { user, isAuthenticated, isLoading } = useUser();
-  const [recommendedFilms, setRecommendedFilms] = useState<RecommendedFilm[]>([]); // Use specific type
+  const [recommendedFilms, setRecommendedFilms] = useState<RecommendedFilm[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
 
   useEffect(() => {
-    // Fetch recommendations only if authenticated and not already loading
+   
     if (isAuthenticated && user?.id && recommendedFilms.length === 0 && !recommendationsLoading) {
       setRecommendationsLoading(true);
       const controller = new AbortController();
@@ -150,71 +147,70 @@ const HomePage = () => {
           if (!res.ok) throw new Error('Failed to fetch recommendations');
           return res.json();
         })
-        .then((data: RecommendedFilm[]) => { // Type the expected data
-             // Ensure data is an array before setting
+        .then((data: RecommendedFilm[]) => { 
+         
              if (Array.isArray(data)) {
                 setRecommendedFilms(data);
              } else {
                 console.error("Received non-array data for recommendations:", data);
-                setRecommendedFilms([]); // Set to empty array on error or invalid data
+                setRecommendedFilms([]);
             }
         })
         .catch((err) => {
           if (err.name !== 'AbortError') {
             console.error("Error fetching recommendations:", err);
-            setRecommendedFilms([]); // Clear recommendations on error
+            setRecommendedFilms([]); 
           }
         })
         .finally(() => {
           setRecommendationsLoading(false);
         });
 
-      // Cleanup function to abort fetch if component unmounts or user changes
+  
       return () => {
         controller.abort();
-        setRecommendationsLoading(false); // Reset loading state on cleanup
+        setRecommendationsLoading(false); 
       }
     } else if (!isAuthenticated) {
-        // Clear recommendations if user logs out
+    
         setRecommendedFilms([]);
     }
-    // Dependencies: user?.id and isAuthenticated trigger re-fetch if they change
+  
   }, [user?.id, isAuthenticated, recommendationsLoading]);
 
 
-  // Loading State for Auth
+
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><LoadingSpinner /></div>;
   }
 
-  // Access Denied State - Show login prompt or specific content
+  
   if (!isAuthenticated) {
-     // Optionally return different content for non-logged-in users
-     // For now, just showing AccessDenied
+   
     return <AccessDenied  />;
   }
 
   // --- Render Authenticated View ---
   return (
-    <div className="pt-16 lg:pt-20 pb-10 px-4 md:px-6 lg:px-8"> {/* Added padding */}
-      {/* Featured Video Section */}
+    <div className="pt-16 lg:pt-20 pb-10 px-4 md:px-6 lg:px-8">
+ 
       <Suspense fallback={<div className="h-96 flex items-center justify-center mb-6"><LoadingSpinner /></div>}>
-        <div className="mb-6 md:mb-8 lg:mb-10"> {/* Added margin bottom */}
+        <div className="mb-6 md:mb-8 lg:mb-10"> 
             <FilmVideo />
         </div>
       </Suspense>
 
-      {/* Recently Added Section - Consider making this a LazySection too if it fetches data */}
+    
        <h1 className="text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6">
             <SimpleTextLoop texts={["RECENTLY ADDED", "FRESH FINDS", "NEW ARRIVALS"]} />
         </h1>
       <Suspense fallback={<div className="h-40 flex items-center justify-center mb-6"><LoadingSpinner /></div>}>
-         <div className="mb-6 md:mb-8 lg:mb-10">
+         <div className="mb-6 md:mb-8 pb-10 lg:mb-10">
             <RecentlyAdded />
         </div>
       </Suspense>
 
-       {/* Recommended Films Section - Show only if logged in and films exist */}
+      
        {isAuthenticated && recommendedFilms.length > 0 && (
         <LazySection
           title="RECOMMENDED FOR YOU"
@@ -226,19 +222,19 @@ const HomePage = () => {
         </LazySection>
       )}
 
-       {/* Render categories with lazy loading */}
+    
       {filmCategories.map((category) => (
         <LazySection
           key={category.id}
-          title={category.title} // Main title for ID
-          altTitles={category.displayTitles.slice(1)} // Alt titles for loop
+          title={category.title}
+          altTitles={category.displayTitles.slice(1)} 
         >
-          {/* Pass categoryFilter and limit directly to FilmSlider */}
+    
           <FilmSlider
             title={category.title} // Use the main title
             categoryFilter={category.categoryFilter}
             limit={category.limit}
-            // filmsData is not passed here, FilmSlider will fetch based on filter/limit
+         
           />
         </LazySection>
       ))}

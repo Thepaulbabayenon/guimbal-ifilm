@@ -1,26 +1,10 @@
 import { db } from "@/app/db/drizzle";
 import { userRatings, users } from "@/app/db/schema";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-/**
- * Validates and converts film IDs into an array of numbers.
- *
- * @param filmIds - A single film ID (string), an array of film IDs (strings), or null.
- * @returns An array of valid numeric film IDs.
- */
-const validateFilmIds = (filmIds: string[] | string | null): number[] => {
-  if (!filmIds) return [];
-
-
-  const idsArray = Array.isArray(filmIds) ? filmIds : [filmIds];
-
-  return idsArray
-    .map((id) => Number(id))
-    .filter((id) => !isNaN(id) && id > 0);
-};
-
-
+// Remove the unused function or use it in the GET request below
+// Instead, we'll use the validation inline where needed
 
 export async function GET(req: Request) {
   console.log("Received GET request for user ratings");
@@ -46,7 +30,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Validate filmIds
+    // Validate filmIds - inline validation
     const validFilmIds = filmIdsParam
       .map((id) => Number(id))
       .filter((id) => !isNaN(id)); 
@@ -60,7 +44,7 @@ export async function GET(req: Request) {
 
     console.log("Validated Film IDs:", validFilmIds);
 
-    // Fetch ratings using sql.in() for proper query execution
+    // Fetch ratings using inArray() for proper query execution
     const ratings = await db
       .select()
       .from(userRatings)
@@ -84,28 +68,27 @@ export async function GET(req: Request) {
   }
 }
 
-
-
-// POST request to save/update multiple user ratings
-export async function POST(req: Request) {
+export async function POST(req: Request, context: { params: { filmId: string } }) {
   console.log("Received POST request to update user ratings");
 
   try {
-    const { userId, ratings } = await req.json();
+    // Parse the JSON body
+    const body = await req.json();
+    const { userId, rating } = body;
+    const filmId = context.params.filmId;
 
     console.log("User ID:", userId);
-    console.log("Ratings:", ratings);
+    console.log("Rating:", rating);
+    console.log("Film ID:", filmId);
 
     // Validate input
-    if (!userId || !Array.isArray(ratings) || ratings.length === 0) {
-      return NextResponse.json({ error: "Invalid user ID or ratings data" }, { status: 400 });
+    if (!userId || !filmId || rating === undefined) {
+      return NextResponse.json({ error: "Invalid user ID, film ID, or rating data" }, { status: 400 });
     }
 
-    // Validate each rating object
-    for (const { filmId, rating } of ratings) {
-      if (!filmId || isNaN(parseInt(filmId)) || rating < 1 || rating > 5) {
-        return NextResponse.json({ error: "Invalid film ID or rating value" }, { status: 400 });
-      }
+    // Validate rating value (now allowing 0 for rating removal)
+    if (rating < 0 || rating > 5) {
+      return NextResponse.json({ error: "Invalid rating value" }, { status: 400 });
     }
 
     // Ensure user exists
@@ -114,26 +97,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Update or insert ratings
-    for (const { filmId, rating } of ratings) {
-      const existingRating = await db.query.userRatings.findFirst({
-        where: and(eq(userRatings.userId, userId), eq(userRatings.filmId, parseInt(filmId))),
-      });
+    // Get existing rating if any
+    const existingRating = await db.query.userRatings.findFirst({
+      where: and(eq(userRatings.userId, userId), eq(userRatings.filmId, parseInt(filmId))),
+    });
 
+    // Handle rating removal (0 value)
+    if (rating === 0) {
       if (existingRating) {
-        // Update existing rating
-        await db.update(userRatings)
-        .set({ rating })
-        .where(and(eq(userRatings.userId, userId), eq(userRatings.filmId, filmId)));
-      } else {
-        // Insert new rating
-        await db.insert(userRatings).values({ userId, filmId: parseInt(filmId), rating });
+        await db.delete(userRatings)
+          .where(and(eq(userRatings.userId, userId), eq(userRatings.filmId, parseInt(filmId))));
       }
+      return NextResponse.json({ success: true, message: "Rating removed successfully" });
     }
 
-    return NextResponse.json({ message: "Ratings updated successfully" });
+    // Update or insert rating
+    if (existingRating) {
+      // Update existing rating
+      await db.update(userRatings)
+        .set({ rating })
+        .where(and(eq(userRatings.userId, userId), eq(userRatings.filmId, parseInt(filmId))));
+    } else {
+      // Insert new rating
+      await db.insert(userRatings).values({ userId, filmId: parseInt(filmId), rating });
+    }
+
+    return NextResponse.json({ success: true, message: "Rating updated successfully" });
   } catch (error) {
-    console.error("Error saving ratings:", error);
-    return NextResponse.json({ error: "Failed to save ratings" }, { status: 500 });
+    console.error("Error saving rating:", error);
+    return NextResponse.json({ error: "Failed to save rating" }, { status: 500 });
   }
 }

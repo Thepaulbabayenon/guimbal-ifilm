@@ -78,6 +78,8 @@ export default function PlayVideoModal({
   const [customHeight, setCustomHeight] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{text: string, type: 'success' | 'error' | null}>({text: '', type: null});
+  const [isSavingRating, setIsSavingRating] = useState(false);
+  const [averageRating, setAverageRating] = useState<number>(typeof ratings === 'number' ? ratings : 0);
   
   // Refs
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -139,31 +141,97 @@ export default function PlayVideoModal({
     }, 3000);
   };
 
-  // Handle user rating submission
+  // Fetch user rating and average rating when modal opens
+  useEffect(() => {
+    if (state && userId && filmId) {
+      const fetchRatingData = async () => {
+        try {
+          // Fetch user's rating
+          const ratingResponse = await axios.get(`/api/films/${filmId}/user-rating`, { 
+            params: { userId } 
+          });
+
+          if (ratingResponse.data && ratingResponse.data.rating !== undefined) {
+            setUserRating(ratingResponse.data.rating);
+          }
+
+          // Fetch average rating
+          const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+          if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+            setAverageRating(avgResponse.data.averageRating);
+          } else {
+            setAverageRating(ratingsValue);
+          }
+        } catch (error) {
+          console.error("Error fetching rating data:", error);
+        }
+      };
+
+      fetchRatingData();
+    }
+  }, [state, userId, filmId, ratingsValue, setUserRating]);
+
+  // Handle user rating submission with proper error handling
   const handleRatingClick = async (rating: number) => {
+    if (isSavingRating) return; // Prevent multiple submissions
+    
+    if (!userId || !filmId) {
+      showFeedback("Unable to submit rating. Please log in and try again.", "error");
+      return;
+    }
+    
+    // Store previous rating for rollback
+    const previousRating = userRating;
+    
     try {
-      if (!userId || !filmId) {
-        showFeedback("Unable to submit rating. Please log in and try again.", "error");
-        return;
-      }
+      // Optimistic UI update
+      setUserRating(rating);
+      setIsSavingRating(true);
       
+      // Use the consistent API endpoint
       const response = await axios.post(`/api/films/${filmId}/user-rating`, {
-        rating,
-        userId
+        userId,
+        rating
       });
       
       if (response.data.success) {
-        setUserRating(rating);
-        showFeedback("Your rating has been submitted.", "success");
+        showFeedback(
+          rating === 0 
+            ? "Your rating has been removed." 
+            : "Your rating has been submitted.", 
+          "success"
+        );
         
+        // Update average rating
         if (refreshRating) {
-          await refreshRating();
+          await refreshRating(filmId);
+        } else {
+          // Directly fetch new average if refreshRating not provided
+          try {
+            const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+            if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+              setAverageRating(avgResponse.data.averageRating);
+            }
+          } catch (error) {
+            console.error("Error fetching average rating:", error);
+          }
         }
       }
     } catch (error) {
       console.error("Error setting film rating:", error);
       showFeedback("Failed to submit rating. Please try again.", "error");
+      
+      // Rollback on error
+      setUserRating(previousRating);
+    } finally {
+      setIsSavingRating(false);
     }
+  };
+  
+  // Add a function to handle removing a rating
+  const handleRemoveRating = async () => {
+    if (userRating === 0) return; // Already removed
+    await handleRatingClick(0); // Use 0 to indicate rating removal
   };
 
   // Toggle between different modal sizes
@@ -352,6 +420,11 @@ export default function PlayVideoModal({
   // Determine if we're showing trailer or full movie for the UI
   const isShowingTrailer = toggleVideoSource ? showingTrailer : internalShowingTrailer;
 
+  // Format average rating safely
+  const safeAverageRating = typeof averageRating === "number" && !isNaN(averageRating) 
+    ? averageRating 
+    : ratingsValue;
+
   return (
     <Dialog open={state} onOpenChange={handleDialogChange}>
       <DialogContent
@@ -391,7 +464,7 @@ export default function PlayVideoModal({
               {duration && <span>{formatDuration(duration)}</span>}
               <div className="flex items-center">
                 <FaStar className="text-yellow-400 mr-1" size={isMobile ? 12 : 14} />
-                <span className="font-medium">{ratingsValue.toFixed(1)}</span>
+                <span className="font-medium">{safeAverageRating.toFixed(1)}</span>
               </div>
             </div>
             
@@ -475,17 +548,25 @@ export default function PlayVideoModal({
           )}
         </div>
 
-        {/* Rating section */}
+        {/* Rating section - Updated with remove rating button */}
         <div className="mt-6 bg-gray-900 p-4 rounded-md">
-          <h4 className={`font-semibold mb-3 ${isMobile ? 'text-base' : 'text-lg'}`}>Rate this film</h4>
-          <div className="flex gap-2">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>Rate this film</h4>
+            {safeAverageRating > 0 && (
+              <span className="text-sm text-gray-300">
+                Average: {safeAverageRating.toFixed(1)}/5
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 items-center">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
-                className="transition-transform hover:scale-110 focus:outline-none"
+                className={`transition-transform hover:scale-110 focus:outline-none ${isSavingRating ? 'opacity-70 cursor-wait' : ''}`}
                 onClick={() => handleRatingClick(star)}
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}
+                disabled={isSavingRating}
               >
                 {(hoverRating > 0 ? hoverRating >= star : userRating >= star) ? (
                   <FaStar size={isMobile ? 24 : 28} className="text-yellow-400" />
@@ -495,8 +576,22 @@ export default function PlayVideoModal({
               </button>
             ))}
             {userRating > 0 && (
-              <span className="ml-3 self-center text-sm text-gray-300">
-                Your rating: {userRating}/5
+              <>
+                <span className="ml-3 self-center text-sm text-gray-300">
+                  Your rating: {userRating}/5
+                </span>
+                <button
+                  onClick={handleRemoveRating}
+                  className="ml-2 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
+                  disabled={isSavingRating}
+                >
+                  Remove
+                </button>
+              </>
+            )}
+            {isSavingRating && (
+              <span className="ml-3 self-center text-sm text-gray-300 animate-pulse">
+                Saving...
               </span>
             )}
           </div>

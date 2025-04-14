@@ -15,6 +15,7 @@ import {
 import { FaStar, FaRegStar, FaExpand, FaCompress } from "react-icons/fa";
 import { MdMovie, MdMovieFilter } from "react-icons/md";
 import { Film } from "@/types/film";
+import PlayVideoModal from "../PlayVideoModal";
 
 // Define the VideoModal component directly in this file
 interface VideoModalProps {
@@ -709,7 +710,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
 
       {/* Integrated Video Modal component */}
       {selectedFilm && (
-        <VideoModal
+        <PlayVideoModal
         title={selectedFilm.title}
         overview={selectedFilm.overview}
         trailerUrl={currentTrailerUrl || selectedFilm.trailerUrl || ""}

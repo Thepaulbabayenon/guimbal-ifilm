@@ -30,7 +30,6 @@ const footerLinkGroups = [
       { href: "/movielib", label: "Movie Library" },
       { href: "/reviews", label: "Reviews" },
       { href: "/subscription", label: "Subscription" },
-      { href: "/restricted", label: "Restricted" },
     ]
   },
   {
