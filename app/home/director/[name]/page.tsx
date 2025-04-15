@@ -110,7 +110,7 @@ const DirectorPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pt-32">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
         <div>
           <Link href="/home" className="text-blue-400 hover:text-blue-300 flex items-center mb-4">
