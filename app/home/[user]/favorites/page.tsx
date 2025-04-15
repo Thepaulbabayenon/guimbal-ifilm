@@ -124,7 +124,7 @@ export default function UserFavoritesPage() {
     : `${decodeURIComponent(urlUsername)} hasn't added any films to their favorites yet.`;
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto pt-32">
      <Logo />
       
       {/* Loading state */}

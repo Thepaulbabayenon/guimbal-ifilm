@@ -183,12 +183,12 @@ export default function UserHome() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <div className="min-h-screen bg-black text-white p-6 pt-40">
       <Logo />
 
       {/* Profile Section */}
       {isAuthenticated && user && (
-        <div className="flex flex-col items-center mb-10">
+        <div className="flex flex-col items-center mb-10 pt-20">
           <UserProfileDropdown user={profile} onUpdate={handleUpdateProfile} />
         </div>
       )}
@@ -201,8 +201,8 @@ export default function UserHome() {
 
       {/* Recommended Films - Now using FilmSliderWrapper like in HomePage */}
       {recommendedFilms.length > 0 && (
-        <div className="mt-6">
-          <h1 className="text-3xl font-bold text-gray-400">RECOMMENDED FOR YOU</h1>
+        <div className="mt-6 pt-20">
+          <h1 className="text-3xl font-bold text-gray-400 pt-20">RECOMMENDED FOR YOU</h1>
           <FilmSliderWrapper title="Recommended For You" films={recommendedFilms} />
         </div>
       )}

@@ -120,7 +120,7 @@ const RecommendedPage: React.FC = () => {
 
   if (loading || isLoading) {
     return (
-      <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
+      <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-cente pt-32r">
         <Logo />
         <h1 className="text-3xl font-bold mb-6 items-center">Recommended for {displayName}</h1>
         <SkeletonSection title="Based on Your Recent Watches" />
@@ -132,7 +132,7 @@ const RecommendedPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
+      <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center pt-32">
         <Logo />
         <h1 className="text-3xl font-bold mb-6 text-center justify-center">Recommended for {displayName}</h1>
         <ErrorState message={error} onRetry={handleRetry} />
@@ -142,7 +142,7 @@ const RecommendedPage: React.FC = () => {
 
   if (recommendations.length === 0) {
     return (
-      <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
+      <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center pt-32">
         <Logo />
         <h1 className="text-3xl font-bold mb-6">Recommended for {displayName}</h1>
         <EmptyState />
@@ -151,7 +151,7 @@ const RecommendedPage: React.FC = () => {
   }
 
   return (
-    <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center">
+    <div className="text-white px-6 max-w-screen-2xl mx-auto py-6 text-center justify-center pt-32">
       <Logo />
       <h1 className="text-3xl font-bold mb-6">Recommended for {displayName}</h1>
 

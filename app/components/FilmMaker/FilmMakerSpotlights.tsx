@@ -206,7 +206,7 @@ const FilmmakersSpotlight = () => {
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-white">Films by {selectedDirector}</h3>
                 <Link 
-                  href={`/search?director=${encodeURIComponent(selectedDirector || '')}`}
+                  href={`/home/director/${encodeURIComponent(selectedDirector || '')}`}
                   className="text-blue-400 hover:text-blue-300 text-sm"
                 >
                   View all
