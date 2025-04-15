@@ -51,7 +51,7 @@ const UserNav: React.FC = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-sm">
                 <Avatar className="h-10 w-10 rounded-sm">
-                  <AvatarImage src={user?.image || ""} alt={user.name || "User"} />
+                  <AvatarImage src={user?.image || "/default-avatar.svg"} alt={user.name || "User"} />
                   <AvatarFallback className="rounded-sm">
                     {user.name ? user.name[0] : "U"}
                   </AvatarFallback>

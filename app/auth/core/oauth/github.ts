@@ -19,11 +19,13 @@ export function createGithubOAuthClient() {
         name: z.string().nullable(),
         login: z.string(),
         email: z.string().email(),
+         picture: z.string().url().optional(), // Add this to capture the picture URL
       }),
       parser: user => ({
         id: user.id.toString(),
         name: user.name ?? user.login,
         email: user.email,
+        image: user.picture,
       }),
     },
   })

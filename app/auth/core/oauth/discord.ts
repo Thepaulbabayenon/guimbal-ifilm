@@ -19,11 +19,13 @@ export function createDiscordOAuthClient() {
         username: z.string(),
         global_name: z.string().nullable(),
         email: z.string().email(),
+        picture: z.string().url().optional(), // Add this to capture the picture URL
       }),
       parser: user => ({
         id: user.id,
         name: user.global_name ?? user.username,
         email: user.email,
+        image: user.picture,
       }),
     },
   })

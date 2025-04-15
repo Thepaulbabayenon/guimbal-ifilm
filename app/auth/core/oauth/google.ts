@@ -19,11 +19,13 @@ export function createGoogleOAuthClient() {
         name: z.string(),
         email: z.string().email(),
         verified_email: z.boolean(),
+        picture: z.string().url().optional(), // Add this to capture the picture URL
       }),
       parser: user => ({
         id: user.id,
         name: user.name,
         email: user.email,
+        image: user.picture, // Make sure to include the image in the parsed user object
       }),
     },
   })

@@ -40,7 +40,7 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({ user, onUpdat
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-12 w-12 rounded-full">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={user.imageUrl || "/default-avatar.png"} alt={user.name || "User"} />
+              <AvatarImage src={user.imageUrl || "/default-avatar.svg"} alt={user.name || "User"} />
               <AvatarFallback>{user.name ? user.name[0] : "U"}</AvatarFallback>
             </Avatar>
           </Button>

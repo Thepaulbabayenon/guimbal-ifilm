@@ -198,7 +198,7 @@ export default function FilmQueryPage() {
 
   const FilmDetailView = () => (
     film ? (
-      <div className="w-full max-w-6xl mb-16">
+      <div className="w-full max-w-6xl mb-16 pt-20">
         <div className="flex flex-col md:flex-row gap-8">
           {/* Left column - Film poster */}
           <div className="w-full md:w-1/3">
@@ -225,20 +225,20 @@ export default function FilmQueryPage() {
           
           {/* Right column - Film details */}
           <div className="w-full md:w-2/3">
-            <h1 className="text-4xl font-bold text-gray-800">{film.title}</h1>
+            <h1 className="text-4xl font-bold text-gray-600">{film.title}</h1>
             
             <div className="flex flex-wrap gap-4 mt-3 mb-6">
-              <span className="inline-block bg-gray-100 px-3 py-1 rounded-full text-sm">{film.releaseYear}</span>
+              <span className="inline-block bg-gray-900 px-3 py-1 rounded-full text-sm">{film.releaseYear}</span>
               {(film.duration ?? 0) > 0 && (
-                <span className="inline-block bg-gray-100 px-3 py-1 rounded-full text-sm">
+                <span className="inline-block bg-gray-900 px-3 py-1 rounded-full text-sm">
                   {Math.floor((film.duration ?? 0) / 60)}h {(film.duration ?? 0) % 60}m
                 </span>
               )}
               {film.category && (
-                <span className="inline-block bg-gray-100 px-3 py-1 rounded-full text-sm">{film.category}</span>
+                <span className="inline-block bg-gray-900 px-3 py-1 rounded-full text-sm">{film.category}</span>
               )}
               {(film.ageRating ?? 0) > 0 && (
-                <span className="inline-block bg-gray-100 px-3 py-1 rounded-full text-sm">
+                <span className="inline-block bg-gray-900 px-3 py-1 rounded-full text-sm">
                   {film.ageRating}+
                 </span>
               )}

@@ -74,7 +74,7 @@ export default function UserHome() {
         id: user.id,
         name: user.name || "Unnamed User",
         email: user.email || "",
-        image: user.image || "/default-avatar.png",
+        image: user.image || "/default-avatar.svg",
         isAdmin: Boolean(user.role),
       });
   
