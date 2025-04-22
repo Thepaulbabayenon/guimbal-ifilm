@@ -15,7 +15,7 @@ export default async function HomeLayout({
 }) {
   try {
     // Get cookies using the next/headers API
-    const cookieStore = cookies();
+    const cookieStore = await cookies();  // Add await here
     const sessionCookie = cookieStore.get(COOKIE_SESSION_KEY);
     
     // Create a cookie object to pass to getUserFromSession

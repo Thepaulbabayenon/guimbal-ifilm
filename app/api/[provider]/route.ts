@@ -13,11 +13,10 @@ import { redirect } from "next/navigation"
 import { NextRequest } from "next/server"
 import { z } from "zod"
 
-function getCookiesWrapper() {
-  const nextCookies = cookies();
+async function getCookiesWrapper() {
+  const nextCookies = await cookies();
   return {
     set: (key: string, value: string, options: { secure?: boolean; httpOnly?: boolean; sameSite?: "strict" | "lax"; expires?: number }) => {
-     
       nextCookies.set(key, value, options)
       return Promise.resolve();
     },
@@ -45,7 +44,7 @@ export async function GET(
 
   const oAuthClient = getOAuthClient(provider)
   try {
-    const userCookies = getCookiesWrapper(); 
+    const userCookies = await getCookiesWrapper(); 
     const oAuthUser = await oAuthClient.fetchUser(code, state, userCookies)
     const user = await connectUserToAccount(oAuthUser, provider)
     await createUserSession(user, userCookies)
@@ -60,7 +59,6 @@ export async function GET(
 
   redirect("/")
 }
-
 async function connectUserToAccount(
   { id, email, name }: { id: string; email: string; name: string },
   provider: OAuthProvider

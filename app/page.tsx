@@ -16,8 +16,9 @@ const getTopRatedFilmsCached = unstable_cache(
 );
 
 export default async function Home() {
+  const cookieStore = await cookies();
   const cookiesObject = Object.fromEntries(
-    Array.from(cookies().getAll()).map(cookie => [cookie.name, cookie.value])
+    Array.from(cookieStore.getAll()).map(cookie => [cookie.name, cookie.value])
   );
 
   const user = await getUserFromSession(cookiesObject);

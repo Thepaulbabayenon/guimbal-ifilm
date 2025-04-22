@@ -7,7 +7,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { filmId: string } }
 ) {
-  const filmId = parseInt(params.filmId, 10);
+  // Wait for params to be ready before accessing filmId
+  const filmIdParam = await params.filmId;
+  const filmId = parseInt(filmIdParam, 10);
   const userId = request.nextUrl.searchParams.get("userId");
   
   console.log("Checking watchlist for filmId:", filmId, "userId:", userId);

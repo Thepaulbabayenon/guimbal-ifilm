@@ -42,44 +42,45 @@ interface RecommendedFilm {
   averageRating: number | null;
 }
 
-// Optimized text loop with reduced re-renders
+// Fixed text loop with proper cleanup to prevent memory leaks and infinite updates
 const SimpleTextLoop = memo(({ texts }: SimpleTextLoopProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Use useEffect with cleanup to prevent memory leaks
+  
+  // Use a ref to store the texts to avoid dependency issues
+  const textsRef = useRef(texts);
+  
+  // Update the ref when texts prop changes
   useEffect(() => {
-    const changeText = () => {
-      setCurrentIndex((prev) => (prev + 1) % texts.length);
-    };
+    textsRef.current = texts;
+  }, [texts]);
+  
+  useEffect(() => {
+    // Create the interval outside the changeText function
+    intervalRef.current = setInterval(() => {
+      setCurrentIndex(prevIndex => (prevIndex + 1) % textsRef.current.length);
+    }, 3000);
     
-    // Clear any existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    
-    // Set new interval
-    intervalRef.current = setInterval(changeText, 3000);
-    
-    // Cleanup function
+    // Clear interval on component unmount
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [texts.length]); // Only depend on texts.length, not the entire texts array
-
+  }, []); // Empty dependency array so it only runs once on mount
+  
   return (
     <div className="h-8 overflow-hidden relative">
       {texts.map((text, index) => (
         <div
-          key={`text-${index}`} // Improved key for better reconciliation
+          key={`text-${index}`}
           className={`absolute transition-opacity duration-500 w-full ${
             index === currentIndex ? "opacity-100" : "opacity-0"
           }`}
           style={{ 
             transform: `translateY(${index === currentIndex ? 0 : '100%'})`,
-            willChange: 'transform, opacity' // Hint to browser for optimization
+            willChange: 'transform, opacity'
           }}
         >
           {text}
@@ -197,6 +198,7 @@ const HomePage = () => {
   const [recommendedFilms, setRecommendedFilms] = useState<RecommendedFilm[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const fetchController = useRef<AbortController | null>(null);
+  const hasAttemptedFetch = useRef(false); // Track if we've already tried to fetch
 
   // Debounce scroll events to reduce performance impact
   useEffect(() => {
@@ -216,60 +218,81 @@ const HomePage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Optimized recommendations fetch
+  // Optimized recommendations fetch with fixed dependencies and error handling
   useEffect(() => {
+    // If we're not authenticated or already loading or already have films, skip
+    if (!isAuthenticated || !user?.id || recommendationsLoading || hasAttemptedFetch.current) {
+      return;
+    }
+
+    // Mark that we've attempted the fetch to prevent repeated attempts
+    hasAttemptedFetch.current = true;
+    
     // Clean up previous fetch if it exists
     if (fetchController.current) {
       fetchController.current.abort();
-      fetchController.current = null;
     }
     
-    if (isAuthenticated && user?.id && recommendedFilms.length === 0 && !recommendationsLoading) {
-      setRecommendationsLoading(true);
-      
-      // Create new controller for this fetch
-      fetchController.current = new AbortController();
-      const signal = fetchController.current.signal;
+    setRecommendationsLoading(true);
+    
+    // Create new controller for this fetch
+    fetchController.current = new AbortController();
+    const signal = fetchController.current.signal;
 
-      // Add slight delay to prevent UI blocking during initial load
-      const timeoutId = setTimeout(() => {
-        fetch(`/api/recommendations?userId=${user.id}`, { signal })
-          .then((res) => {
-            if (!res.ok) throw new Error('Failed to fetch recommendations');
-            return res.json();
-          })
-          .then((data: RecommendedFilm[]) => { 
-            if (Array.isArray(data)) {
-              setRecommendedFilms(data);
-            } else {
-              console.error("Received non-array data for recommendations:", data);
-              setRecommendedFilms([]);
-            }
-          })
-          .catch((err) => {
-            if (err.name !== 'AbortError') {
-              console.error("Error fetching recommendations:", err);
-              setRecommendedFilms([]); 
-            }
-          })
-          .finally(() => {
-            setRecommendationsLoading(false);
-            fetchController.current = null;
-          });
-      }, 300); // Short delay to let the UI render first
-
-      return () => {
-        clearTimeout(timeoutId);
-        if (fetchController.current) {
-          fetchController.current.abort();
+    // Add slight delay to prevent UI blocking during initial load
+    const timeoutId = setTimeout(() => {
+      fetch(`/api/recommendations?userId=${user.id}`, { signal })
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to fetch recommendations');
+          return res.json();
+        })
+        .then((data) => { 
+          // Enhanced error handling for recommendations data
+          if (Array.isArray(data)) {
+            setRecommendedFilms(data);
+          } else if (data && typeof data === 'object' && data.rows && Array.isArray(data.rows)) {
+            // Handle case where API returns { rows: [] } format
+            setRecommendedFilms(data.rows);
+          } else if (data && typeof data === 'object' && data.recommendations && Array.isArray(data.recommendations)) {
+            // Handle case where API returns { recommendations: [] } format
+            setRecommendedFilms(data.recommendations);
+          } else if (data && typeof data === 'object' && Object.keys(data).length === 0) {
+            // Empty object means no recommendations
+            console.log("No recommendations available for this user");
+            setRecommendedFilms([]);
+          } else {
+            console.error("Received invalid data format for recommendations:", data);
+            setRecommendedFilms([]);
+          }
+        })
+        .catch((err) => {
+          if (err.name !== 'AbortError') {
+            console.error("Error fetching recommendations:", err);
+          }
+        })
+        .finally(() => {
+          setRecommendationsLoading(false);
           fetchController.current = null;
-        }
-        setRecommendationsLoading(false); 
-      };
-    } else if (!isAuthenticated) {
+        });
+    }, 300); // Short delay to let the UI render first
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (fetchController.current) {
+        fetchController.current.abort();
+        fetchController.current = null;
+      }
+      setRecommendationsLoading(false); 
+    };
+  }, [isAuthenticated, user?.id]); // Simplified dependencies
+
+  // Reset fetch attempt tracking if auth state changes
+  useEffect(() => {
+    if (!isAuthenticated) {
       setRecommendedFilms([]);
+      hasAttemptedFetch.current = false;
     }
-  }, [user?.id, isAuthenticated, recommendationsLoading, recommendedFilms.length]);
+  }, [isAuthenticated]);
 
   if (isLoading) {
     return (

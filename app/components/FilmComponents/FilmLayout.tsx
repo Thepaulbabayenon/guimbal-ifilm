@@ -478,7 +478,7 @@ const FilmItem = memo(({
   };
   
   // Use a placeholder image if the original image fails to load
-  const imageSrc = imageError ? '/placeholder-movie.jpg' : film.imageUrl;
+  const imageSrc = imageError ? '/placeholder-movie.png' : film.imageUrl;
   
   return (
     <div 
@@ -710,7 +710,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
 
       {/* Integrated Video Modal component */}
       {selectedFilm && (
-        <PlayVideoModal
+        <VideoModal
         title={selectedFilm.title}
         overview={selectedFilm.overview}
         trailerUrl={currentTrailerUrl || selectedFilm.trailerUrl || ""}

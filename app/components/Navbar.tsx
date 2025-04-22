@@ -7,8 +7,9 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import UserNav from "./UserNav";
-import SearchBar from "@/app/components/SearchBar";
-import NotificationDropdown from "@/app/components/NotificationDropdown";
+import { Suspense } from 'react';
+import dynamic from "next/dynamic";
+import NotificationDropdown from "./NotificationDropdown";
 
 interface LinkProps {
   name: string;
@@ -31,15 +32,20 @@ export default function Navbar() {
   const pathName = usePathname();
   const isProfilePage = pathName.includes("/user");
 
+  const SearchBar = dynamic(() => import('./SearchBar'), { ssr: false });
+
+  // Fixed useEffect to prevent infinite loop
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-      setShowNavbar(window.scrollY < lastScrollY);
-      setLastScrollY(window.scrollY);
+      const currentScrollY = window.scrollY;
+      setIsScrolled(currentScrollY > 50);
+      setShowNavbar(currentScrollY < lastScrollY);
+      setLastScrollY(currentScrollY);
     };
+    
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+  }, []); // Remove lastScrollY from dependencies
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 
@@ -134,7 +140,9 @@ export default function Navbar() {
         </div>
 
         <div className="hidden lg:flex items-center gap-x-4">
-          <SearchBar isMobile={false} />
+          <Suspense fallback={<div className="w-64 h-10 bg-gray-800 rounded-full animate-pulse"></div>}>
+            <SearchBar isMobile={false} />
+          </Suspense>
           <NotificationDropdown />
           <UserNav />
         </div>

@@ -23,7 +23,9 @@ type CookieAdapter = {
 };
 
 // Create a cookie adapter from Next.js cookies
-function createCookieAdapter(nextCookies: ReturnType<typeof cookies>): CookieAdapter {
+async function createCookieAdapter(nextCookiesPromise: ReturnType<typeof cookies>): Promise<CookieAdapter> {
+  const nextCookies = await nextCookiesPromise;
+  
   return {
     set: async (name, value, options) => {
       nextCookies.set(name, value, options);
@@ -92,8 +94,7 @@ export async function signIn(unsafeData: z.infer<typeof signInSchema>): Promise<
       return { success: false, error: "Invalid email or password" };
     }
 
-    const nextCookies = cookies();
-    const cookieAdapter = createCookieAdapter(nextCookies);
+    const cookieAdapter = await createCookieAdapter(cookies());
     
     console.log("Creating user session for:", data.email);
     
@@ -156,8 +157,7 @@ export async function signUp(unsafeData: z.infer<typeof signUpSchema>): Promise<
       return { success: false, error: "Unable to create account. Please try again." };
     }
 
-    const nextCookies = cookies();
-    const cookieAdapter = createCookieAdapter(nextCookies);
+    const cookieAdapter = await createCookieAdapter(cookies());
     console.log("Creating session for new user:", data.email);
     
     await createUserSession(user, cookieAdapter);
@@ -171,8 +171,7 @@ export async function signUp(unsafeData: z.infer<typeof signUpSchema>): Promise<
 }
 
 export async function logOut(): Promise<AuthResult> {
-  const nextCookies = cookies();
-  const cookieAdapter = createCookieAdapter(nextCookies);
+  const cookieAdapter = await createCookieAdapter(cookies());
   console.log("Logging out user...");
   
   try {
@@ -193,8 +192,7 @@ export async function oAuthSignIn(provider: OAuthProvider): Promise<AuthResult> 
     // Get the appropriate OAuth client
     const oAuthClient: OAuthClient<any> = getOAuthClient(provider);
 
-    const nextCookies = cookies();
-    const cookieAdapter = createCookieAdapter(nextCookies);
+    const cookieAdapter = await createCookieAdapter(cookies());
     const authUrl = oAuthClient.createAuthUrl(cookieAdapter);
 
     console.log("Generated OAuth URL:", authUrl);

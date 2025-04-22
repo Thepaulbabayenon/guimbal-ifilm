@@ -1,10 +1,10 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { debounce } from "lodash";
 import gsap from "gsap";
 import { X, ThumbsUp } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SearchBarProps {
   isMobile: boolean;
@@ -21,15 +21,9 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
   const [results, setResults] = useState<Film[]>([]);
   const [recommendations, setRecommendations] = useState<Film[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [isClient, setIsClient] = useState<boolean>(false);
   const router = useRouter();
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  const resultsRef = React.useRef<HTMLUListElement>(null);
-
-  // Set isClient to true once component mounts
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLUListElement>(null);
 
   const isYear = (input: string) => /^\d{4}$/.test(input);
 
@@ -65,12 +59,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
     handleSearch(event.target.value);
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && query.trim()) {
-      router.push(`/home/films/search-results?query=${encodeURIComponent(query)}`);
-    }
-  };
-
   const clearSearch = () => {
     setQuery("");
     setResults([]);
@@ -78,9 +66,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
     if (inputRef.current) inputRef.current.focus();
   };
 
+  // Run animations when component is mounted and results change
   useEffect(() => {
-    if (!isClient) return; // Prevent animations from running on the server
-  
     if (inputRef.current) {
       gsap.fromTo(
         inputRef.current,
@@ -96,7 +83,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
         { opacity: 1, y: 0, duration: 0.3 }
       );
     }
-  }, [results, recommendations, isClient]);
+  }, [results, recommendations]);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && query.trim()) {
+      router.push(`/home/films/search-results?query=${encodeURIComponent(query)}`);
+    }
+  };
 
   return (
     <div className={`relative max-w-lg ${isMobile ? "mx-auto mt-4 px-6" : ""} bg-transparent`}>
@@ -108,7 +101,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
           placeholder="Search for films by title or year..."
           value={query}
           onChange={handleChange}
-          onKeyDown={isClient ? handleKeyDown : undefined}
+          onKeyDown={handleKeyDown}
         />
         {query && (
           <button
@@ -121,99 +114,103 @@ const SearchBar: React.FC<SearchBarProps> = ({ isMobile }) => {
       </div>
 
       {/* Loading Animation */}
-      {loading && isClient && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="absolute top-full left-0 w-full flex justify-center py-2"
-        >
-          <div className="flex space-x-2">
-            {[...Array(3)].map((_, index) => (
-              <motion.div
-                key={index}
-                className="w-2 h-2 bg-blue-400 rounded-full"
-                animate={{
-                  y: [0, -5, 0],
-                  opacity: [0.6, 1, 0.6],
-                }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 0.6,
-                  delay: index * 0.2,
-                }}
-              />
-            ))}
-          </div>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="absolute top-full left-0 w-full flex justify-center py-2"
+          >
+            <div className="flex space-x-2">
+              {[...Array(3)].map((_, index) => (
+                <motion.div
+                  key={index}
+                  className="w-2 h-2 bg-blue-400 rounded-full"
+                  animate={{
+                    y: [0, -5, 0],
+                    opacity: [0.6, 1, 0.6],
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 0.6,
+                    delay: index * 0.2,
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Search Results and Recommendations */}
-      {isClient && (
-        <div className="absolute top-full left-0 w-full mt-2 rounded-lg shadow-lg bg-gray-900 z-10">
-          {results.length > 0 || recommendations.length > 0 ? (
-            <motion.ul
-              ref={resultsRef}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="max-h-96 overflow-y-auto bg-gray-900 rounded-lg"
-            >
-              {/* Main Search Results */}
-              {results.length > 0 && (
-                <>
-                  <li className="px-4 py-2 text-sm text-gray-400">Search Results</li>
-                  {results.map((result) => (
-                    <motion.li
-                      key={`result-${result.id}`}
-                      whileHover={{ scale: 1.02 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                      className="px-4 py-3 border-b border-gray-700 hover:bg-gray-800 transition-all cursor-pointer"
-                      onClick={() => router.push(`/home/films/${result.id}`)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="text-white text-lg font-semibold">{result.title}</div>
-                        {result.release && (
-                          <div className="text-gray-400 text-sm">{result.release}</div>
-                        )}
-                      </div>
-                    </motion.li>
-                  ))}
-                </>
-              )}
+      <AnimatePresence>
+        {(results.length > 0 || recommendations.length > 0 || (query && !loading)) && (
+          <div className="absolute top-full left-0 w-full mt-2 rounded-lg shadow-lg bg-gray-900 z-10">
+            {results.length > 0 || recommendations.length > 0 ? (
+              <motion.ul
+                ref={resultsRef}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="max-h-96 overflow-y-auto bg-gray-900 rounded-lg"
+              >
+                {/* Main Search Results */}
+                {results.length > 0 && (
+                  <>
+                    <li className="px-4 py-2 text-sm text-gray-400">Search Results</li>
+                    {results.map((result) => (
+                      <motion.li
+                        key={`result-${result.id}`}
+                        whileHover={{ scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                        className="px-4 py-3 border-b border-gray-700 hover:bg-gray-800 transition-all cursor-pointer"
+                        onClick={() => router.push(`/home/films/${result.id}`)}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="text-white text-lg font-semibold">{result.title}</div>
+                          {result.release && (
+                            <div className="text-gray-400 text-sm">{result.release}</div>
+                          )}
+                        </div>
+                      </motion.li>
+                    ))}
+                  </>
+                )}
 
-              {/* Recommendations Section */}
-              {recommendations.length > 0 && (
-                <>
-                  <li className="px-4 py-2 mt-2 text-sm bg-gray-800 text-blue-400 flex items-center">
-                    <ThumbsUp size={14} className="mr-2" />
-                    <span>Recommendations</span>
-                  </li>
-                  {recommendations.map((rec) => (
-                    <motion.li
-                      key={`rec-${rec.id}`}
-                      whileHover={{ scale: 1.02 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                      className="px-4 py-3 border-b border-gray-700 hover:bg-gray-700 transition-all cursor-pointer bg-gray-850"
-                      onClick={() => router.push(`/home/films/${rec.id}`)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="text-blue-100 text-lg">{rec.title}</div>
-                        {rec.release && (
-                          <div className="text-gray-400 text-sm">{rec.release}</div>
-                        )}
-                      </div>
-                    </motion.li>
-                  ))}
-                </>
-              )}
-            </motion.ul>
-          ) : query && !loading ? (
-            <div className="px-4 py-2 text-center text-gray-500">No results found</div>
-          ) : null}
-        </div>
-      )}
+                {/* Recommendations Section */}
+                {recommendations.length > 0 && (
+                  <>
+                    <li className="px-4 py-2 mt-2 text-sm bg-gray-800 text-blue-400 flex items-center">
+                      <ThumbsUp size={14} className="mr-2" />
+                      <span>Recommendations</span>
+                    </li>
+                    {recommendations.map((rec) => (
+                      <motion.li
+                        key={`rec-${rec.id}`}
+                        whileHover={{ scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                        className="px-4 py-3 border-b border-gray-700 hover:bg-gray-700 transition-all cursor-pointer bg-gray-850"
+                        onClick={() => router.push(`/home/films/${rec.id}`)}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="text-blue-100 text-lg">{rec.title}</div>
+                          {rec.release && (
+                            <div className="text-gray-400 text-sm">{rec.release}</div>
+                          )}
+                        </div>
+                      </motion.li>
+                    ))}
+                  </>
+                )}
+              </motion.ul>
+            ) : query && !loading ? (
+              <div className="px-4 py-2 text-center text-gray-500">No results found</div>
+            ) : null}
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

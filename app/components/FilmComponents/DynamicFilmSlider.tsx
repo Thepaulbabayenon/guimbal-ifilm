@@ -59,7 +59,6 @@ interface RecommendedFilm {
   averageRating: number | null;
 }
 
-const SliderTextLoop = TextLoop;
 
 const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSliderProps) => {
   const { user, isAuthenticated, isLoading: authLoading } = useUser();
