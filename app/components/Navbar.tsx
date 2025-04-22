@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Logo from "../../public/logo.svg";
@@ -27,25 +27,24 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
   
   const pathName = usePathname();
   const isProfilePage = pathName.includes("/user");
 
   const SearchBar = dynamic(() => import('./SearchBar'), { ssr: false });
 
-  // Fixed useEffect to prevent infinite loop
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       setIsScrolled(currentScrollY > 50);
-      setShowNavbar(currentScrollY < lastScrollY);
-      setLastScrollY(currentScrollY);
+      setShowNavbar(currentScrollY < lastScrollYRef.current);
+      lastScrollYRef.current = currentScrollY;
     };
     
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []); // Remove lastScrollY from dependencies
+  }, []);
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((prev) => !prev);
 

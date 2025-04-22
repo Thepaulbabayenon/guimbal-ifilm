@@ -80,6 +80,8 @@ export default function PlayVideoModal({
   const [feedbackMessage, setFeedbackMessage] = useState<{text: string, type: 'success' | 'error' | null}>({text: '', type: null});
   const [isSavingRating, setIsSavingRating] = useState(false);
   const [averageRating, setAverageRating] = useState<number>(typeof ratings === 'number' ? ratings : 0);
+  // Add a specific state to control video source URL
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   
   // Refs
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -267,15 +269,31 @@ export default function PlayVideoModal({
 
   // Get the current video URL based on state
   const getCurrentVideoUrl = () => {
+    if (!state) return null; // Return null when modal is closed to fully stop the player
+    
     // Use external state if provided, otherwise use internal state
     const isShowingTrailer = toggleVideoSource ? showingTrailer : internalShowingTrailer;
     return (!videoSource || isShowingTrailer) ? trailerUrl : videoSource;
   };
 
-  // Animation and state effects
+  // Update video URL and playing state based on modal state
   useEffect(() => {
-    setIsPlaying(state);
-  }, [state]);
+    if (state) {
+      // Set video URL only when modal is open
+      setVideoUrl(getCurrentVideoUrl());
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        setIsPlaying(true);
+      }, 100);
+    } else {
+      // When modal closes, stop playing immediately
+      setIsPlaying(false);
+      // Set URL to null after a short delay to ensure it's fully stopped
+      setTimeout(() => {
+        setVideoUrl(null);
+      }, 50);
+    }
+  }, [state, trailerUrl, videoSource, showingTrailer, internalShowingTrailer]);
 
   useEffect(() => {
     if (state) {
@@ -341,14 +359,24 @@ export default function PlayVideoModal({
     setIsResizing(false);
   };
 
-  // Dialog state change handling
+  // Dialog state change handling - enhanced to completely stop video
   const handleDialogChange = (newState: boolean) => {
     if (!newState) {
+      // Immediately stop playing
       setIsPlaying(false);
+      
+      // Reset player position
       if (playerRef.current) {
         playerRef.current.seekTo(0);
       }
+      
+      // Set video URL to null to completely unmount the player source
+      setTimeout(() => {
+        setVideoUrl(null);
+      }, 50);
     }
+    
+    // Inform parent component about state change
     changeState(newState);
   };
 
@@ -513,29 +541,50 @@ export default function PlayVideoModal({
             </div>
           )}
           
-          <ReactPlayer
-            ref={playerRef}
-            url={getCurrentVideoUrl()}
-            playing={isPlaying}
-            controls
-            width="100%"
-            height="100%"
-            onReady={() => setLoading(false)}
-            config={{
-              file: { 
-                attributes: { 
-                  controlsList: "nodownload",
-                  disablePictureInPicture: true
-                } 
-              },
-            }}
-            className="rounded-md"
-          />
+          {/* Only render ReactPlayer when videoUrl is not null */}
+          {videoUrl && (
+            <ReactPlayer
+              ref={playerRef}
+              url={videoUrl}
+              playing={isPlaying}
+              controls
+              width="100%"
+              height="100%"
+              onReady={() => setLoading(false)}
+              config={{
+                file: { 
+                  attributes: { 
+                    controlsList: "nodownload",
+                    disablePictureInPicture: true
+                  } 
+                },
+                youtube: {
+                  playerVars: {
+                    disablekb: 1,
+                    modestbranding: 1
+                  }
+                }
+              }}
+              className="rounded-md"
+              onPause={() => setIsPlaying(false)}
+              volume={1}
+              muted={!state} // Mute when modal is closed (redundant safety)
+            />
+          )}
           
           {/* Video source indicator */}
-          <div className="absolute top-2 right-2 bg-black bg-opacity-50 p-1 px-2 rounded text-xs">
-            {isShowingTrailer ? "Trailer" : "Movie"}
-          </div>
+          {videoUrl && (
+            <div className="absolute top-2 right-2 bg-black bg-opacity-50 p-1 px-2 rounded text-xs">
+              {isShowingTrailer ? "Trailer" : "Movie"}
+            </div>
+          )}
+          
+          {/* Show message when video is stopped/not loaded */}
+          {!videoUrl && !loading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-gray-400">Video paused</p>
+            </div>
+          )}
           
           {/* Resize handle */}
           {!isMobile && modalSize !== 'fullscreen' && (
