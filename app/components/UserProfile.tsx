@@ -21,7 +21,7 @@ type Film = {
 
 // UserProfile Component
 const UserProfile = ({ userId }: { userId: string }) => {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.Thebantayanfilmfestival.com';
   const [films, setFilms] = useState<Film[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

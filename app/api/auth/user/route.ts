@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     let twoFactorVerified = false;
 
     if (fullUserData.twoFactorEnabled) {
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const sessionId = cookieStore.get('2fa_session')?.value;
 
       if (sessionId) {

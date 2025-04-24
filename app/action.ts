@@ -31,7 +31,8 @@ function isValidUUID(str: string) {
 // Optimized to use caching
 async function getCurrentUser(): Promise<User | null> {
   // Use a consistent cache key
-  const cacheKey = cookies().toString();
+  const cookieStore = await cookies();
+  const cacheKey = cookieStore.toString();
   const cached = userCache.get(cacheKey);
   
   if (cached && cached.expiry > Date.now()) {

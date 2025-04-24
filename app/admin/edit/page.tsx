@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic"; // Forces the API to run on every reques
 
 import { useState, useEffect } from "react";
 import FilmEditModal from "@/app/components/Modal/FilmEditModal";
+import { Metadata } from 'next';
+import { Search, SortAsc, SortDesc, Film as FilmIcon, Clock, Calendar } from "lucide-react";
 
 interface Film {
   id: number;
@@ -16,7 +18,7 @@ interface Film {
   director: string;
   coDirector: string;
   studio: string;
-  imageString?: string;
+  imageUrl?: string;
   videoSource?: string;
   trailer?: string;
 }
@@ -42,8 +44,6 @@ export default function AdminEditPage() {
       try {
         const response = await fetch("/api/admin/films");
         const data = await response.json();
-        
-        console.log("Fetched films:", data);
         
         if (Array.isArray(data)) {
           setFilms(data);
@@ -106,98 +106,197 @@ export default function AdminEditPage() {
     sortFilms(filtered, sortField, sortDirection);
   }, [searchTerm, films]);
 
+  // Get the sort icon based on current sort state
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? <SortAsc size={16} /> : <SortDesc size={16} />;
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Select a Film to Edit</h1>
+    <div className="bg-gray-50 min-h-screen p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Film Management</h1>
+          <p className="text-gray-600">
+            Select a film to edit details, update media, or manage settings.
+          </p>
+        </div>
 
-      {loading ? (
-        <p>Loading films...</p>
-      ) : error ? (
-        <p className="text-red-500">{error}</p>
-      ) : films.length === 0 ? (
-        <p>No films available.</p>
-      ) : (
-        <div>
-          {/* Search and sorting controls */}
-          <div className="mb-4">
-            <div className="flex mb-2">
-              <input
-                type="text"
-                placeholder="Search by title..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="p-2 border rounded flex-grow text-black"
-              />
-            </div>
-            
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => handleSort('title')}
-                className={`px-3 py-1 rounded text-sm ${sortField === 'title' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}>
-                Title {sortField === 'title' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </button>
-              <button 
-                onClick={() => handleSort('duration')}
-                className={`px-3 py-1 rounded text-sm ${sortField === 'duration' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}>
-                Duration {sortField === 'duration' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </button>
-              <button 
-                onClick={() => handleSort('release')}
-                className={`px-3 py-1 rounded text-sm ${sortField === 'release' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}>
-                Release Year {sortField === 'release' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </button>
-            </div>
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <p className="font-medium">Error</p>
+            <p>{error}</p>
+          </div>
+        ) : films.length === 0 ? (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+            <p>No films available in the database. Use the upload feature to add films.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            {/* Search and filters bar */}
+            <div className="mb-6">
+              <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-4 mb-4">
+                <div className="relative flex-grow">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search size={18} className="text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search films by title..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 p-2 border border-gray-300 rounded w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+                
+                <select
+                  onChange={(e) => {
+                    const film = films.find((f) => f.id === Number(e.target.value));
+                    setSelectedFilm(film || null);
+                  }}
+                  className="p-2 border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                >
+                  <option value="">Quick Select Film</option>
+                  {films.map((film) => (
+                    <option key={film.id} value={film.id}>
+                      {film.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Sort buttons */}
+              <div className="flex flex-wrap gap-2">
+                <button 
+                  onClick={() => handleSort('title')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1
+                    ${sortField === 'title' 
+                      ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                      : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'}`}
+                >
+                  <FilmIcon size={16} />
+                  Title
+                  {getSortIcon('title')}
+                </button>
+                
+                <button 
+                  onClick={() => handleSort('duration')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1
+                    ${sortField === 'duration' 
+                      ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                      : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'}`}
+                >
+                  <Clock size={16} />
+                  Duration
+                  {getSortIcon('duration')}
+                </button>
+                
+                <button 
+                  onClick={() => handleSort('release')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1
+                    ${sortField === 'release' 
+                      ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                      : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'}`}
+                >
+                  <Calendar size={16} />
+                  Release
+                  {getSortIcon('release')}
+                </button>
+              </div>
+            </div>
 
-             {/* Dropdown as an alternative selection method */}
-             <select
-            onChange={(e) => {
-              const film = films.find((f) => f.id === Number(e.target.value));
-              setSelectedFilm(film || null);
-            }}
-            className="w-full p-2 border rounded mb-4 text-black"
-          >
-            <option value="">Select a Film</option>
-            {films.map((film) => (
-              <option key={film.id} value={film.id}>
-                {film.title}
-              </option>
-            ))}
-          </select>
+            {/* Results summary */}
+            <div className="text-sm text-gray-500 mb-4">
+              Showing {filteredFilms.length} {filteredFilms.length === 1 ? 'film' : 'films'}
+              {searchTerm && ` matching "${searchTerm}"`}
+            </div>
 
-          {/* Film Display */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 text-white">
-            {filteredFilms.map((film) => (
-              <div 
-                key={film.id} 
-                className="border rounded p-3 hover:bg-gray-100 cursor-pointer text-white"
-                onClick={() => setSelectedFilm(film)}
-              >
-                <div className="flex items-center">
-                  {film.imageString && (
-                    <img src={film.imageString} alt={film.title} className="w-12 h-16 object-cover mr-3" />
-                  )}
-                  <div>
-                    <h3 className="font-semibold">{film.title}</h3>
-                    <div className="text-xs text-gray-600">
-                      <p>{film.duration} min • {film.release ? new Date(film.release).getFullYear() : 'N/A'}</p>
-                      <p>{film.category}</p>
+            {/* Film grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {filteredFilms.map((film) => (
+                <div 
+                  key={film.id} 
+                  className={`border rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg
+                    ${selectedFilm?.id === film.id ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200'}`}
+                  onClick={() => setSelectedFilm(film)}
+                >
+                  <div className="flex h-full">
+                    {film.imageUrl ? (
+                      <div className="w-1/3 min-w-20">
+                        <img 
+                          src={film.imageUrl} 
+                          alt={film.title}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-1/3 min-w-20 bg-gray-200 flex items-center justify-center">
+                        <FilmIcon size={24} className="text-gray-400" />
+                      </div>
+                    )}
+                    
+                    <div className="p-3 flex flex-col justify-between w-2/3">
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">{film.title}</h3>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <p className="flex items-center gap-1">
+                            <Clock size={12} />
+                            {film.duration} min
+                          </p>
+                          <p className="flex items-center gap-1">
+                            <Calendar size={12} />
+                            {film.release ? new Date(film.release).getFullYear() : 'N/A'}
+                          </p>
+                          <p className="italic truncate">{film.category}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2">
+                        <button className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                          Edit Details
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
+              ))}
+            </div>
+            
+            {/* No results message */}
+            {filteredFilms.length === 0 && searchTerm && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No films found matching "{searchTerm}"</p>
+                <button 
+                  onClick={() => setSearchTerm("")}
+                  className="mt-2 text-blue-600 hover:text-blue-800"
+                >
+                  Clear search
+                </button>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {selectedFilm && (
-        <FilmEditModal
-          film={selectedFilm}
-          onClose={() => setSelectedFilm(null)}
-          allFilms={films}
-        />
-      )}
+        {/* Edit modal */}
+        {selectedFilm && (
+          <FilmEditModal
+            film={selectedFilm}
+            onClose={() => setSelectedFilm(null)}
+            allFilms={films}
+          />
+        )}
+        
+        {/* Help text */}
+        <div className="mt-6 text-center text-sm text-gray-500">
+          Need help managing films? Check the <span className="text-blue-600 hover:underline cursor-pointer">administrator guide</span> or 
+          contact <span className="text-blue-600 hover:underline cursor-pointer">technical support</span>.
+        </div>
+      </div>
     </div>
   );
 }
