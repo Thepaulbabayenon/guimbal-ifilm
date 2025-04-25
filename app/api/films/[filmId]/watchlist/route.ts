@@ -7,18 +7,18 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { filmId: string } }
 ) {
-  // Wait for params to be ready before accessing filmId
-  const filmIdParam = await params.filmId;
-  const filmId = parseInt(filmIdParam, 10);
-  const userId = request.nextUrl.searchParams.get("userId");
-  
-  console.log("Checking watchlist for filmId:", filmId, "userId:", userId);
-  
-  if (!userId || isNaN(filmId)) {
-    return NextResponse.json({ error: "Invalid params" }, { status: 400 });
-  }
-
   try {
+    // Await params if it's a promise
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const filmId = parseInt(resolvedParams.filmId, 10);
+    const userId = request.nextUrl.searchParams.get("userId");
+    
+    console.log("Checking watchlist for filmId:", filmId, "userId:", userId);
+    
+    if (!userId || isNaN(filmId)) {
+      return NextResponse.json({ error: "Invalid params" }, { status: 400 });
+    }
+
     const watchlistItems = await db
       .select()
       .from(watchLists)
