@@ -4,7 +4,6 @@ import { watchLists, users } from "@/app/db/schema";
 import { and, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 
-// Types - kept unchanged
 export type User = {
   id: string;
   role: "admin" | "user";
@@ -28,9 +27,7 @@ function isValidUUID(str: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
-// Optimized to use caching
 async function getCurrentUser(): Promise<User | null> {
-  // Use a consistent cache key
   const cookieStore = await cookies();
   const cacheKey = cookieStore.toString();
   const cached = userCache.get(cacheKey);
@@ -66,7 +63,6 @@ async function getCurrentUser(): Promise<User | null> {
   }
 }
 
-// Optimized to use caching and select only needed columns
 async function getUserById(userId: string) {
   if (!userId || !isValidUUID(userId)) {
     throw new Error(userId ? "Invalid user ID format" : "User ID is required");
@@ -79,7 +75,6 @@ async function getUserById(userId: string) {
     return cached.data;
   }
 
-  // Only select columns we need to minimize data transfer
   const [user] = await db
     .select({
       id: users.id,
@@ -115,7 +110,6 @@ export const addToWatchlist = async ({
   }
 
   try {
-    // Check if already exists with a composite key query instead of using id
     const [existingEntry] = await db
       .select({ userId: watchLists.userId, filmId: watchLists.filmId })
       .from(watchLists)
@@ -126,7 +120,6 @@ export const addToWatchlist = async ({
       return { filmId, userId };
     }
 
-    // Insert new entry with minimal return data
     await db.insert(watchLists).values({ filmId, userId });
     return { filmId, userId };
   } catch (error) {
@@ -141,7 +134,7 @@ export async function deleteFromWatchlist(userId: string, filmId: number) {
   }
 
   try {
-    // More efficient deletion without returning data
+   
     const result = await db
       .delete(watchLists)
       .where(and(eq(watchLists.filmId, filmId), eq(watchLists.userId, userId)));
@@ -159,7 +152,7 @@ export async function getWatchListIdForFilm(filmId: number, userId: string): Pro
   }
 
   try {
-    // Use userId and filmId directly instead of id field
+  
     const [entry] = await db
       .select({ userId: watchLists.userId, filmId: watchLists.filmId })
       .from(watchLists)
@@ -173,13 +166,12 @@ export async function getWatchListIdForFilm(filmId: number, userId: string): Pro
   }
 }
 
-// Role management with improved validation flow
 export async function setRole(requestingUserId: string, targetUserId: string, role: "admin" | "user") {
   if (!isValidUUID(requestingUserId) || !isValidUUID(targetUserId)) {
     throw new Error("Invalid user ID format");
   }
 
-  // Verify admin status
+ 
   const requestingUser = await getUserById(requestingUserId);
   if (!requestingUser || requestingUser.role !== "admin") {
     throw new Error("Not Authorized");
@@ -191,7 +183,7 @@ export async function setRole(requestingUserId: string, targetUserId: string, ro
       .set({ role })
       .where(eq(users.id, targetUserId));
     
-    // Clear cache for this user
+  
     userCache.delete(`user-${targetUserId}`);
     
     return { success: true };
@@ -206,7 +198,7 @@ export async function removeRole(requestingUserId: string, targetUserId: string)
     throw new Error("Invalid user ID format");
   }
 
-  // Verify admin status
+  
   const requestingUser = await getUserById(requestingUserId);
   if (!requestingUser || requestingUser.role !== "admin") {
     throw new Error("Not Authorized");
@@ -218,7 +210,7 @@ export async function removeRole(requestingUserId: string, targetUserId: string)
       .set({ role: "user" })
       .where(eq(users.id, targetUserId));
     
-    // Clear cache for this user
+  
     userCache.delete(`user-${targetUserId}`);
     
     return { success: true };

@@ -43,6 +43,6 @@ export default async function HomeLayout({
     );
   } catch (error) {
     console.error("Error fetching currentUser:", error);
-    return redirect("/sign-in");
+    return redirect("/");
   }
 }

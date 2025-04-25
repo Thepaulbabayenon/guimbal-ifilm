@@ -4,15 +4,13 @@ import { useEffect, useState, memo, lazy, Suspense, ReactElement, useCallback, u
 import { useUser } from "@/app/auth/nextjs/useUser";
 import { LoadingSpinner } from "@/app/components/LoadingSpinner";
 import { AccessDenied } from "@/app/components/AccessDenied";
-import { TextLoop } from "@/components/ui/text-loop"; // Using the library one for consistency here
+import { TextLoop } from "@/components/ui/text-loop";
 
-// Lazy load components with explicit chunk names for better performance
 const FilmVideo = lazy(() => import("../components/FilmComponents/FilmVideo"));
 const RecentlyAdded = lazy(() => import("../components/RecentlyAdded"));
 const FilmSlider = lazy(() => import("@/app/components/FilmComponents/DynamicFilmSlider"));
 const FilmSliderWrapper = lazy(() => import("@/app/components/FilmComponents/FilmsliderWrapper"));
 
-// Define interfaces
 interface SimpleTextLoopProps {
   texts: string[];
 }
@@ -21,8 +19,8 @@ interface LazySectionProps {
   children: ReactElement;
   title: string;
   altTitles?: string[];
-  priority?: number; // Added priority for load sequencing
-  height?: string; // Added for better placeholder sizing
+  priority?: number;
+  height?: string;
 }
 
 interface FilmCategory {
@@ -42,33 +40,28 @@ interface RecommendedFilm {
   averageRating: number | null;
 }
 
-// Fixed text loop with proper cleanup to prevent memory leaks and infinite updates
 const SimpleTextLoop = memo(({ texts }: SimpleTextLoopProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Use a ref to store the texts to avoid dependency issues
   const textsRef = useRef(texts);
   
-  // Update the ref when texts prop changes
   useEffect(() => {
     textsRef.current = texts;
   }, [texts]);
   
   useEffect(() => {
-    // Create the interval outside the changeText function
     intervalRef.current = setInterval(() => {
       setCurrentIndex(prevIndex => (prevIndex + 1) % textsRef.current.length);
     }, 3000);
     
-    // Clear interval on component unmount
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, []); // Empty dependency array so it only runs once on mount
+  }, []);
   
   return (
     <div className="h-8 overflow-hidden relative">
@@ -92,10 +85,9 @@ const SimpleTextLoop = memo(({ texts }: SimpleTextLoopProps) => {
 
 SimpleTextLoop.displayName = "SimpleTextLoop";
 
-// Global loading queue to prevent too many simultaneous loads
 const loadingQueue = {
   active: 0,
-  maxConcurrent: 2, // Only load 2 sections at once
+  maxConcurrent: 2,
   queue: [] as (() => void)[],
   
   add(callback: () => void) {
@@ -122,7 +114,6 @@ const loadingQueue = {
   }
 };
 
-// Section component to lazy load sections with improved loading mechanics
 const LazySection = memo(({ children, title, altTitles = [], priority = 0, height = "200px" }: LazySectionProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -137,21 +128,19 @@ const LazySection = memo(({ children, title, altTitles = [], priority = 0, heigh
         if (entry.isIntersecting && !isVisible && !isLoading) {
           setIsLoading(true);
           
-          // Use the queue system to prevent too many loads at once
           loadingQueue.add(() => {
-            // Artificial delay based on priority to stagger loads
             setTimeout(() => {
               setIsVisible(true);
               loadingQueue.complete();
-            }, priority * 100); // Stagger loads by priority
+            }, priority * 100);
           });
           
           observer.disconnect();
         }
       },
       { 
-        rootMargin: "100px", // Reduced from 250px for better performance
-        threshold: 0.1 // Only needs to be 10% visible to start loading
+        rootMargin: "100px",
+        threshold: 0.1
       }
     );
 
@@ -182,7 +171,6 @@ const LazySection = memo(({ children, title, altTitles = [], priority = 0, heigh
 
 LazySection.displayName = "LazySection";
 
-// Film categories configuration with added heights for better placeholders
 const filmCategories: (FilmCategory & { height: string })[] = [
   { id: "popular", title: "POPULAR FILMS", displayTitles: ["POPULAR FILMS", "TRENDING NOW", "MUST WATCH"], categoryFilter: undefined, limit: 10, height: "240px" },
   { id: "comedy", title: "COMEDY FILMS", displayTitles: ["COMEDY FILMS", "LAUGH OUT LOUD", "FUNNY FLICKS"], categoryFilter: "comedy", limit: 10, height: "240px" },
@@ -192,54 +180,39 @@ const filmCategories: (FilmCategory & { height: string })[] = [
   { id: "romance", title: "ROMANCE FILMS", displayTitles: ["ROMANCE FILMS", "LOVE STORIES", "HEARTFELT MOVIES"], categoryFilter: "romance", limit: 10, height: "240px" },
 ];
 
-// Main component with optimization
 const HomePage = () => {
   const { user, isAuthenticated, isLoading } = useUser();
   const [recommendedFilms, setRecommendedFilms] = useState<RecommendedFilm[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const fetchController = useRef<AbortController | null>(null);
-  const hasAttemptedFetch = useRef(false); // Track if we've already tried to fetch
+  const hasAttemptedFetch = useRef(false);
+  const isMobile = useRef(typeof window !== 'undefined' && window.innerWidth < 768);
 
-  // Debounce scroll events to reduce performance impact
   useEffect(() => {
-    const handleScroll = () => {
-      // Debounce scroll events in iOS
-      if (!window.requestAnimationFrame) {
-        return;
-      }
-      
-      window.requestAnimationFrame(() => {
-        // Do nothing, just sync to animation frame
-        // This prevents excessive scroll event handling
-      });
+    const handleResize = () => {
+      isMobile.current = window.innerWidth < 768;
     };
     
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Optimized recommendations fetch with fixed dependencies and error handling
   useEffect(() => {
-    // If we're not authenticated or already loading or already have films, skip
     if (!isAuthenticated || !user?.id || recommendationsLoading || hasAttemptedFetch.current) {
       return;
     }
 
-    // Mark that we've attempted the fetch to prevent repeated attempts
     hasAttemptedFetch.current = true;
     
-    // Clean up previous fetch if it exists
     if (fetchController.current) {
       fetchController.current.abort();
     }
     
     setRecommendationsLoading(true);
     
-    // Create new controller for this fetch
     fetchController.current = new AbortController();
     const signal = fetchController.current.signal;
 
-    // Add slight delay to prevent UI blocking during initial load
     const timeoutId = setTimeout(() => {
       fetch(`/api/recommendations?userId=${user.id}`, { signal })
         .then((res) => {
@@ -247,17 +220,13 @@ const HomePage = () => {
           return res.json();
         })
         .then((data) => { 
-          // Enhanced error handling for recommendations data
           if (Array.isArray(data)) {
             setRecommendedFilms(data);
           } else if (data && typeof data === 'object' && data.rows && Array.isArray(data.rows)) {
-            // Handle case where API returns { rows: [] } format
             setRecommendedFilms(data.rows);
           } else if (data && typeof data === 'object' && data.recommendations && Array.isArray(data.recommendations)) {
-            // Handle case where API returns { recommendations: [] } format
             setRecommendedFilms(data.recommendations);
           } else if (data && typeof data === 'object' && Object.keys(data).length === 0) {
-            // Empty object means no recommendations
             console.log("No recommendations available for this user");
             setRecommendedFilms([]);
           } else {
@@ -274,7 +243,7 @@ const HomePage = () => {
           setRecommendationsLoading(false);
           fetchController.current = null;
         });
-    }, 300); // Short delay to let the UI render first
+    }, isMobile.current ? 500 : 300);
 
     return () => {
       clearTimeout(timeoutId);
@@ -284,9 +253,8 @@ const HomePage = () => {
       }
       setRecommendationsLoading(false); 
     };
-  }, [isAuthenticated, user?.id]); // Simplified dependencies
+  }, [isAuthenticated, user?.id]);
 
-  // Reset fetch attempt tracking if auth state changes
   useEffect(() => {
     if (!isAuthenticated) {
       setRecommendedFilms([]);
@@ -306,10 +274,8 @@ const HomePage = () => {
     return <AccessDenied />;
   }
 
-  // --- Render Authenticated View ---
   return (
     <div className="pt-16 lg:pt-20 pb-10 px-4 md:px-6 lg:px-8">
-      {/* Film Video Section - High priority loading */}
       <div className="mb-6 md:mb-8 lg:mb-10 min-h-[300px]"> 
         <Suspense 
           fallback={
@@ -322,7 +288,6 @@ const HomePage = () => {
         </Suspense>
       </div>
 
-      {/* Recently Added Section - Second priority */}
       <div className="mb-6 md:mb-8 pb-10 lg:mb-10">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6">
           <SimpleTextLoop texts={["RECENTLY ADDED", "FRESH FINDS", "NEW ARRIVALS"]} />
@@ -338,12 +303,11 @@ const HomePage = () => {
         </Suspense>
       </div>
 
-      {/* Recommended Section - Show if available */}
       {isAuthenticated && recommendedFilms.length > 0 && (
         <LazySection
           title="RECOMMENDED FOR YOU"
           altTitles={["PICKS FOR YOU", "BASED ON YOUR TASTE"]}
-          priority={1} // Lower numbers load first
+          priority={1}
           height="240px"
         >
           <div>
@@ -352,13 +316,12 @@ const HomePage = () => {
         </LazySection>
       )}
 
-      {/* Category Sections - Load with incremental priorities */}
       {filmCategories.map((category, index) => (
         <LazySection
           key={category.id}
           title={category.title}
           altTitles={category.displayTitles.slice(1)}
-          priority={index + 2} // Gradually increasing priority numbers (load later)
+          priority={index + 2}
           height={category.height}
         >
           <FilmSlider
@@ -372,4 +335,4 @@ const HomePage = () => {
   );
 };
 
-export default memo(HomePage);
+export default memo(HomePage);  
