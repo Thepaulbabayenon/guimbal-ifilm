@@ -315,11 +315,11 @@ export async function middleware(request: NextRequest) {
     const cachedSession = userSessionCache.get(sessionToken);
     
     const updateInterval = deviceType === 'MOBILE' ? 
-      SESSION_UPDATE_INTERVAL * 2 : SESSION_UPDATE_INTERVAL;
+      SESSION_UPDATE_INTERVAL : SESSION_UPDATE_INTERVAL;
     
     if (
       cachedSession && 
-      currentTime - cachedSession.lastDatabaseUpdate > updateInterval &&
+      currentTime - cachedSession.lastDatabaseUpdate > updateInterval / 2 &&
       currentTime - lastDbOperationTime.global > MIN_DB_OPERATION_INTERVAL[deviceType]
     ) {
       const deviceKey = `${deviceType}-${sessionToken.substring(0,8)}`;

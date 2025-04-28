@@ -12,13 +12,14 @@ import {
 import PlayVideoModal from "@/app/components/PlayVideoModal";
 import { Button } from "@/components/ui/button";
 import { CiHeart } from "react-icons/ci";
+import { FaHeart } from "react-icons/fa";
 import { FaStar } from "react-icons/fa";
 import axios from "axios";
+import { AxiosError } from "axios";
 import { useUser } from "@/app/auth/nextjs/useUser";
 import { getFilmRating } from "@/app/services/filmService";
 import cache from "@/app/services/cashService";
 import FilmSliderSkeleton from "./SkeletonSlider";
-import { TextLoop } from "@/components/ui/text-loop";
 
 interface Film {
   id: number;
@@ -58,7 +59,6 @@ interface RecommendedFilm {
   duration: number;
   averageRating: number | null;
 }
-
 
 const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSliderProps) => {
   const { user, isAuthenticated, isLoading: authLoading } = useUser();
@@ -148,7 +148,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
     e.stopPropagation();
 
     if (!userId || !isAuthenticated) {
-      console.log("User not logged in, cannot toggle watchlist.");
+      alert("Please log in to manage your watchlist.");
       return;
     }
 
@@ -157,8 +157,10 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
     const oldWatchlistId = 'watchlistId' in film ? film.watchlistId : null;
     const cacheKey = getCacheKey();
 
+    // Set saving state to show loading indicator
     setSavingWatchlistId(filmId);
 
+    // Optimistic UI update
     setFilms(prevFilms =>
       prevFilms.map(f =>
         f.id === filmId ? { ...f, inWatchlist: !wasInWatchlist, watchlistId: wasInWatchlist ? null : 'temp' } : f
@@ -167,23 +169,31 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
 
     try {
       let newWatchlistId = null;
+      
       if (wasInWatchlist) {
-        const deleteId = oldWatchlistId || filmId;
-        await axios.delete(`/api/watchlist/${deleteId}`);
+        // Remove from watchlist
+        await axios.delete(`/api/watchlist/${filmId}`);
       } else {
-        const response = await axios.post('/api/watchlist', { userId, filmId });
-        newWatchlistId = response.data?.id;
+        // Add to watchlist
+        const response = await axios.post('/api/watchlist', { 
+          userId, 
+          filmId 
+        });
+        
+        newWatchlistId = response.data?.id || response.data?.watchlistId;
         if (!newWatchlistId) {
           console.warn("Watchlist POST did not return an ID.");
         }
       }
 
+      // Update UI with server response
       setFilms(prevFilms =>
         prevFilms.map(f =>
           f.id === filmId ? { ...f, inWatchlist: !wasInWatchlist, watchlistId: newWatchlistId } : f
         )
       );
 
+      // Update cache
       cache.setFilms(cacheKey, films.map(f =>
         f.id === filmId ? { ...f, inWatchlist: !wasInWatchlist, watchlistId: newWatchlistId } : f
       ));
@@ -191,12 +201,18 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
 
     } catch (error) {
       console.error("Watchlist toggle error:", error);
+      
+      // Revert UI on error
       setFilms(prevFilms =>
         prevFilms.map(f =>
           f.id === filmId ? { ...f, inWatchlist: wasInWatchlist, watchlistId: oldWatchlistId } : f
         )
       );
-      alert("Failed to update watchlist. Please try again.");
+      
+      // Show error message
+      const axiosError = error as AxiosError;
+      const errorMessage = (axiosError.response?.data as any)?.error || "Failed to update watchlist. Please try again.";
+      alert(errorMessage);
     } finally {
       setSavingWatchlistId(null);
     }
@@ -281,17 +297,23 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
                     quality={85}
                   />
 
-                  {isAuthenticated && userId && 'inWatchlist' in film && (
+                  {/* Fixed heart icon section */}
+                  {(isAuthenticated && userId) && (
                     <div className="absolute top-1 sm:top-2 right-1 sm:right-2 z-20">
                       <Button
                         variant="outline"
                         size="icon"
-                        aria-label={film.inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
-                        className={`bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-full border-none heart-button w-7 h-7 sm:w-8 sm:h-8 transition-colors duration-200 ${savingWatchlistId === film.id ? 'animate-pulse' : ''}`}
+                        aria-label={'inWatchlist' in film && film.inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+                        className="bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-full border-none heart-button w-7 h-7 sm:w-8 sm:h-8 transition-colors duration-200"
                         onClick={(e) => handleToggleWatchlist(e, film)}
                         disabled={savingWatchlistId === film.id}
                       >
-                        <CiHeart className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${film.inWatchlist ? "text-red-500 fill-current" : "text-white"}`} />
+                        {/* Use solid heart icon when in watchlist, outline when not */}
+                        {'inWatchlist' in film && film.inWatchlist ? (
+                          <FaHeart className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                        ) : (
+                          <CiHeart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                        )}
                       </Button>
                     </div>
                   )}

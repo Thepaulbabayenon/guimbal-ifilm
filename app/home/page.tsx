@@ -11,10 +11,6 @@ const RecentlyAdded = lazy(() => import("../components/RecentlyAdded"));
 const FilmSlider = lazy(() => import("@/app/components/FilmComponents/DynamicFilmSlider"));
 const FilmSliderWrapper = lazy(() => import("@/app/components/FilmComponents/FilmsliderWrapper"));
 
-interface SimpleTextLoopProps {
-  texts: string[];
-}
-
 interface LazySectionProps {
   children: ReactElement;
   title: string;
@@ -39,51 +35,6 @@ interface RecommendedFilm {
   duration: number;
   averageRating: number | null;
 }
-
-const SimpleTextLoop = memo(({ texts }: SimpleTextLoopProps) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const textsRef = useRef(texts);
-  
-  useEffect(() => {
-    textsRef.current = texts;
-  }, [texts]);
-  
-  useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setCurrentIndex(prevIndex => (prevIndex + 1) % textsRef.current.length);
-    }, 3000);
-    
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, []);
-  
-  return (
-    <div className="h-8 overflow-hidden relative">
-      {texts.map((text, index) => (
-        <div
-          key={`text-${index}`}
-          className={`absolute transition-opacity duration-500 w-full ${
-            index === currentIndex ? "opacity-100" : "opacity-0"
-          }`}
-          style={{ 
-            transform: `translateY(${index === currentIndex ? 0 : '100%'})`,
-            willChange: 'transform, opacity'
-          }}
-        >
-          {text}
-        </div>
-      ))}
-    </div>
-  );
-});
-
-SimpleTextLoop.displayName = "SimpleTextLoop";
 
 const loadingQueue = {
   active: 0,
@@ -151,7 +102,15 @@ const LazySection = memo(({ children, title, altTitles = [], priority = 0, heigh
   return (
     <div ref={sectionRef} className="mt-6" style={{ minHeight: height }}>
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6">
-        <SimpleTextLoop texts={allTitles} />
+        {allTitles.length > 1 ? (
+          <TextLoop interval={3}>
+            {allTitles.map((text, i) => (
+              <span key={`${title}-${i}`}>{text}</span>
+            ))}
+          </TextLoop>
+        ) : (
+          <span>{allTitles[0]}</span>
+        )}
       </h1>
     
       {isVisible ? (
@@ -290,7 +249,11 @@ const HomePage = () => {
 
       <div className="mb-6 md:mb-8 pb-10 lg:mb-10">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6">
-          <SimpleTextLoop texts={["RECENTLY ADDED", "FRESH FINDS", "NEW ARRIVALS"]} />
+          <TextLoop interval={3}>
+            {["RECENTLY ADDED", "FRESH FINDS", "NEW ARRIVALS"].map((text, i) => (
+              <span key={`recently-${i}`}>{text}</span>
+            ))}
+          </TextLoop>
         </h1>
         <Suspense 
           fallback={
@@ -335,4 +298,4 @@ const HomePage = () => {
   );
 };
 
-export default memo(HomePage);  
+export default memo(HomePage);
