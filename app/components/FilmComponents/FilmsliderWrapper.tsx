@@ -31,6 +31,7 @@ interface FilmSliderWrapperProps {
   categoryFilter?: string
   limit?: number
   films?: Film[]
+  isAIEnhanced?: boolean // Added this property to fix the TypeScript error
 }
 
 // Empty recommendations message component
@@ -125,7 +126,7 @@ class FilmSliderErrorBoundary extends React.Component<
 }
 
 // Wrapper component that handles error states and provides fallback
-const FilmSliderWrapper = ({ title, categoryFilter, limit, films }: FilmSliderWrapperProps) => {
+const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced }: FilmSliderWrapperProps) => {
   const [error, setError] = useState<string | null>(null)
   const [key, setKey] = useState(0) // Used to force remount on retry
   const [isMounted, setIsMounted] = useState(false)
@@ -194,7 +195,8 @@ const FilmSliderWrapper = ({ title, categoryFilter, limit, films }: FilmSliderWr
     title,
     categoryFilter,
     limit,
-    filmsData: processedFilms || undefined
+    filmsData: processedFilms || undefined,
+    isAIEnhanced // Pass the isAIEnhanced prop to FilmSlider if needed
   }
 
   return (

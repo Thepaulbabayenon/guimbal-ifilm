@@ -499,6 +499,7 @@ async function collaborativeFiltering(userId: string) {
     const filmIds = userInteractionsData.map((interaction) => interaction.filmId);
     
     // Get similar users based on film overlap
+    // Use the proper SQL array syntax for the IN clause
     const similarUsers = await db
       .select({
         userId: userInteractions.userId,
@@ -506,10 +507,13 @@ async function collaborativeFiltering(userId: string) {
       })
       .from(userInteractions)
       .where(
-        sql`${userInteractions.userId} != ${userId} AND ${userInteractions.filmId} IN (${filmIds.join(',')})`
+        and(
+          sql`${userInteractions.userId} != ${userId}`,
+          inArray(userInteractions.filmId, filmIds)
+        )
       )
       .groupBy(userInteractions.userId)
-      .orderBy(desc(sql`overlap`))
+      .orderBy(desc(sql`COUNT(DISTINCT ${userInteractions.filmId})`))  
       .limit(20);
     
     if (similarUsers.length === 0) {
@@ -526,8 +530,10 @@ async function collaborativeFiltering(userId: string) {
       })
       .from(userInteractions)
       .where(
-        sql`${userInteractions.userId} IN (${similarUserIds.join(',')}) AND 
-            ${userInteractions.filmId} NOT IN (${filmIds.join(',')})`
+        and(
+          inArray(userInteractions.userId, similarUserIds),
+          sql`NOT ${inArray(userInteractions.filmId, filmIds)}`
+        )
       )
       .groupBy(userInteractions.filmId)
       .orderBy(desc(sql`avgRating`), desc(sql`count`))

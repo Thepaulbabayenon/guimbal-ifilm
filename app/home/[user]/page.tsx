@@ -13,7 +13,6 @@ import axios from "axios";
 import FilmSliderWrapper from "@/app/components/FilmComponents/FilmsliderWrapper";
 import { Film } from "@/types/film";
 
-
 // Interface for user profile
 interface UserProfile {
   id: string;
@@ -21,6 +20,27 @@ interface UserProfile {
   email: string; 
   image: string;
   isAdmin: boolean;
+}
+
+// FilmSliderWrapper expects this interface
+interface ComponentFilm {
+  id: number;
+  title: string;
+  imageUrl: string;
+  releaseYear: number;
+  duration: number; // Note: This is 'duration', not 'time'
+  averageRating: number | null;
+  category?: string;
+  overview?: string;
+  watchList?: boolean;
+  trailerUrl?: string;
+  ageRating?: number;
+  initialRatings?: number;
+  videoSource?: string;
+  producer?: string; 
+  director?: string;
+  coDirector?: string;
+  studio?: string;
 }
 
 // Function to fetch watchlist directly from the database
@@ -55,7 +75,7 @@ export default function UserHome() {
   const { user, isLoading, isAuthenticated } = useUser();
   const [watchlist, setWatchlist] = useState<Film[]>([]);
   const [top10Films, setTop10Films] = useState<Film[]>([]);
-  const [recommendedFilms, setRecommendedFilms] = useState<Film[]>([]);  
+  const [recommendedFilms, setRecommendedFilms] = useState<ComponentFilm[]>([]);  // Changed type to ComponentFilm[]  
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
@@ -149,6 +169,7 @@ export default function UserHome() {
         params: { userId: user.id },
       });
 
+      // Map API response to ComponentFilm interface with correct property names
       setRecommendedFilms(
         recommendedRes.data.map((film: any) => ({
           id: film.id,
@@ -158,7 +179,7 @@ export default function UserHome() {
           trailerUrl: film.trailer || "",
           releaseYear: film.release || 0,
           ageRating: film.age || 0,
-          time: film.duration || 0,
+          duration: film.duration || 0, // Changed from 'time' to 'duration'
           initialRatings: film.averageRating ?? 0,
           category: film.category || "Uncategorized",
           imageUrl: film.imageString || film.imageUrl || "",

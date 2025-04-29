@@ -81,6 +81,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
     return `films-${title.replace(/\s+/g, '-')}-${categoryFilter || 'all'}-${limit}-${userSegment}`;
   }, [title, categoryFilter, limit, userId, isAuthenticated]);
 
+  // Fetch films data including watchlist status for each film
   const fetchFilms = useCallback(async (cacheKey: string) => {
     if (hasFetched.current) return;
 
@@ -91,6 +92,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
     try {
       const cachedFilms = cache.getFilms(cacheKey);
       if (cachedFilms) {
+        // For cached films, we'll update their watchlist status later if user is authenticated
         setFilms(cachedFilms);
         setLoading(false);
         return;
@@ -100,7 +102,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
       const params = new URLSearchParams();
       if (categoryFilter) params.append('category', categoryFilter);
       if (limit) params.append('limit', limit.toString());
-      if (userId) params.append('userId', userId);
+      if (userId) params.append('userId', userId); // Pass userId for potential server-side watchlist info
 
       if (params.toString()) url += `?${params.toString()}`;
 
@@ -114,7 +116,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
       if (!Array.isArray(fetchedFilmsData)) {
         throw new Error("Invalid data format received from server");
       }
-
+      
       cache.setFilms(cacheKey, fetchedFilmsData);
       setFilms(fetchedFilmsData);
 
@@ -128,15 +130,61 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
     }
   }, [categoryFilter, limit, userId]);
 
+  // Update watchlist status for each film when user is authenticated
+  const updateFilmsWatchlistStatus = useCallback(async () => {
+    if (!userId || !isAuthenticated || films.length === 0) return;
+    
+    // Use Promise.all to fetch watchlist status for all films in parallel
+    const updatedFilmsPromises = films.map(async (film) => {
+      try {
+        const response = await axios.get(`/api/films/${film.id}/watchlist`, { 
+          params: { userId } 
+        });
+        
+        return {
+          ...film,
+          inWatchlist: response.data?.inWatchlist || false,
+          watchlistId: response.data?.watchListId || null
+        };
+      } catch (err) {
+        console.error(`Error fetching watchlist status for film ${film.id}:`, err);
+        return film; // Return original film if error occurs
+      }
+    });
+    
+    try {
+      const updatedFilms = await Promise.all(updatedFilmsPromises);
+      setFilms(updatedFilms);
+      
+      // Update cache with watchlist information
+      const cacheKey = getCacheKey();
+      cache.setFilms(cacheKey, updatedFilms);
+    } catch (err) {
+      console.error("Error updating watchlist status for films:", err);
+    }
+  }, [films, userId, isAuthenticated, getCacheKey]);
+
   useEffect(() => {
+    // Fetch films if not already provided
     if (!initialDataProvided.current && !authLoading && !hasFetched.current) {
       const cacheKey = getCacheKey();
       fetchFilms(cacheKey);
     }
-    else if (filmsData && initialDataProvided.current) {
+  }, [authLoading, fetchFilms, getCacheKey]);
+
+  useEffect(() => {
+    // After films are loaded, update their watchlist status if user is authenticated
+    if (films.length > 0 && isAuthenticated && userId && !authLoading) {
+      updateFilmsWatchlistStatus();
+    }
+  }, [films.length, isAuthenticated, userId, authLoading, updateFilmsWatchlistStatus]);
+
+  // Update films data with initial data if provided
+  useEffect(() => {
+    if (initialDataProvided.current && filmsData) {
       setFilms(filmsData);
     }
-  }, [filmsData, authLoading, fetchFilms, getCacheKey]);
+  }, [filmsData]);
 
   const handleFilmClick = useCallback((film: Film | RecommendedFilm) => {
     setSelectedFilm(film as Film);
@@ -154,8 +202,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
 
     const filmId = film.id;
     const wasInWatchlist = 'inWatchlist' in film ? film.inWatchlist : false;
-    const oldWatchlistId = 'watchlistId' in film ? film.watchlistId : null;
-    const cacheKey = getCacheKey();
 
     // Set saving state to show loading indicator
     setSavingWatchlistId(filmId);
@@ -181,9 +227,6 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
         });
         
         newWatchlistId = response.data?.id || response.data?.watchlistId;
-        if (!newWatchlistId) {
-          console.warn("Watchlist POST did not return an ID.");
-        }
       }
 
       // Update UI with server response
@@ -194,10 +237,10 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
       );
 
       // Update cache
+      const cacheKey = getCacheKey();
       cache.setFilms(cacheKey, films.map(f =>
         f.id === filmId ? { ...f, inWatchlist: !wasInWatchlist, watchlistId: newWatchlistId } : f
       ));
-      cache.invalidateWatchlist(userId);
 
     } catch (error) {
       console.error("Watchlist toggle error:", error);
@@ -205,7 +248,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
       // Revert UI on error
       setFilms(prevFilms =>
         prevFilms.map(f =>
-          f.id === filmId ? { ...f, inWatchlist: wasInWatchlist, watchlistId: oldWatchlistId } : f
+          f.id === filmId ? { ...f, inWatchlist: wasInWatchlist, watchlistId: wasInWatchlist ? 'exists' : null } : f
         )
       );
       
@@ -275,80 +318,84 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
         className="w-full"
       >
         <CarouselContent className="-ml-2 md:-ml-4">
-          {films.map((film, index) => (
-            <CarouselItem key={film.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-              <div
-                className="relative overflow-hidden rounded-lg group cursor-pointer shadow-lg transition-shadow duration-300 hover:shadow-xl bg-gray-800"
-                onClick={() => handleFilmClick(film)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleFilmClick(film)}
-              >
-                <div className="aspect-[2/3] w-full relative">
-                  <Image
-                    src={film.imageUrl || '/placeholder-image.png'}
-                    alt={film.title}
-                    fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33.33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.66vw"
-                    priority={index < 3}
-                    loading={index < 3 ? "eager" : "lazy"}
-                    unoptimized={false}
-                    quality={85}
-                  />
+          {films.map((film, index) => {
+            const isInWatchlist = 'inWatchlist' in film ? film.inWatchlist : false;
+            
+            return (
+              <CarouselItem key={film.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+                <div
+                  className="relative overflow-hidden rounded-lg group cursor-pointer shadow-lg transition-shadow duration-300 hover:shadow-xl bg-gray-800"
+                  onClick={() => handleFilmClick(film)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && handleFilmClick(film)}
+                >
+                  <div className="aspect-[2/3] w-full relative">
+                    <Image
+                      src={film.imageUrl || '/placeholder-image.png'}
+                      alt={film.title}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33.33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.66vw"
+                      priority={index < 3}
+                      loading={index < 3 ? "eager" : "lazy"}
+                      unoptimized={false}
+                      quality={85}
+                    />
 
-                  {/* Fixed heart icon section */}
-                  {(isAuthenticated && userId) && (
-                    <div className="absolute top-1 sm:top-2 right-1 sm:right-2 z-20">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        aria-label={'inWatchlist' in film && film.inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
-                        className="bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-full border-none heart-button w-7 h-7 sm:w-8 sm:h-8 transition-colors duration-200"
-                        onClick={(e) => handleToggleWatchlist(e, film)}
-                        disabled={savingWatchlistId === film.id}
-                      >
-                        {/* Use solid heart icon when in watchlist, outline when not */}
-                        {'inWatchlist' in film && film.inWatchlist ? (
-                          <FaHeart className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
-                        ) : (
-                          <CiHeart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                        )}
-                      </Button>
-                    </div>
-                  )}
-
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/60 via-black/30 to-transparent pointer-events-none">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/25 backdrop-blur-sm flex items-center justify-center border border-white/30">
-                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 bg-gradient-to-t from-black/90 via-black/70 to-transparent pointer-events-none">
-                  <h3 className="text-white font-semibold text-xs sm:text-sm md:text-base truncate" title={film.title}>
-                    {film.title}
-                  </h3>
-                  <div className="flex items-center text-[10px] sm:text-xs text-gray-300 mt-1 space-x-2">
-                    <span>{film.releaseYear}</span>
-                    <span>•</span>
-                    <span>{'duration' in film ? Math.floor(film.duration) : 'NaN'} min</span>
-                    {film.averageRating !== null && film.averageRating > 0 && (
-                      <>
-                        <span>•</span>
-                        <span className="flex items-center">
-                          <FaStar className="w-3 h-3 sm:w-[14px] sm:h-[14px] text-yellow-400 mr-1" />
-                          {film.averageRating.toFixed(1)}
-                        </span>
-                      </>
+                    {/* Fixed heart icon section */}
+                    {(isAuthenticated && userId) && (
+                      <div className="absolute top-1 sm:top-2 right-1 sm:right-2 z-20">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          aria-label={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+                          className="bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-full border-none heart-button w-7 h-7 sm:w-8 sm:h-8 transition-colors duration-200"
+                          onClick={(e) => handleToggleWatchlist(e, film)}
+                          disabled={savingWatchlistId === film.id}
+                        >
+                          {/* Use solid heart icon when in watchlist, outline when not */}
+                          {isInWatchlist ? (
+                            <FaHeart className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                          ) : (
+                            <CiHeart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                          )}
+                        </Button>
+                      </div>
                     )}
+
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/60 via-black/30 to-transparent pointer-events-none">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/25 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3 bg-gradient-to-t from-black/90 via-black/70 to-transparent pointer-events-none">
+                    <h3 className="text-white font-semibold text-xs sm:text-sm md:text-base truncate" title={film.title}>
+                      {film.title}
+                    </h3>
+                    <div className="flex items-center text-[10px] sm:text-xs text-gray-300 mt-1 space-x-2">
+                      <span>{film.releaseYear}</span>
+                      <span>•</span>
+                      <span>{'duration' in film ? Math.floor(film.duration) : 'NaN'} min</span>
+                      {film.averageRating !== null && film.averageRating > 0 && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center">
+                            <FaStar className="w-3 h-3 sm:w-[14px] sm:h-[14px] text-yellow-400 mr-1" />
+                            {film.averageRating.toFixed(1)}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CarouselItem>
-          ))}
+              </CarouselItem>
+            );
+          })}
         </CarouselContent>
         {films.length > 5 && (
           <>

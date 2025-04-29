@@ -15,7 +15,6 @@ import {
 import { FaStar, FaRegStar, FaExpand, FaCompress } from "react-icons/fa";
 import { MdMovie, MdMovieFilter } from "react-icons/md";
 import { Film } from "@/types/film";
-import PlayVideoModal from "../PlayVideoModal";
 
 // Define the VideoModal component directly in this file
 interface VideoModalProps {

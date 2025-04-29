@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useState, memo, lazy, Suspense, ReactElement, useCallback, useRef } from "react";
+import { useEffect, useState, memo, lazy, Suspense, ReactElement, useRef } from "react";
 import { useUser } from "@/app/auth/nextjs/useUser";
-import { LoadingSpinner } from "@/app/components/LoadingSpinner";
 import { AccessDenied } from "@/app/components/AccessDenied";
 import { TextLoop } from "@/components/ui/text-loop";
+import { useRecommendations } from "@/hooks/useRecommendations"; 
+import HomePageSkeleton from "@/app/components/HomepageSkeleton";
 
+// Lazy loaded components
 const FilmVideo = lazy(() => import("../components/FilmComponents/FilmVideo"));
 const RecentlyAdded = lazy(() => import("../components/RecentlyAdded"));
 const FilmSlider = lazy(() => import("@/app/components/FilmComponents/DynamicFilmSlider"));
 const FilmSliderWrapper = lazy(() => import("@/app/components/FilmComponents/FilmsliderWrapper"));
+const RecommendationSection = lazy(() => import("@/app/components/RecommendationSection"));
 
 interface LazySectionProps {
   children: ReactElement;
@@ -25,15 +28,6 @@ interface FilmCategory {
   displayTitles: string[]; 
   categoryFilter?: string;
   limit: number;
-}
-
-interface RecommendedFilm {
-  id: number;
-  title: string;
-  imageUrl: string;
-  releaseYear: number;
-  duration: number;
-  averageRating: number | null;
 }
 
 const loadingQueue = {
@@ -116,7 +110,8 @@ const LazySection = memo(({ children, title, altTitles = [], priority = 0, heigh
       {isVisible ? (
         <Suspense fallback={
           <div className="flex items-center justify-center" style={{ height }}>
-            <LoadingSpinner />
+            {/* Replacing LoadingSpinner with a simple loading animation */}
+            <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
           </div>
         }>
           {children}
@@ -141,12 +136,18 @@ const filmCategories: (FilmCategory & { height: string })[] = [
 
 const HomePage = () => {
   const { user, isAuthenticated, isLoading } = useUser();
-  const [recommendedFilms, setRecommendedFilms] = useState<RecommendedFilm[]>([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
-  const fetchController = useRef<AbortController | null>(null);
-  const hasAttemptedFetch = useRef(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const isMobile = useRef(typeof window !== 'undefined' && window.innerWidth < 768);
+  
+  // Updated to handle null userId correctly
+  const { 
+    recommendations, 
+    loading: recommendationsLoading, 
+    error: recommendationsError,
+    refreshRecommendations
+  } = useRecommendations(user?.id || null);
 
+  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       isMobile.current = window.innerWidth < 768;
@@ -156,98 +157,68 @@ const HomePage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Simulate initial page load effect
   useEffect(() => {
-    if (!isAuthenticated || !user?.id || recommendationsLoading || hasAttemptedFetch.current) {
-      return;
-    }
-
-    hasAttemptedFetch.current = true;
+    // Set a minimum loading time to prevent flashing
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 1000);
     
-    if (fetchController.current) {
-      fetchController.current.abort();
-    }
-    
-    setRecommendationsLoading(true);
-    
-    fetchController.current = new AbortController();
-    const signal = fetchController.current.signal;
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
-    const timeoutId = setTimeout(() => {
-      fetch(`/api/recommendations?userId=${user.id}`, { signal })
-        .then((res) => {
-          if (!res.ok) throw new Error('Failed to fetch recommendations');
-          return res.json();
-        })
-        .then((data) => { 
-          if (Array.isArray(data)) {
-            setRecommendedFilms(data);
-          } else if (data && typeof data === 'object' && data.rows && Array.isArray(data.rows)) {
-            setRecommendedFilms(data.rows);
-          } else if (data && typeof data === 'object' && data.recommendations && Array.isArray(data.recommendations)) {
-            setRecommendedFilms(data.recommendations);
-          } else if (data && typeof data === 'object' && Object.keys(data).length === 0) {
-            console.log("No recommendations available for this user");
-            setRecommendedFilms([]);
-          } else {
-            console.error("Received invalid data format for recommendations:", data);
-            setRecommendedFilms([]);
-          }
-        })
-        .catch((err) => {
-          if (err.name !== 'AbortError') {
-            console.error("Error fetching recommendations:", err);
-          }
-        })
-        .finally(() => {
-          setRecommendationsLoading(false);
-          fetchController.current = null;
-        });
-    }, isMobile.current ? 500 : 300);
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (fetchController.current) {
-        fetchController.current.abort();
-        fetchController.current = null;
-      }
-      setRecommendationsLoading(false); 
-    };
-  }, [isAuthenticated, user?.id]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setRecommendedFilms([]);
-      hasAttemptedFetch.current = false;
-    }
-  }, [isAuthenticated]);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <LoadingSpinner />
-      </div>
-    );
+  // Handle auth loading state
+  if (isLoading || pageLoading) {
+    return <HomePageSkeleton />;
   }
 
+  // Handle not authenticated state
   if (!isAuthenticated) {
     return <AccessDenied />;
   }
 
+  const recommendationsForSection = recommendations as any;
+
   return (
     <div className="pt-16 lg:pt-20 pb-10 px-4 md:px-6 lg:px-8">
+      {/* Hero Video Section */}
       <div className="mb-6 md:mb-8 lg:mb-10 min-h-[300px]"> 
         <Suspense 
           fallback={
-            <div className="h-[300px] md:h-[400px] flex items-center justify-center">
-              <LoadingSpinner />
+            <div className="relative w-full h-[300px] md:h-[400px] rounded-xl bg-gray-800/40 animate-pulse overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-gray-700/50 flex items-center justify-center">
+                  <svg 
+                    className="w-8 h-8 text-gray-500" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" 
+                    />
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
           }
         >
           <FilmVideo />
         </Suspense>
-      </div>
+      </div>  
 
-      <div className="mb-6 md:mb-8 pb-10 lg:mb-10">
+      {/* Recently Added Section - Moved to top position */}
+      <div className="mb-6 md:mb-8 lg:mb-10">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6">
           <TextLoop interval={3}>
             {["RECENTLY ADDED", "FRESH FINDS", "NEW ARRIVALS"].map((text, i) => (
@@ -257,8 +228,14 @@ const HomePage = () => {
         </h1>
         <Suspense 
           fallback={
-            <div className="h-[240px] flex items-center justify-center">
-              <LoadingSpinner />
+            <div className="grid grid-flow-col auto-cols-[minmax(180px,1fr)] md:auto-cols-[minmax(200px,1fr)] gap-4 overflow-x-hidden">
+              {Array(6).fill(0).map((_, i) => (
+                <div key={`rec-skeleton-${i}`} className="flex flex-col gap-2">
+                  <div className="aspect-[2/3] bg-gray-800/40 rounded-lg animate-pulse"></div>
+                  <div className="h-4 bg-gray-700/40 rounded w-3/4"></div>
+                  <div className="h-3 bg-gray-700/30 rounded w-1/2"></div>
+                </div>
+              ))}
             </div>
           }
         >
@@ -266,19 +243,34 @@ const HomePage = () => {
         </Suspense>
       </div>
 
-      {isAuthenticated && recommendedFilms.length > 0 && (
-        <LazySection
-          title="RECOMMENDED FOR YOU"
-          altTitles={["PICKS FOR YOU", "BASED ON YOUR TASTE"]}
-          priority={1}
-          height="240px"
-        >
-          <div>
-            <FilmSliderWrapper title="Recommended For You" films={recommendedFilms} />
-          </div>
-        </LazySection>
+      {/* Personalized Recommendations Section - Moved below Recently Added */}
+      {isAuthenticated && (
+        <div className="mb-10">
+          <Suspense fallback={
+            <div className="mb-10">
+              <div className="h-8 w-64 bg-gray-700/40 rounded mb-6"></div>
+              <div className="grid grid-flow-col auto-cols-[minmax(180px,1fr)] md:auto-cols-[minmax(200px,1fr)] gap-4 overflow-x-hidden">
+                {Array(6).fill(0).map((_, i) => (
+                  <div key={`rec-${i}`} className="flex flex-col gap-2">
+                    <div className="aspect-[2/3] bg-gray-800/40 rounded-lg animate-pulse"></div>
+                    <div className="h-4 bg-gray-700/40 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-700/30 rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          }>
+            <RecommendationSection
+              recommendations={recommendationsForSection}
+              loading={recommendationsLoading}
+              error={recommendationsError}
+              FilmSliderComponent={FilmSliderWrapper}
+            />
+          </Suspense>
+        </div>
       )}
 
+      {/* Film Categories */}
       {filmCategories.map((category, index) => (
         <LazySection
           key={category.id}

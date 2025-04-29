@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { hybridRecommendation } from '../getFilms';
 import { db } from "@/app/db/drizzle";
-import { users, film, userInteractions, watchLists, userRatings, watchedFilms } from "@/app/db/schema";
+import { users, film, watchLists, userRatings, watchedFilms } from "@/app/db/schema";
 import { eq, desc, inArray, sql, and, gt } from "drizzle-orm";
 import OpenAI from 'openai';
 import NodeCache from "node-cache";
@@ -226,23 +226,23 @@ async function getUserComprehensiveData(userId: string) {
           sql`${userRatings.userId} = ${userId} OR ${watchedFilms.userId} = ${userId}`
         );
       
-      // Get interaction patterns
-      const interactionPatterns = await db
-  .select({
-    timestamp: userInteractions.timestamp,
-    // Use an existing column instead, like 'ratings'
-    ratings: userInteractions.ratings, 
-    // Or completely remove actionType if not needed
-  })
-  .from(userInteractions)
-  .where(eq(userInteractions.userId, userId))
-  .orderBy(desc(userInteractions.timestamp))
-  .limit(100);
+      // Get films in user's watchlist
+      const watchlist = await db
+        .select({
+          filmId: watchLists.filmId,
+          title: film.title,
+          category: film.category,
+          addedAt: watchLists.addedAt
+        })
+        .from(watchLists)
+        .leftJoin(film, eq(film.id, watchLists.filmId))
+        .where(eq(watchLists.userId, userId))
+        .orderBy(desc(watchLists.addedAt));
       
       userData = {
         profile: userProfile[0],
         watchHistory,
-        interactionPatterns,
+        watchlist
       };
       
       userProfileCache.set(cacheKey, userData, 1800); // Cache for 30 minutes
@@ -271,17 +271,34 @@ function prepareAIContext(userData: any) {
     .filter((item: any) => item.userRating !== null && item.userRating !== undefined)
     .sort((a: any, b: any) => b.userRating - a.userRating);
   
+  // Extract watchlist films
+  const watchlistFilms = userData.watchlist || [];
+  
   // Calculate category preferences
   const categoryCounter: Record<string, number> = {};
-  userData.watchHistory.forEach((item: any) => {
+  
+  // Add weights from watched films
+  watchedFilms.forEach((item: any) => {
     if (item.category) {
       const category = item.category;
       categoryCounter[category] = (categoryCounter[category] || 0) + 1;
-      
-      // Give extra weight to highly rated films
-      if (item.userRating && item.userRating >= 4) {
-        categoryCounter[category] += 2;
-      }
+    }
+  });
+  
+  // Add extra weight from rated films
+  ratedFilms.forEach((item: any) => {
+    if (item.category && item.userRating) {
+      const category = item.category;
+      // Give extra weight based on rating (1-5)
+      categoryCounter[category] = (categoryCounter[category] || 0) + item.userRating;
+    }
+  });
+  
+  // Add weight from watchlist items
+  watchlistFilms.forEach((item: any) => {
+    if (item.category) {
+      const category = item.category;
+      categoryCounter[category] = (categoryCounter[category] || 0) + 2; // Give watchlist items significant weight
     }
   });
   
@@ -290,27 +307,12 @@ function prepareAIContext(userData: any) {
     .sort((a, b) => (b[1] as number) - (a[1] as number))
     .map(entry => entry[0]);
   
-  // Extract time-of-day preferences
-  const timePreferences: Record<string, number> = {};
-  userData.interactionPatterns.forEach((interaction: any) => {
-    if (interaction.timestamp) {
-      const hour = new Date(interaction.timestamp).getHours();
-      const timeBlock = Math.floor(hour / 4); // 0: night, 1: early morning, 2: morning, 3: afternoon, 4: evening, 5: night
-      timePreferences[timeBlock] = (timePreferences[timeBlock] || 0) + 1;
-    }
-  });
-  
-  // Find preferred time block
-  const preferredTimeBlock = Object.entries(timePreferences)
-    .sort((a, b) => (b[1] as number) - (a[1] as number))
-    .map(entry => parseInt(entry[0]))[0];
-  
   return {
     recentlyWatchedFilms: watchedFilms.slice(0, 5).map((f: any) => f.title),
     highlyRatedFilms: ratedFilms.filter((f: any) => f.userRating >= 4).map((f: any) => f.title),
+    watchlistFilms: watchlistFilms.slice(0, 5).map((f: any) => f.title),
     preferredCategories: sortedCategories,
     watchedFilmIds: watchedFilms.map((f: any) => f.filmId),
-    preferredTimeBlock,
     userData // Include raw data for advanced processing
   };
 }
@@ -325,7 +327,7 @@ async function processRecommendationGroup(group: any, context: any, groupIndex: 
   if (filmTitles.length === 0) return group;
   
   // Create a unique cache key for this explanation
-  const explanationKey = `ai:explanation:${filmTitles.sort().join(',')}-${context.preferredCategories.slice(0, 3).join(',')}`;
+  const explanationKey = `ai:explanation:${filmTitles.sort().join(',')}-${(context.preferredCategories || []).slice(0, 3).join(',')}`;
   
   // Check if we already have this explanation cached
   let aiExplanation = aiExplanationsCache.get<string>(explanationKey);
@@ -347,6 +349,12 @@ async function processRecommendationGroup(group: any, context: any, groupIndex: 
           .slice(0, 2)
           .map(entry => entry[0]);
         
+        // Ensure we have data to work with
+        const preferredCategories = context.preferredCategories || [];
+        const highlyRatedFilms = context.highlyRatedFilms || [];
+        const recentlyWatchedFilms = context.recentlyWatchedFilms || [];
+        const watchlistFilms = context.watchlistFilms || [];
+        
         // Craft a more specific prompt based on the film categories
         const completion = await openai.chat.completions.create({
           model: "gpt-3.5-turbo",
@@ -357,9 +365,10 @@ async function processRecommendationGroup(group: any, context: any, groupIndex: 
             },
             {
               role: "user",
-              content: `User enjoys: ${context.preferredCategories.slice(0, 3).join(', ')}. 
-                They highly rated: ${context.highlyRatedFilms.slice(0, 3).join(', ')}. 
-                Recently watched: ${context.recentlyWatchedFilms.slice(0, 3).join(', ')}.
+              content: `User enjoys: ${preferredCategories.slice(0, 3).join(', ')}. 
+                They highly rated: ${highlyRatedFilms.slice(0, 3).join(', ')}. 
+                Recently watched: ${recentlyWatchedFilms.slice(0, 3).join(', ')}.
+                On their watchlist: ${watchlistFilms.slice(0, 3).join(', ')}.
                 This film collection is primarily ${dominantCategories.join(' and ')} and includes: ${filmTitles.slice(0, 4).join(', ')}.
                 Current explanation is: "${group.reason}"`
             }
@@ -399,21 +408,18 @@ async function processRecommendationGroup(group: any, context: any, groupIndex: 
 /**
  * Create an AI-specific recommendation category
  */
-// The problematic code around line 336 is likely in the createAISpecificCategory function
-// where you're creating a cache key using context.preferredCategories
-
 async function createAISpecificCategory(userData: any, context: any) {
-    // Fix: Ensure preferredCategories exists and convert null to empty array if needed
+    // Ensure we have valid data to work with
     const preferredCategories = context.preferredCategories || [];
-    const watchedFilmCount = (context.watchedFilmIds || []).length;
+    const watchedFilmIds = context.watchedFilmIds || [];
     
-    // Create cache key using non-null values
-    const cacheKey = `ai:category:${preferredCategories.slice(0, 3).join(',')}:${watchedFilmCount}`;
+    // Create cache key using safe values
+    const cacheKey = `ai:category:${preferredCategories.slice(0, 3).join(',')}:${watchedFilmIds.length}`;
     let aiCategory = recommendationsCache.get<any>(cacheKey);
     
     if (aiCategory === undefined) {
       try {
-        // Get top categories with null safety
+        // Get top categories
         const topCategories = preferredCategories.slice(0, 3);
         
         if (topCategories.length === 0) {
@@ -421,9 +427,14 @@ async function createAISpecificCategory(userData: any, context: any) {
         }
         
         // Find films in preferred categories that user hasn't watched
-        const watchedFilmIds = context.watchedFilmIds || [];
+        const safeCategoriesFilter = topCategories.length > 0 
+          ? inArray(film.category, topCategories)
+          : sql`1=1`; // Fallback if no categories
         
-        // Rest of the function remains the same...
+        const safeWatchedFilter = watchedFilmIds.length > 0 
+          ? sql`${film.id} NOT IN (${watchedFilmIds.join(',')})` 
+          : sql`1=1`; // Fallback if no watched films
+        
         const newRecommendations = await db
           .select({
             id: film.id,
@@ -437,11 +448,9 @@ async function createAISpecificCategory(userData: any, context: any) {
           .from(film)
           .where(
             and(
-              inArray(film.category, topCategories),
+              safeCategoriesFilter,
               gt(film.averageRating, 3.5),
-              watchedFilmIds.length > 0 
-                ? sql`${film.id} NOT IN (${watchedFilmIds.join(',')})` 
-                : sql`1=1`
+              safeWatchedFilter
             )
           )
           .orderBy(desc(film.averageRating))
@@ -453,6 +462,10 @@ async function createAISpecificCategory(userData: any, context: any) {
           let explanation;
           try {
             const completion = await aiLimit(async () => {
+              // Safely access high-rated films
+              const highlyRatedFilms = context.highlyRatedFilms || [];
+              const watchlistFilms = context.watchlistFilms || [];
+              
               return await openai.chat.completions.create({
                 model: "gpt-3.5-turbo",
                 messages: [
@@ -463,7 +476,8 @@ async function createAISpecificCategory(userData: any, context: any) {
                   {
                     role: "user",
                     content: `Create a personalized recommendation for a user who enjoys ${topCategories.join(', ')} films. 
-                      Some films they've rated highly include: ${(context.highlyRatedFilms || []).slice(0, 3).join(', ')}.
+                      Some films they've rated highly include: ${highlyRatedFilms.slice(0, 3).join(', ')}.
+                      Films on their watchlist include: ${watchlistFilms.slice(0, 3).join(', ')}.
                       The recommendation should explain why they might enjoy a collection of ${topCategories[0]} and ${topCategories[1] || topCategories[0]} films.`
                   }
                 ],
@@ -503,7 +517,6 @@ async function createAISpecificCategory(userData: any, context: any) {
 function incrementAIUsageMetric(userId: string) {
   try {
     // This would connect to your metrics system
-    // Consider implementing proper metrics/analytics here
     console.log(`📊 AI recommendation used for user: ${userId} at ${new Date().toISOString()}`);
   } catch (error) {
     // Don't let metrics failures impact the main functionality
