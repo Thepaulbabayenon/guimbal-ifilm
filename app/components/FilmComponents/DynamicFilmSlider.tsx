@@ -73,8 +73,10 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
   const [savingWatchlistId, setSavingWatchlistId] = useState<number | null>(null);
   const [showingTrailer, setShowingTrailer] = useState(true);
 
+  // Track if data was initially provided and if we've already fetched data
   const initialDataProvided = useRef(!!filmsData);
-  const hasFetched = useRef(!!filmsData);
+  const hasFetched = useRef(false);
+  const dataLoadedFromCache = useRef(false);
 
   const getCacheKey = useCallback(() => {
     const userSegment = isAuthenticated && userId ? `user-${userId}` : 'guest';
@@ -83,17 +85,19 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
 
   // Fetch films data including watchlist status for each film
   const fetchFilms = useCallback(async (cacheKey: string) => {
-    if (hasFetched.current) return;
+    // Don't fetch if we already have data or we've already fetched
+    if (initialDataProvided.current || hasFetched.current) return;
 
     setLoading(true);
     setError(null);
-    hasFetched.current = true;
-
+    
     try {
       const cachedFilms = cache.getFilms(cacheKey);
-      if (cachedFilms) {
-        // For cached films, we'll update their watchlist status later if user is authenticated
+      if (cachedFilms && cachedFilms.length > 0) {
+        // Use cached films
         setFilms(cachedFilms);
+        dataLoadedFromCache.current = true;
+        hasFetched.current = true;
         setLoading(false);
         return;
       }
@@ -119,6 +123,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
       
       cache.setFilms(cacheKey, fetchedFilmsData);
       setFilms(fetchedFilmsData);
+      hasFetched.current = true;
 
     } catch (err) {
       console.error(`Error fetching films for category "${categoryFilter || 'all'}":`, err);
@@ -132,11 +137,20 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
 
   // Update watchlist status for each film when user is authenticated
   const updateFilmsWatchlistStatus = useCallback(async () => {
-    if (!userId || !isAuthenticated || films.length === 0) return;
+    // Skip if no user, no films, or films were from cache with user info already
+    if (!userId || !isAuthenticated || films.length === 0 || 
+        (dataLoadedFromCache.current && films.some(film => 'inWatchlist' in film))) {
+      return;
+    }
     
     // Use Promise.all to fetch watchlist status for all films in parallel
     const updatedFilmsPromises = films.map(async (film) => {
       try {
+        // Skip API call if we already have watchlist info for this film
+        if ('inWatchlist' in film) {
+          return film;
+        }
+        
         const response = await axios.get(`/api/films/${film.id}/watchlist`, { 
           params: { userId } 
         });
@@ -156,16 +170,18 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
       const updatedFilms = await Promise.all(updatedFilmsPromises);
       setFilms(updatedFilms);
       
-      // Update cache with watchlist information
-      const cacheKey = getCacheKey();
-      cache.setFilms(cacheKey, updatedFilms);
+      // Only update cache if there were actual changes
+      if (updatedFilms.some(film => 'inWatchlist' in film)) {
+        const cacheKey = getCacheKey();
+        cache.setFilms(cacheKey, updatedFilms);
+      }
     } catch (err) {
       console.error("Error updating watchlist status for films:", err);
     }
   }, [films, userId, isAuthenticated, getCacheKey]);
 
   useEffect(() => {
-    // Fetch films if not already provided
+    // Check if we need to load data
     if (!initialDataProvided.current && !authLoading && !hasFetched.current) {
       const cacheKey = getCacheKey();
       fetchFilms(cacheKey);
@@ -173,16 +189,20 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
   }, [authLoading, fetchFilms, getCacheKey]);
 
   useEffect(() => {
-    // After films are loaded, update their watchlist status if user is authenticated
-    if (films.length > 0 && isAuthenticated && userId && !authLoading) {
+    // After films are loaded and we have a logged-in user, update watchlist status if needed
+    // Only update if films don't already have watchlist info
+    if (films.length > 0 && isAuthenticated && userId && !authLoading && 
+        !films.some(film => 'inWatchlist' in film)) {
       updateFilmsWatchlistStatus();
     }
   }, [films.length, isAuthenticated, userId, authLoading, updateFilmsWatchlistStatus]);
 
-  // Update films data with initial data if provided
+  // Update films data if filmsData prop changes
   useEffect(() => {
-    if (initialDataProvided.current && filmsData) {
+    if (filmsData && filmsData.length > 0) {
       setFilms(filmsData);
+      initialDataProvided.current = true;
+      hasFetched.current = true;
     }
   }, [filmsData]);
 

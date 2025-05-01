@@ -31,7 +31,7 @@ interface FilmSliderWrapperProps {
   categoryFilter?: string
   limit?: number
   films?: Film[]
-  isAIEnhanced?: boolean // Added this property to fix the TypeScript error
+  isAIEnhanced?: boolean
 }
 
 // Empty recommendations message component
@@ -125,34 +125,76 @@ class FilmSliderErrorBoundary extends React.Component<
   }
 }
 
+// Component instance counter for debugging
+const instanceIds = new Map();
+let instanceCounter = 0;
+
 // Wrapper component that handles error states and provides fallback
 const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced }: FilmSliderWrapperProps) => {
   const [error, setError] = useState<string | null>(null)
   const [key, setKey] = useState(0) // Used to force remount on retry
   const [isMounted, setIsMounted] = useState(false)
+  const [instanceId] = useState(() => {
+    instanceCounter++;
+    const id = `film-slider-${instanceCounter}`;
+    instanceIds.set(id, { title, categoryFilter, remounts: 0 });
+    return id;
+  });
+
+  // Track if component has already fetched data to prevent duplicate API calls
+  const hasInitialized = React.useRef(false);
 
   useEffect(() => {
+    // Log component mount for debugging
+    console.debug(`[${instanceId}] FilmSliderWrapper mounted for "${title}"`);
+    
     // Safe way to check for client-side rendering
-    setIsMounted(true)
+    setIsMounted(true);
     
     // Reset error state on props change
-    setError(null)
-  }, [title, categoryFilter, limit])
+    setError(null);
+
+    // Component cleanup
+    return () => {
+      console.debug(`[${instanceId}] FilmSliderWrapper unmounted for "${title}"`);
+      instanceIds.delete(instanceId);
+    };
+  }, [title, categoryFilter, limit, instanceId]);
+
+  // Update instance info when props change
+  useEffect(() => {
+    if (instanceIds.has(instanceId)) {
+      instanceIds.set(instanceId, { 
+        title, 
+        categoryFilter, 
+        remounts: instanceIds.get(instanceId).remounts
+      });
+    }
+  }, [title, categoryFilter, instanceId]);
 
   const handleError = useCallback((error: Error) => {
-    console.error("FilmSlider encountered an error:", error)
-    setError(error.message || "An unexpected error occurred")
-  }, [])
+    console.error(`[${instanceId}] FilmSlider encountered an error:`, error);
+    setError(error.message || "An unexpected error occurred");
+  }, [instanceId]);
 
   const handleRetry = useCallback(() => {
-    setError(null)
-    setKey(prev => prev + 1) 
-  }, [])
+    if (instanceIds.has(instanceId)) {
+      const info = instanceIds.get(instanceId);
+      instanceIds.set(instanceId, { 
+        ...info, 
+        remounts: info.remounts + 1 
+      });
+    }
+    
+    console.debug(`[${instanceId}] Retrying FilmSlider for "${title}"`);
+    setError(null);
+    hasInitialized.current = false;
+    setKey(prev => prev + 1);
+  }, [instanceId, title]);
 
   if (!isMounted) {
-    return <FilmSliderFallback title={title} />
+    return <FilmSliderFallback title={title} />;
   }
-
 
   if (error) {
     return (
@@ -161,10 +203,10 @@ const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced }
         error={error} 
         retryFetch={handleRetry} 
       />
-    )
+    );
   }
 
-  
+  // Check if this is a recommendations section
   const isRecommendationsSection = title.toLowerCase().includes('recommend') || 
                                    title.toLowerCase().includes('for you') ||
                                    title.toLowerCase().includes('based on');
@@ -180,7 +222,7 @@ const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced }
 
   // Show message for empty recommendations
   if (hasEmptyRecommendations) {
-    return <EmptyRecommendationsMessage title={title} />
+    return <EmptyRecommendationsMessage title={title} />;
   }
 
   // Process films to ensure duration is valid
@@ -196,8 +238,10 @@ const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced }
     categoryFilter,
     limit,
     filmsData: processedFilms || undefined,
-    isAIEnhanced // Pass the isAIEnhanced prop to FilmSlider if needed
-  }
+    isAIEnhanced,
+    // Add a unique identifier to help with caching
+    instanceId
+  };
 
   return (
     <FilmSliderErrorBoundary
@@ -217,7 +261,7 @@ const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced }
         </div>
       </Suspense>
     </FilmSliderErrorBoundary>
-  )
-}
+  );
+};
 
-export default FilmSliderWrapper
+export default FilmSliderWrapper;

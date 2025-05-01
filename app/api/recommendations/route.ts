@@ -9,7 +9,7 @@ import OpenAI from 'openai';
 import NodeCache from "node-cache";
 import pLimit from 'p-limit';
 
-// Initialize OpenAI client with retry logic
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   maxRetries: 3,

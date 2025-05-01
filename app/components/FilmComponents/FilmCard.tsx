@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { CiHeart, CiPlay1, CiStar } from "react-icons/ci";
 import { usePathname } from "next/navigation";
@@ -19,7 +19,7 @@ interface FilmCardProps {
   time?: number;
   initialRatings: number;
   category?: string;
-  onOpenModal?: (videoSource?: string, trailerUrl?: string) => void; // Updated to pass video info
+  onOpenModal?: (videoSource?: string, trailerUrl?: string) => void;
   onCloseModal?: () => void;
   watchList?: boolean;
 }
@@ -51,10 +51,14 @@ export function FilmCard({
   const [isSavingWatchlist, setIsSavingWatchlist] = useState(false);
   const [isSavingRating, setIsSavingRating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const dataFetchedRef = useRef(false);
   const pathName = usePathname();
 
-  // Fetch watchlist status and user data on component mount
+  // Fetch watchlist status and user data on component mount - with optimization
   useEffect(() => {
+    // Only fetch data once
+    if (dataFetchedRef.current) return;
+    
     if (!userId) {
       setLoading(false);
       return;
@@ -62,32 +66,33 @@ export function FilmCard({
 
     const fetchUserData = async () => {
       try {
-        // Fetch watchlist status using the new API endpoint
-        const watchlistResponse = await axios.get(`/api/films/${filmId}/watchlist`, { 
-          params: { userId } 
-        });
+        // Use Promise.all to fetch data concurrently
+        const [watchlistResponse, ratingResponse, avgResponse] = await Promise.all([
+          axios.get(`/api/films/${filmId}/watchlist`, { params: { userId } }),
+          axios.get(`/api/films/${filmId}/user-rating`, { params: { userId } }),
+          axios.get(`/api/films/${filmId}/average-rating`)
+        ]);
 
+        // Process watchlist data
         if (watchlistResponse.data) {
           setInWatchlist(watchlistResponse.data.inWatchlist);
           setWatchlistId(watchlistResponse.data.watchListId);
         }
         
-        // Fetch user's rating
-        const ratingResponse = await axios.get(`/api/films/${filmId}/user-rating`, { 
-          params: { userId } 
-        });
-
+        // Process user rating
         if (ratingResponse.data && ratingResponse.data.rating !== undefined) {
           setUserRating(ratingResponse.data.rating);
         }
 
-        // Fetch average rating
-        const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+        // Process average rating
         if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
           setAverageRating(avgResponse.data.averageRating);
         } else {
           setAverageRating(initialRatings);
         }
+        
+        // Mark data as fetched
+        dataFetchedRef.current = true;
       } catch (error) {
         console.error("Error fetching user data:", error);
         setAverageRating(initialRatings);
@@ -99,7 +104,7 @@ export function FilmCard({
     fetchUserData();
   }, [filmId, initialRatings, userId]);
 
-  // Mark film as watched
+  // Mark film as watched - no changes needed here, as it's a one-time operation
   const markAsWatched = async (userId: string, filmId: number) => {
     try {
       if (!userId) {
@@ -118,11 +123,19 @@ export function FilmCard({
     }
   };
 
-  // Save user rating when changed
+  // Save user rating when changed - using debounce to prevent excessive API calls
+  const saveRatingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
     if (!userId || userRating === 0) return;
 
-    const saveUserRating = async () => {
+    // Clear any existing timeout
+    if (saveRatingTimeoutRef.current) {
+      clearTimeout(saveRatingTimeoutRef.current);
+    }
+
+    // Set a new timeout to save the rating after a delay
+    saveRatingTimeoutRef.current = setTimeout(async () => {
       try {
         setIsSavingRating(true);
         
@@ -143,58 +156,66 @@ export function FilmCard({
       } finally {
         setIsSavingRating(false);
       }
-    };
+    }, 500); // 500ms debounce
 
-    saveUserRating();
+    // Clean up function
+    return () => {
+      if (saveRatingTimeoutRef.current) {
+        clearTimeout(saveRatingTimeoutRef.current);
+      }
+    };
   }, [userRating, filmId, userId]);
 
-const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
-  e.preventDefault();
-  e.stopPropagation(); // Prevent event bubbling
+  const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
 
-  if (!userId) {
-    alert("Please log in to manage your watchlist.");
-    return;
-  }
-
-  setIsSavingWatchlist(true);
-  const previousWatchlistState = inWatchlist;
-
-  try {
-    // Optimistic UI update
-    setInWatchlist(!previousWatchlistState);
-
-    if (previousWatchlistState) {
-      // Remove from watchlist using the filmId directly in the URL
-      await axios.delete(`/api/watchlist/${filmId}`);
-      
-      // Reset the watchlist ID
-      setWatchlistId(null);
-    } else {
-      // Add to watchlist
-      const response = await axios.post('/api/watchlist', {
-        userId,
-        filmId
-      });
-      
-      if (response.data && response.data.success) {
-        console.log("Successfully added to watchlist");
-      }
+    if (!userId) {
+      alert("Please log in to manage your watchlist.");
+      return;
     }
-  } catch (error) {
-    // Rollback on error
-    setInWatchlist(previousWatchlistState);
-    const axiosError = error as AxiosError;
-    
-    console.error("Watchlist error:", axiosError.response?.data || error);
-    alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
-  } finally {
-    setIsSavingWatchlist(false);
-  }
-};
 
-  // Handle rating click
-  const handleRatingClick = async (newRating: number) => {
+    // Prevent multiple clicks
+    if (isSavingWatchlist) return;
+    
+    setIsSavingWatchlist(true);
+    const previousWatchlistState = inWatchlist;
+
+    try {
+      // Optimistic UI update
+      setInWatchlist(!previousWatchlistState);
+
+      if (previousWatchlistState) {
+        // Remove from watchlist using the filmId directly in the URL
+        await axios.delete(`/api/watchlist/${filmId}`);
+        
+        // Reset the watchlist ID
+        setWatchlistId(null);
+      } else {
+        // Add to watchlist
+        const response = await axios.post('/api/watchlist', {
+          userId,
+          filmId
+        });
+        
+        if (response.data && response.data.success) {
+          console.log("Successfully added to watchlist");
+        }
+      }
+    } catch (error) {
+      // Rollback on error
+      setInWatchlist(previousWatchlistState);
+      const axiosError = error as AxiosError;
+      
+      console.error("Watchlist error:", axiosError.response?.data || error);
+      alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
+    } finally {
+      setIsSavingWatchlist(false);
+    }
+  };
+
+  // Handle rating click - optimized to prevent multiple API calls
+  const handleRatingClick = (newRating: number) => {
     if (isSavingRating) return;
 
     if (!userId) {
@@ -202,29 +223,8 @@ const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => 
       return;
     }
 
-    // Optimistic UI update
+    // Just update the state - the useEffect will handle the API call with debounce
     setUserRating(newRating);
-
-    try {
-      setIsSavingRating(true);
-      
-      // Save the rating
-      await axios.post(
-        `/api/films/${filmId}/user-rating`, 
-        { userId, rating: newRating }, 
-        { headers: { "Content-Type": "application/json" } }
-      );
-
-      // Update average rating
-      const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
-      if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
-        setAverageRating(avgResponse.data.averageRating);
-      }
-    } catch (error) {
-      console.error("Error saving user rating:", error);
-    } finally {
-      setIsSavingRating(false);
-    }
   };
 
   // Format average rating safely
@@ -278,14 +278,14 @@ const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => 
   );
 
   // Handle modal state changes
- const handleOpenModal = () => {
-  setOpen(true);
-  if (userId) markAsWatched(userId, filmId);
-  if (onOpenModal) {
-    // Pass videoSource as the primary source 
-    onOpenModal(videoSource, trailerUrl);
-  }
-};
+  const handleOpenModal = () => {
+    setOpen(true);
+    if (userId) markAsWatched(userId, filmId);
+    if (onOpenModal) {
+      // Pass videoSource as the primary source 
+      onOpenModal(videoSource, trailerUrl);
+    }
+  };
 
   const handleCloseModal = () => {
     setOpen(false);
