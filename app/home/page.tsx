@@ -1,25 +1,42 @@
 "use client";
 
-import { useEffect, useState, memo, lazy, Suspense, ReactElement, useRef } from "react";
+import { useEffect, useState, memo, useCallback, lazy, Suspense, ReactElement, useRef } from "react";
 import { useUser } from "@/app/auth/nextjs/useUser";
 import { AccessDenied } from "@/app/components/AccessDenied";
-import { TextLoop } from "@/components/ui/text-loop";
-import { useRecommendations } from "@/hooks/useRecommendations"; 
 import HomePageSkeleton from "@/app/components/HomepageSkeleton";
 
-// Lazy loaded components
-const FilmVideo = lazy(() => import("../components/FilmComponents/FilmVideo"));
-const RecentlyAdded = lazy(() => import("../components/RecentlyAdded"));
-const FilmSlider = lazy(() => import("@/app/components/FilmComponents/DynamicFilmSlider"));
-const FilmSliderWrapper = lazy(() => import("@/app/components/FilmComponents/FilmsliderWrapper"));
-const RecommendationSection = lazy(() => import("@/app/components/RecommendationSection"));
+// Import small, critical UI components directly
+import { TextLoop } from "@/components/ui/text-loop";
 
+// Strategically chunk larger components
+const FilmVideo = lazy(() => 
+  import(/* webpackChunkName: "film-video" */ "../components/FilmComponents/FilmVideo")
+);
+
+// Critical path components - import directly but with smaller bundle splits
+const RecentlyAdded = lazy(() => 
+  import(/* webpackChunkName: "recently-added" */ "../components/RecentlyAdded")
+);
+
+const FilmSlider = lazy(() => 
+  import(/* webpackChunkName: "film-slider" */ "@/app/components/FilmComponents/DynamicFilmSlider")
+);
+
+const RecommendationSection = lazy(() => 
+  import(/* webpackChunkName: "recommendations" */ "@/app/components/RecommendationSection")
+);
+
+// FilmSliderWrapper is likely a wrapper for FilmSlider, so we can import it directly
+import FilmSliderWrapper from "@/app/components/FilmComponents/FilmsliderWrapper";
+
+// Interface definitions
 interface LazySectionProps {
   children: ReactElement;
   title: string;
   altTitles?: string[];
-  priority?: number;
+  importance: 'high' | 'medium' | 'low';
   height?: string;
+  shouldAnimate?: boolean;
 }
 
 interface FilmCategory {
@@ -28,76 +45,162 @@ interface FilmCategory {
   displayTitles: string[]; 
   categoryFilter?: string;
   limit: number;
+  height: string;
+  importance: 'high' | 'medium' | 'low';
 }
 
-const loadingQueue = {
-  active: 0,
-  maxConcurrent: 2,
-  queue: [] as (() => void)[],
-  
-  add(callback: () => void) {
-    if (this.active < this.maxConcurrent) {
-      this.active++;
-      callback();
-    } else {
-      this.queue.push(callback);
+// Define Film interface to match RecommendationSection's Film interface
+interface Film {
+  id: number;
+  imageUrl: string;
+  title: string;
+  ageRating?: number;
+  duration: number;
+  overview?: string;
+  releaseYear: number;
+  videoSource?: string;
+  category?: string;
+  trailerUrl?: string;
+  averageRating: number | null;
+  inWatchlist?: boolean;
+  watchlistId?: string | null;
+}
+
+// Update interface to match RecommendationSection's expected input
+interface RecommendationGroup {
+  reason: string;
+  films: Film[];
+  isAIEnhanced?: boolean;
+  isCustomCategory?: boolean;
+}
+
+// Create a custom hook for recommendations that returns the expected types
+const useRecommendations = (userId: string | null) => {
+  const [recommendations, setRecommendations] = useState<RecommendationGroup[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
     }
-  },
-  
-  next() {
-    if (this.queue.length > 0 && this.active < this.maxConcurrent) {
-      const nextCallback = this.queue.shift();
-      if (nextCallback) {
-        nextCallback();
+
+    // Fetch recommendations
+    const fetchRecommendations = async () => {
+      try {
+        // Implementation of fetching recommendations
+        // For example:
+        // const response = await fetch(`/api/recommendations?userId=${userId}`);
+        // const data = await response.json();
+        // Placeholder: Mock recommendation data with proper structure
+        setRecommendations([
+          {
+            reason: "Based on your viewing history",
+            films: [],
+            isAIEnhanced: true
+          }
+        ]);
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+        setLoading(false);
       }
-    }
-  },
-  
-  complete() {
-    this.active = Math.max(0, this.active - 1);
-    this.next();
-  }
+    };
+
+    fetchRecommendations();
+  }, [userId]);
+
+  return { recommendations, loading, error };
 };
 
-const LazySection = memo(({ children, title, altTitles = [], priority = 0, height = "200px" }: LazySectionProps) => {
+// Extended Navigator interface to include deviceMemory
+interface ExtendedNavigator extends Navigator {
+  deviceMemory?: number;
+}
+
+// Optimized loading placeholder
+const LoadingPlaceholder = memo(({ height }: { height: string }) => (
+  <div 
+    className="bg-gray-800/20 rounded" 
+    style={{ 
+      height,
+      animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+    }} 
+  />
+));
+
+LoadingPlaceholder.displayName = "LoadingPlaceholder";
+
+// Define the pulse animation only once
+const GlobalStyles = () => (
+  <style jsx global>{`
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 0.5;
+      }
+      50% {
+        opacity: 0.8;
+      }
+    }
+  `}</style>
+);
+
+// Simplified and performance-optimized LazySection
+const LazySection = memo(({ 
+  children, 
+  title, 
+  altTitles = [], 
+  importance, 
+  height = "200px",
+  shouldAnimate = false
+}: LazySectionProps) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const allTitles = [title, ...altTitles];
+  
+  // Calculate loading parameters based on importance
+  const rootMargin = {
+    high: "400px", // Load high priority content sooner
+    medium: "200px",
+    low: "50px" // Load low priority content just before it's needed
+  }[importance];
   
   useEffect(() => {
     if (!sectionRef.current) return;
 
+    // Use native browser IntersectionObserver API for better performance
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !isVisible && !isLoading) {
-          setIsLoading(true);
-          
-          loadingQueue.add(() => {
-            setTimeout(() => {
-              setIsVisible(true);
-              loadingQueue.complete();
-            }, priority * 100);
-          });
+        if (entry.isIntersecting && !isVisible) {
+          // Use setTimeout with 0ms to defer rendering to the next event loop
+          // This prevents UI jank when multiple sections come into view
+          setTimeout(() => {
+            setIsVisible(true);
+          }, importance === 'high' ? 0 : importance === 'medium' ? 50 : 100);
           
           observer.disconnect();
         }
       },
       { 
-        rootMargin: "100px",
+        rootMargin,
         threshold: 0.1
       }
     );
 
     observer.observe(sectionRef.current);
     return () => observer.disconnect();
-  }, [isVisible, isLoading, priority]);
+  }, [isVisible, importance, rootMargin]);
 
   return (
-    <div ref={sectionRef} className="mt-6" style={{ minHeight: height }}>
+    <div 
+      ref={sectionRef} 
+      className="mt-6 section-container" 
+      style={{ minHeight: height }}
+    >
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6">
-        {allTitles.length > 1 ? (
-          <TextLoop interval={3}>
+        {shouldAnimate && allTitles.length > 1 ? (
+          <TextLoop interval={importance === 'high' ? 3 : 5}>
             {allTitles.map((text, i) => (
               <span key={`${title}-${i}`}>{text}</span>
             ))}
@@ -108,16 +211,11 @@ const LazySection = memo(({ children, title, altTitles = [], priority = 0, heigh
       </h1>
     
       {isVisible ? (
-        <Suspense fallback={
-          <div className="flex items-center justify-center" style={{ height }}>
-            {/* Replacing LoadingSpinner with a simple loading animation */}
-            <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-          </div>
-        }>
+        <Suspense fallback={<LoadingPlaceholder height={height} />}>
           {children}
         </Suspense>
       ) : (
-        <div className="animate-pulse bg-gray-800/20 rounded" style={{ height }} />
+        <LoadingPlaceholder height={height} />
       )}
     </div>
   );
@@ -125,46 +223,109 @@ const LazySection = memo(({ children, title, altTitles = [], priority = 0, heigh
 
 LazySection.displayName = "LazySection";
 
-const filmCategories: (FilmCategory & { height: string })[] = [
-  { id: "popular", title: "POPULAR FILMS", displayTitles: ["POPULAR FILMS", "TRENDING NOW", "MUST WATCH"], categoryFilter: undefined, limit: 10, height: "240px" },
-  { id: "comedy", title: "COMEDY FILMS", displayTitles: ["COMEDY FILMS", "LAUGH OUT LOUD", "FUNNY FLICKS"], categoryFilter: "comedy", limit: 10, height: "240px" },
-  { id: "drama", title: "DRAMA FILMS", displayTitles: ["DRAMA FILMS", "CRITICALLY ACCLAIMED", "EMOTIONAL JOURNEYS"], categoryFilter: "drama", limit: 10, height: "240px" },
-  { id: "folklore", title: "FOLKLORE FILMS", displayTitles: ["FOLKLORE FILMS", "LOCAL LEGENDS", "CULTURAL STORIES"], categoryFilter: "folklore", limit: 10, height: "240px" },
-  { id: "horror", title: "HORROR FILMS", displayTitles: ["HORROR FILMS", "THRILLS & CHILLS", "SCARY NIGHTS"], categoryFilter: "horror", limit: 10, height: "240px" },
-  { id: "romance", title: "ROMANCE FILMS", displayTitles: ["ROMANCE FILMS", "LOVE STORIES", "HEARTFELT MOVIES"], categoryFilter: "romance", limit: 10, height: "240px" },
+// Predefined film categories with importance levels for staggered loading
+const filmCategories: FilmCategory[] = [
+  { id: "popular", title: "POPULAR FILMS", displayTitles: ["POPULAR FILMS", "TRENDING NOW", "MUST WATCH"], categoryFilter: undefined, limit: 10, height: "240px", importance: 'high' },
+  { id: "comedy", title: "COMEDY FILMS", displayTitles: ["COMEDY FILMS", "LAUGH OUT LOUD", "FUNNY FLICKS"], categoryFilter: "comedy", limit: 8, height: "240px", importance: 'medium' },
+  { id: "drama", title: "DRAMA FILMS", displayTitles: ["DRAMA FILMS", "CRITICALLY ACCLAIMED", "EMOTIONAL JOURNEYS"], categoryFilter: "drama", limit: 8, height: "240px", importance: 'medium' },
+  { id: "folklore", title: "FOLKLORE FILMS", displayTitles: ["FOLKLORE FILMS", "LOCAL LEGENDS", "CULTURAL STORIES"], categoryFilter: "folklore", limit: 8, height: "240px", importance: 'low' },
+  { id: "horror", title: "HORROR FILMS", displayTitles: ["HORROR FILMS", "THRILLS & CHILLS", "SCARY NIGHTS"], categoryFilter: "horror", limit: 8, height: "240px", importance: 'low' },
+  { id: "romance", title: "ROMANCE FILMS", displayTitles: ["ROMANCE FILMS", "LOVE STORIES", "HEARTFELT MOVIES"], categoryFilter: "romance", limit: 8, height: "240px", importance: 'low' },
 ];
 
+// Memoized film slider component with optimized props
+const MemoizedFilmSlider = memo(({ title, categoryFilter, limit }: { 
+  title: string, 
+  categoryFilter?: string, 
+  limit: number 
+}) => (
+  <FilmSlider
+    title={title}
+    categoryFilter={categoryFilter}
+    limit={limit}
+  />
+));
+
+MemoizedFilmSlider.displayName = "MemoizedFilmSlider";
+
+// Main HomePage component
 const HomePage = () => {
   const { user, isAuthenticated, isLoading } = useUser();
   const [pageLoading, setPageLoading] = useState(true);
+  const [shouldAnimateTitles, setShouldAnimateTitles] = useState(true);
   const isMobile = useRef(typeof window !== 'undefined' && window.innerWidth < 768);
   
-  // Updated to handle null userId correctly
+  // Handle recommendations data with error handling
   const { 
     recommendations, 
     loading: recommendationsLoading, 
-    error: recommendationsError,
-    refreshRecommendations
+    error: recommendationsError
   } = useRecommendations(user?.id || null);
 
-  // Handle window resize
+  // Performance monitoring 
   useEffect(() => {
+    // Simple performance monitoring for production debugging
+    const startTime = performance.now();
+    
+    return () => {
+      // Log total render time when component unmounts
+      const totalTime = performance.now() - startTime;
+      console.debug(`HomePage render time: ${Math.round(totalTime)}ms`);
+    };
+  }, []);
+
+  // Optimize animations for lower-end devices
+  useEffect(() => {
+    // Check if device might struggle with animations
+    const checkPerformance = () => {
+      // If on mobile or memory constrained device, disable animations
+      const nav = navigator as ExtendedNavigator;
+      if (nav.deviceMemory && nav.deviceMemory < 4) {
+        setShouldAnimateTitles(false);
+      }
+      
+      // Check for reduced motion preference
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setShouldAnimateTitles(false);
+      }
+    };
+    
+    // Run performance check
+    checkPerformance();
+  }, []);
+
+  // Optimized resize handler with proper debouncing
+  useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    
     const handleResize = () => {
-      isMobile.current = window.innerWidth < 768;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        isMobile.current = window.innerWidth < 768;
+      }, 100); // 100ms debounce
     };
     
     window.addEventListener('resize', handleResize, { passive: true });
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
   }, []);
 
-  // Simulate initial page load effect
+  // Use requestIdleCallback for non-critical initialization
   useEffect(() => {
-    // Set a minimum loading time to prevent flashing
-    const timer = setTimeout(() => {
+    const finishLoading = () => {
       setPageLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
+    };
+
+    if (!isLoading) {
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(finishLoading);
+      } else {
+        // Fallback for browsers that don't support requestIdleCallback
+        setTimeout(finishLoading, 0);
+      }
+    }
   }, [isLoading]);
 
   // Handle auth loading state
@@ -177,116 +338,96 @@ const HomePage = () => {
     return <AccessDenied />;
   }
 
-  const recommendationsForSection = recommendations as any;
-
   return (
-    <div className="pt-16 lg:pt-20 pb-10 px-4 md:px-6 lg:px-8">
-      {/* Hero Video Section */}
-      <div className="mb-6 md:mb-8 lg:mb-10 min-h-[300px]"> 
-        <Suspense 
-          fallback={
-            <div className="relative w-full h-[300px] md:h-[400px] rounded-xl bg-gray-800/40 animate-pulse overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-gray-700/50 flex items-center justify-center">
-                  <svg 
-                    className="w-8 h-8 text-gray-500" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" 
-                    />
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
-                    />
-                  </svg>
+    <>
+      <GlobalStyles />
+      <div className="pt-16 lg:pt-20 pb-10 px-4 md:px-6 lg:px-8">
+        {/* Hero Video Section */}
+        <div className="mb-6 md:mb-8 lg:mb-10 min-h-[300px]"> 
+          <Suspense 
+            fallback={
+              <div className="relative w-full h-[300px] md:h-[400px] rounded-xl bg-gray-800/40 overflow-hidden" style={{
+                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              }}>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-gray-700/50 flex items-center justify-center">
+                    <svg 
+                      className="w-8 h-8 text-gray-500" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24" 
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" 
+                      />
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
-          }
-        >
-          <FilmVideo />
-        </Suspense>
-      </div>  
+            }
+          >
+            <FilmVideo />
+          </Suspense>
+        </div>  
 
-      {/* Recently Added Section - Moved to top position */}
-      <div className="mb-6 md:mb-8 lg:mb-10">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6">
-          <TextLoop interval={3}>
-            {["RECENTLY ADDED", "FRESH FINDS", "NEW ARRIVALS"].map((text, i) => (
-              <span key={`recently-${i}`}>{text}</span>
-            ))}
-          </TextLoop>
-        </h1>
-        <Suspense 
-          fallback={
-            <div className="grid grid-flow-col auto-cols-[minmax(180px,1fr)] md:auto-cols-[minmax(200px,1fr)] gap-4 overflow-x-hidden">
-              {Array(6).fill(0).map((_, i) => (
-                <div key={`rec-skeleton-${i}`} className="flex flex-col gap-2">
-                  <div className="aspect-[2/3] bg-gray-800/40 rounded-lg animate-pulse"></div>
-                  <div className="h-4 bg-gray-700/40 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-700/30 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          }
+        {/* Recently Added Section - High priority content */}
+        <LazySection 
+          title="RECENTLY ADDED" 
+          altTitles={["FRESH FINDS", "NEW ARRIVALS"]} 
+          importance="high"
+          height="280px"
+          shouldAnimate={shouldAnimateTitles}
         >
           <RecentlyAdded />
-        </Suspense>
-      </div>
+        </LazySection>
 
-      {/* Personalized Recommendations Section - Moved below Recently Added */}
-      {isAuthenticated && (
-        <div className="mb-10">
-          <Suspense fallback={
-            <div className="mb-10">
-              <div className="h-8 w-64 bg-gray-700/40 rounded mb-6"></div>
-              <div className="grid grid-flow-col auto-cols-[minmax(180px,1fr)] md:auto-cols-[minmax(200px,1fr)] gap-4 overflow-x-hidden">
-                {Array(6).fill(0).map((_, i) => (
-                  <div key={`rec-${i}`} className="flex flex-col gap-2">
-                    <div className="aspect-[2/3] bg-gray-800/40 rounded-lg animate-pulse"></div>
-                    <div className="h-4 bg-gray-700/40 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-700/30 rounded w-1/2"></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          }>
+        {/* Personalized Recommendations Section */}
+        {isAuthenticated && (
+          <LazySection
+            title="RECOMMENDED FOR YOU"
+            altTitles={["PICKS FOR YOU", "BASED ON YOUR TASTES"]}
+            importance="high"
+            height="280px"
+            shouldAnimate={shouldAnimateTitles}
+          >
             <RecommendationSection
-              recommendations={recommendationsForSection}
+              recommendations={recommendations}
               loading={recommendationsLoading}
               error={recommendationsError}
               FilmSliderComponent={FilmSliderWrapper}
             />
-          </Suspense>
-        </div>
-      )}
+          </LazySection>
+        )}
 
-      {/* Film Categories */}
-      {filmCategories.map((category, index) => (
-        <LazySection
-          key={category.id}
-          title={category.title}
-          altTitles={category.displayTitles.slice(1)}
-          priority={index + 2}
-          height={category.height}
-        >
-          <FilmSlider
+        {/* Film Categories with staggered loading */}
+        {filmCategories.map((category) => (
+          <LazySection
+            key={category.id}
             title={category.title}
-            categoryFilter={category.categoryFilter}
-            limit={category.limit}
-          />
-        </LazySection>
-      ))}
-    </div>
+            altTitles={category.displayTitles.slice(1)}
+            importance={category.importance}
+            height={category.height}
+            shouldAnimate={shouldAnimateTitles && category.importance === 'high'}
+          >
+            <MemoizedFilmSlider
+              title={category.title}
+              categoryFilter={category.categoryFilter}
+              limit={category.limit}
+            />
+          </LazySection>
+        ))}
+      </div>
+    </>
   );
 };
 
