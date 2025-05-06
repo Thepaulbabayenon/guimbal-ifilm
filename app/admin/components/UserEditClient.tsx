@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from "@/app/auth/nextjs/useUser";
 import { redirect } from "next/navigation";
-import UserEditForm, { UserFormData } from "../components/UserEditForm";
+import UserEditForm, { UserFormData } from "../components/UserEditForm"; // Adjust path as needed
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 

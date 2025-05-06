@@ -35,7 +35,6 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").notNull().default("user"),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
   image: text("image"),
-  // Add 2FA fields
   twoFactorSecret: text("two_factor_secret"),
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   twoFactorBackupCodes: text("two_factor_backup_codes").array(),
@@ -72,7 +71,6 @@ export const userOAuthAccounts = pgTable(
   })
 );
 
-// Add a new table for 2FA sessions
 export const twoFactorSessions = pgTable("two_factor_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
