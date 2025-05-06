@@ -24,6 +24,7 @@
     "@hono/zod-validator": "^0.3.0",
     "@hookform/resolvers": "^3.9.0",
     "@neondatabase/serverless": "^0.9.5",
+    "@next/bundle-analyzer": "^15.3.1",
     "@ngrok/ngrok": "^1.4.1",
     "@paralleldrive/cuid2": "github:paralleldrive/cuid2",
     "@radix-ui/react-accordion": "^1.2.1",

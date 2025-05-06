@@ -3,7 +3,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { FiUsers, FiCheckSquare, FiMessageSquare } from 'react-icons/fi'; // Example icons
+import { FiUsers, FiMessageSquare } from 'react-icons/fi'; 
+import { FiCheckSquare } from 'react-icons/fi'; // Example icons
 
 const AccessibilityPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
