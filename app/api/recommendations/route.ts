@@ -9,7 +9,6 @@ import OpenAI from 'openai';
 import NodeCache from "node-cache";
 import pLimit from 'p-limit';
 
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   maxRetries: 3,
@@ -63,11 +62,16 @@ export async function GET(req: Request) {
 
       // Apply AI enhancements if enabled
       if (useAI && process.env.OPENAI_API_KEY) {
-        console.log("🧠 Enhancing recommendations with AI...");
-        recommendations = await enhanceRecommendationsWithAI(userId, recommendations);
-        
-        // Track AI usage for monitoring
-        incrementAIUsageMetric(userId);
+        try {
+          console.log("🧠 Enhancing recommendations with AI...");
+          recommendations = await enhanceRecommendationsWithAI(userId, recommendations);
+          
+          // Track AI usage for monitoring
+          incrementAIUsageMetric(userId);
+        } catch (aiError) {
+          console.error("❌ Error enhancing recommendations with AI, falling back to base recommendations:", aiError);
+          // Continue with base recommendations if AI enhancement fails
+        }
       }
 
       if (!recommendations || recommendations.length === 0) {
@@ -156,9 +160,14 @@ async function enhanceRecommendationsWithAI(userId: string, baseRecommendations:
     await Promise.all(processingPromises);
     
     // Add an AI-specific category if possible
-    const aiCategory = await createAISpecificCategory(userData, context);
-    if (aiCategory) {
-      enhancedRecommendations.push(aiCategory);
+    try {
+      const aiCategory = await createAISpecificCategory(userData, context);
+      if (aiCategory) {
+        enhancedRecommendations.push(aiCategory);
+      }
+    } catch (categoryError) {
+      console.error("❌ Error creating AI-specific category:", categoryError);
+      // Continue without the extra category
     }
     
     return enhancedRecommendations;
@@ -356,32 +365,41 @@ async function processRecommendationGroup(group: any, context: any, groupIndex: 
         const watchlistFilms = context.watchlistFilms || [];
         
         // Craft a more specific prompt based on the film categories
-        const completion = await openai.chat.completions.create({
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: "system",
-              content: "You are a personalized film recommendation assistant. Generate a brief, specific reason why this collection of films would appeal to this user based on their preferences. Keep it to one sentence under 100 characters."
-            },
-            {
-              role: "user",
-              content: `User enjoys: ${preferredCategories.slice(0, 3).join(', ')}. 
-                They highly rated: ${highlyRatedFilms.slice(0, 3).join(', ')}. 
-                Recently watched: ${recentlyWatchedFilms.slice(0, 3).join(', ')}.
-                On their watchlist: ${watchlistFilms.slice(0, 3).join(', ')}.
-                This film collection is primarily ${dominantCategories.join(' and ')} and includes: ${filmTitles.slice(0, 4).join(', ')}.
-                Current explanation is: "${group.reason}"`
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 100
-        });
-        
-        const content = completion.choices[0]?.message?.content;
-        if (content) {
-          // Clean up the explanation
-          return content.replace(/^["']|["']$/g, '');
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+              {
+                role: "system",
+                content: "You are a personalized film recommendation assistant. Generate a brief, specific reason why this collection of films would appeal to this user based on their preferences. Keep it to one sentence under 100 characters."
+              },
+              {
+                role: "user",
+                content: `User enjoys: ${preferredCategories.slice(0, 3).join(', ')}. 
+                  They highly rated: ${highlyRatedFilms.slice(0, 3).join(', ')}. 
+                  Recently watched: ${recentlyWatchedFilms.slice(0, 3).join(', ')}.
+                  On their watchlist: ${watchlistFilms.slice(0, 3).join(', ')}.
+                  This film collection is primarily ${dominantCategories.join(' and ')} and includes: ${filmTitles.slice(0, 4).join(', ')}.
+                  Current explanation is: "${group.reason}"`
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 100
+          });
+          
+          const content = completion.choices[0]?.message?.content;
+          if (content) {
+            // Clean up the explanation
+            return content.replace(/^["']|["']$/g, '');
+          }
+        } catch (openaiError) {
+          console.error(`❌ OpenAI API error for group ${groupIndex}:`, openaiError);
+          // Create a fallback explanation based on category data
+          if (dominantCategories.length > 0) {
+            return `Handpicked ${dominantCategories[0]} films that match your taste`;
+          }
         }
+        // Return undefined if no explanation could be generated
         return undefined;
       });
       
@@ -431,30 +449,54 @@ async function createAISpecificCategory(userData: any, context: any) {
           ? inArray(film.category, topCategories)
           : sql`1=1`; // Fallback if no categories
         
-        const safeWatchedFilter = watchedFilmIds.length > 0 
-          ? sql`${film.id} NOT IN (${watchedFilmIds.join(',')})` 
-          : sql`1=1`; // Fallback if no watched films
-        
-        const newRecommendations = await db
-          .select({
-            id: film.id,
-            title: film.title,
-            imageUrl: film.imageUrl,
-            overview: film.overview,
-            category: film.category,
-            releaseYear: film.releaseYear,
-            averageRating: film.averageRating,
-          })
-          .from(film)
-          .where(
-            and(
-              safeCategoriesFilter,
-              gt(film.averageRating, 3.5),
-              safeWatchedFilter
+        // Fixed SQL query - properly handle the watchedFilmIds array
+        let newRecommendations;
+        if (watchedFilmIds.length > 0) {
+          // Convert watchedFilmIds to a parameterized array for proper SQL insertion
+          // Use a proper SQL subquery for NOT IN to avoid syntax errors
+          newRecommendations = await db
+            .select({
+              id: film.id,
+              title: film.title,
+              imageUrl: film.imageUrl,
+              overview: film.overview,
+              category: film.category,
+              releaseYear: film.releaseYear,
+              averageRating: film.averageRating,
+            })
+            .from(film)
+            .where(
+              and(
+                safeCategoriesFilter,
+                gt(film.averageRating, 3.5),
+                // Use a safer approach for NOT IN with many values
+                sql`${film.id} NOT IN (SELECT unnest(ARRAY[${sql.join(watchedFilmIds)}]))`
+              )
             )
-          )
-          .orderBy(desc(film.averageRating))
-          .limit(12);
+            .orderBy(desc(film.averageRating))
+            .limit(12);
+        } else {
+          // If no watched films, skip that filter
+          newRecommendations = await db
+            .select({
+              id: film.id,
+              title: film.title,
+              imageUrl: film.imageUrl,
+              overview: film.overview,
+              category: film.category,
+              releaseYear: film.releaseYear,
+              averageRating: film.averageRating,
+            })
+            .from(film)
+            .where(
+              and(
+                safeCategoriesFilter,
+                gt(film.averageRating, 3.5)
+              )
+            )
+            .orderBy(desc(film.averageRating))
+            .limit(12);
+        }
         
         // Only create a category if we have enough films
         if (newRecommendations.length >= 4) {
@@ -488,7 +530,8 @@ async function createAISpecificCategory(userData: any, context: any) {
             
             explanation = completion.choices[0]?.message?.content?.replace(/^["']|["']$/g, '') || 
               `AI-curated selection based on your preference for ${topCategories.join(', ')}`;
-          } catch (error) {
+          } catch (openaiError) {
+            console.error("❌ OpenAI API error in category creation:", openaiError);
             explanation = `Specially selected ${topCategories[0]} films just for you`;
           }
           

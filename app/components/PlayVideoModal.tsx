@@ -16,26 +16,42 @@ import ReactPlayer from "react-player";
 import Comments from "@/app/components/Comments";
 import SimilarFilms from "@/app/components/similarFilms";
 
-interface PlayVideoModalProps {
+// Define the Film interface that matches what's used in DynamicFilmSlider
+interface Film {
+  id: number;
   title: string;
   overview: string;
-  trailerUrl: string;
+  trailerUrl?: string;
   videoSource?: string;
-  state: boolean;
-  changeState: (state: boolean) => void;
   releaseYear: number;
   ageRating?: number;
   duration?: number;
-  ratings: number | null | undefined;
+  ratings?: number | null;
+  category: string;
+  // Add any other properties that your Film type might have
+}
+
+interface PlayVideoModalProps {
+  film?: Film;  // Add optional film object prop
+  title?: string;
+  overview?: string;
+  trailerUrl?: string;
+  videoSource?: string;
+  state: boolean;
+  changeState: (state: boolean) => void;
+  releaseYear?: number;
+  ageRating?: number;
+  duration?: number;
+  ratings?: number | null;
   setUserRating: (rating: number) => void;
   userRating?: number;
   userId?: string;
   filmId?: number;
   markAsWatched?: (userId: string, filmId: number) => void;
   watchTimerDuration?: number;
-  category: string;
+  category?: string;
   refreshRating?: (filmId?: number) => Promise<void>;
-  // New props for video source toggling
+  // Video source toggling props
   toggleVideoSource?: () => void;
   showingTrailer?: boolean;
 }
@@ -43,28 +59,40 @@ interface PlayVideoModalProps {
 type ModalSize = 'small' | 'desktop' | 'fullscreen';
 
 export default function PlayVideoModal({
+  film,  // Add film parameter
   changeState,
-  overview,
+  overview: propOverview,
   state,
-  title,
-  trailerUrl,
-  videoSource,
-  ageRating,
-  duration,
-  releaseYear,
-  ratings,
+  title: propTitle,
+  trailerUrl: propTrailerUrl,
+  videoSource: propVideoSource,
+  ageRating: propAgeRating,
+  duration: propDuration,
+  releaseYear: propReleaseYear,
+  ratings: propRatings,
   setUserRating,
   userRating = 0,
   userId,
-  filmId,
+  filmId: propFilmId,
   markAsWatched,
   watchTimerDuration = 30000,
-  category,
+  category: propCategory,
   refreshRating,
-  // New props with defaults
   toggleVideoSource,
   showingTrailer = true,
 }: PlayVideoModalProps) {
+  // Extract values from film prop if provided, otherwise use individual props
+  const title = film?.title || propTitle || "";
+  const overview = film?.overview || propOverview || "";
+  const trailerUrl = film?.trailerUrl || propTrailerUrl || "";
+  const videoSource = film?.videoSource || propVideoSource;
+  const releaseYear = film?.releaseYear || propReleaseYear || 0;
+  const ageRating = film?.ageRating || propAgeRating;
+  const duration = film?.duration || propDuration;
+  const ratings = film?.ratings ?? propRatings;
+  const filmId = film?.id || propFilmId;
+  const category = film?.category || propCategory || "";
+
   // State hooks
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
