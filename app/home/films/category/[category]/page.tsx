@@ -23,7 +23,7 @@ export default function CategoryFilms() {
   useEffect(() => {
     const fetchFilms = async () => {
       try {
-        const data: Film[] = await getFilmsByCategory(categoryString); // Fetch data
+        const data: Film[] = await getFilmsByCategory(categoryString || "default-category"); // Fetch data
         setFilms(data);
       } catch (error) {
         console.error("Error fetching category films:", error);

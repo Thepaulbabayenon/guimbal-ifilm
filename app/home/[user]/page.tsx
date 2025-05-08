@@ -215,10 +215,10 @@ export default function UserHome() {
       )}
 
       {/* Watchlist Section */}
-      <FilmLayout title="Your Watchlist" films={watchlist} loading={loading} error={error} />
+      <FilmLayout title="Your Watchlist" films={watchlist} loading={loading} error={error} isMobile={false}/>
 
       {/* Top 10 Films */}
-      <FilmLayout title="Top 10 Films" films={top10Films} loading={loading} error={error} />
+      <FilmLayout title="Top 10 Films" films={top10Films} loading={loading} error={error} isMobile={false} />
 
       {/* Recommended Films - Now using FilmSliderWrapper like in HomePage */}
       {recommendedFilms.length > 0 && (

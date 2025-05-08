@@ -21,6 +21,31 @@ interface Film {
   rank: number | null;
 }
 
+// Props interface for FilmButtons component
+interface FilmButtonsProps {
+  ageRating: number;
+  duration: number;
+  id: number;
+  overview: string;
+  releaseYear: number;
+  title: string;
+  trailerUrl: string;
+  category: string;
+  isMuted: boolean;
+  toggleMute: () => void;
+  userRatings: Record<number, number>;
+  averageRatings: Record<number, number>;
+  setUserRating: (rating: number) => void;
+  markAsWatched: (userId: string, filmId: number) => void;
+  userId: string;
+  isMobile?: boolean; // Added isMobile property as optional
+}
+
+// Add a props interface for the FilmVideo component itself
+interface FilmVideoProps {
+  isMobile?: boolean;
+}
+
 // Function to fetch recommended films
 async function getRecommendedFilm(): Promise<Film | null> {
   try {
@@ -42,7 +67,7 @@ async function getRecommendedFilm(): Promise<Film | null> {
   }
 }
 
-export default function FilmVideo() {
+export default function FilmVideo({ isMobile }: FilmVideoProps) {
   const { user } = useUser();  
   const [data, setData] = useState<Film | null>(null);
   const [loading, setLoading] = useState(true);
@@ -157,6 +182,10 @@ export default function FilmVideo() {
     );
   }
 
+  // Mobile-optimized dimensions and layout
+  const videoHeight = isMobile ? "h-[80vh]" : "h-[100vh]";
+  const contentWidth = isMobile ? "w-full" : "w-[90%] lg:w-[40%]";
+
   return (
     <div className="h-[55vh] lg:h-[60vh] w-full flex justify-start items-center">
       <video
@@ -166,10 +195,10 @@ export default function FilmVideo() {
         muted={isMuted}
         loop
         src={data.trailerUrl}
-        className="w-full absolute top-0 left-0 h-[100vh] object-cover -z-10 brightness-[45%]"
+        className={`w-full absolute top-0 left-0 ${videoHeight} object-cover -z-10 brightness-[45%]`}
       ></video>
       <div className="absolute bottom-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black"></div>
-      <div className="absolute w-[90%] lg:w-[40%] mx-auto">
+      <div className={`absolute ${contentWidth} mx-auto`}>
         <h1 className="text-white text-4xl md:text-5xl lg:text-6xl font-bold" style={{ opacity: 0.85 }}>
           {data.title}
         </h1>
@@ -193,7 +222,8 @@ export default function FilmVideo() {
             averageRatings={averageRatings}  
             setUserRating={setUserRating}
             markAsWatched={markAsWatched}
-            userId={userId}  
+            userId={userId}
+            isMobile={isMobile} 
           />
         </div>
       </div>

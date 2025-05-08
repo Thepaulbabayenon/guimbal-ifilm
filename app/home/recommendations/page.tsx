@@ -92,6 +92,7 @@ const RecommendationsPage = () => {
                 loading={false}  
                 error={null}
                 userId={userId || undefined}
+                isMobile={false}
               />
             </div>
           ))}

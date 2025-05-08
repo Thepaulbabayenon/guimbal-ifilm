@@ -22,6 +22,7 @@ interface iAppProps {
   setUserRating: (rating: number) => void;
   markAsWatched: (userId: string, filmId: number) => void;
   userId: string;
+  isMobile?: boolean; // Added isMobile property as optional
 }
 
 export default function FilmButtons({
@@ -40,6 +41,7 @@ export default function FilmButtons({
   setUserRating,
   markAsWatched,
   userId,
+  isMobile = false, // Added with default value
 }: iAppProps) {
   const [isPlayModalOpen, setPlayModalOpen] = useState(false);
   const [isLearnMoreModalOpen, setLearnMoreModalOpen] = useState(false); // State for LearnMoreModal
@@ -79,28 +81,40 @@ export default function FilmButtons({
     });
   };
 
+  // Conditional styling for mobile
+  const buttonClasses = isMobile 
+    ? "text-base font-medium bg-blue-900 hover:bg-blue-600 text-white shadow-md rounded-lg py-1 px-3" 
+    : "text-lg font-medium bg-blue-900 hover:bg-blue-600 text-white shadow-md rounded-lg";
+  
+  const infoButtonClasses = isMobile
+    ? "text-base font-medium bg-gray-800 hover:bg-gray-600 text-white shadow-md rounded-lg py-1 px-3"
+    : "text-lg font-medium bg-gray-800 hover:bg-gray-600 text-white shadow-md rounded-lg";
+  
+  const iconSize = isMobile ? "h-6 w-6" : "h-8 w-8";
+  const volumeIconSize = isMobile ? "h-8 w-8" : "h-10 w-10";
+
   return (
     <>
       <div className="flex gap-4">
         {/* Play Button */}
         <Button
           onClick={() => setPlayModalOpen(true)}
-          className="text-lg font-medium bg-blue-900 hover:bg-blue-600 text-white shadow-md rounded-lg"
+          className={buttonClasses}
           onMouseEnter={(e) => handleHoverIn(e.currentTarget)}
           onMouseLeave={(e) => handleHoverOut(e.currentTarget)}
         >
-          <CiPlay1 className="mr-2 h-8 w-8 transition-all duration-200" />
+          <CiPlay1 className={`mr-2 ${iconSize} transition-all duration-200`} />
           Play
         </Button>
 
         {/* Learn More Button */}
         <Button
           onClick={() => setLearnMoreModalOpen(true)} // Open LearnMoreModal
-          className="text-lg font-medium bg-gray-800 hover:bg-gray-600 text-white shadow-md rounded-lg"
+          className={infoButtonClasses}
           onMouseEnter={(e) => handleHoverIn(e.currentTarget)}
           onMouseLeave={(e) => handleHoverOut(e.currentTarget)}
         >
-          <CiCircleInfo className="mr-2 h-8 w-8 transition-all duration-200" />
+          <CiCircleInfo className={`mr-2 ${iconSize} transition-all duration-200`} />
           <LearnMoreModal film={film} />
         </Button>
 
@@ -112,9 +126,9 @@ export default function FilmButtons({
           className="cursor-pointer transition-transform duration-200"
         >
           {isMuted ? (
-            <CiVolumeMute className="h-10 w-10 text-red-600 transition-transform duration-300 hover:scale-110" />
+            <CiVolumeMute className={`${volumeIconSize} text-red-600 transition-transform duration-300 hover:scale-110`} />
           ) : (
-            <CiVolumeHigh className="h-10 w-10 text-green-600 transition-transform duration-300 hover:scale-110" />
+            <CiVolumeHigh className={`${volumeIconSize} text-green-600 transition-transform duration-300 hover:scale-110`} />
           )}
         </div>
       </div>

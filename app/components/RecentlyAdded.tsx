@@ -69,6 +69,25 @@ export default function RecentlyAdded() {
   const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Handle mobile detection
+  useEffect(() => {
+    const checkForMobile = () => {
+      setIsMobile(window.innerWidth < 768); // Common breakpoint for mobile
+    };
+    
+    // Initial check
+    checkForMobile();
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', checkForMobile);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', checkForMobile);
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchFilms() {
@@ -117,6 +136,7 @@ export default function RecentlyAdded() {
       loading={loading}
       error={error}
       userId={user?.id}
+      isMobile={isMobile}
     />
   );
 }

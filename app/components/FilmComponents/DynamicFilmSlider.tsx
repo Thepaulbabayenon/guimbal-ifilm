@@ -49,6 +49,7 @@ interface FilmSliderProps {
   categoryFilter?: string;
   limit?: number;
   filmsData?: (Film | RecommendedFilm)[];
+  isMobile?: boolean; // Added isMobile prop
 }
 
 interface RecommendedFilm {
@@ -60,7 +61,7 @@ interface RecommendedFilm {
   averageRating: number | null;
 }
 
-const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSliderProps) => {
+const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData, isMobile = false }: FilmSliderProps) => {
   const { user, isAuthenticated, isLoading: authLoading } = useUser();
   const userId = user?.id;
 
@@ -329,6 +330,14 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
     return null;
   }
 
+  // Adjust number of visible items based on isMobile prop
+  const getCarouselItemClasses = () => {
+    if (isMobile) {
+      return "pl-2 md:pl-4 basis-1/2 sm:basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5";
+    }
+    return "pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6";
+  };
+
   return (
     <section className="py-4 sm:py-6 md:py-8">
       <h2 className="mb-3 sm:mb-4 md:mb-6 text-xl sm:text-2xl font-bold text-white">{title}</h2>
@@ -342,7 +351,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
             const isInWatchlist = 'inWatchlist' in film ? film.inWatchlist : false;
             
             return (
-              <CarouselItem key={film.id} className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+              <CarouselItem key={film.id} className={getCarouselItemClasses()}>
                 <div
                   className="relative overflow-hidden rounded-lg group cursor-pointer shadow-lg transition-shadow duration-300 hover:shadow-xl bg-gray-800"
                   onClick={() => handleFilmClick(film)}
@@ -356,7 +365,9 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
                       alt={film.title}
                       fill
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33.33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.66vw"
+                      sizes={isMobile ? 
+                        "(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1024px) 33.33vw, 25vw" : 
+                        "(max-width: 640px) 50vw, (max-width: 768px) 33.33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16.66vw"}
                       priority={index < 3}
                       loading={index < 3 ? "eager" : "lazy"}
                       unoptimized={false}
@@ -417,10 +428,10 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData }: FilmSlider
             );
           })}
         </CarouselContent>
-        {films.length > 5 && (
+        {films.length > (isMobile ? 3 : 5) && (
           <>
-            <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex disabled:opacity-50" />
-            <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden md:flex disabled:opacity-50" />
+            <CarouselPrevious className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 ${isMobile ? 'hidden' : 'hidden md:flex'} disabled:opacity-50`} />
+            <CarouselNext className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 ${isMobile ? 'hidden' : 'hidden md:flex'} disabled:opacity-50`} />
           </>
         )}
       </Carousel>

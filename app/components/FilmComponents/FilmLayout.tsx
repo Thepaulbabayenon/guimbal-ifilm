@@ -11,6 +11,7 @@ interface FilmLayoutProps {
   loading: boolean;
   error: string | null;
   userId?: string;
+  isMobile: boolean; // Added isMobile property to fix the TypeScript error
 }
 
 const FilmItem = memo(({ 
@@ -89,7 +90,7 @@ const FilmItem = memo(({
 
 FilmItem.displayName = "FilmItem";
 
-const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, error, userId }) => {
+const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, error, userId, isMobile }) => {
   const [filmRatings, setFilmRatings] = useState<Record<number, number>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
@@ -332,11 +333,20 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
     };
   }, []);
 
+  // Mobile UI adjustments based on isMobile prop
+  const gridClassNames = isMobile 
+    ? "grid grid-cols-1 sm:grid-cols-2 px-3 mt-6 gap-4" 
+    : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6";
+
+  const titleClassNames = isMobile
+    ? "text-gray-400 text-3xl font-bold mt-6 px-4"
+    : "text-gray-400 text-4xl font-bold mt-10 px-5 sm:px-0";
+
   return (
     <div className="recently-added-container mb-20">
       {/* Title Section */}
       <div className="flex items-center justify-center">
-        <h1 className="text-gray-400 text-4xl font-bold mt-10 px-5 sm:px-0">
+        <h1 className={titleClassNames}>
           {title}
         </h1>
       </div>
@@ -355,8 +365,8 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
         </div>
       )}
 
-      {/* Film Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6">
+      {/* Film Grid - with responsive adjustments based on isMobile */}
+      <div className={gridClassNames}>
         {films.map((film, index) => (
           <FilmItem
             key={`${film.id}-${index}`} 

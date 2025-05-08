@@ -147,7 +147,7 @@ export default function FilmQueryPage() {
           {films.map((film) => (
             <div key={film.id} className="flex flex-col md:flex-row gap-6 p-4 bg-white rounded-lg shadow-md">
               <div className="w-full md:w-1/2">
-                <FilmLayout title={film.title} films={[film]} loading={false} error={null} />
+                <FilmLayout title={film.title} films={[film]} loading={false} error={null} isMobile={false}/>
               </div>
               <div className="w-full md:w-1/2">
                 <FilmDetails

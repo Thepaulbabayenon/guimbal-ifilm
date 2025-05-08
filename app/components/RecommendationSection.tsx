@@ -34,9 +34,10 @@ interface RecommendationSectionProps {
   loading: boolean;
   error: string | null;
   FilmSliderComponent: React.ComponentType<any>;
+  isMobile: boolean; // Added the isMobile prop to the interface
 }
 
-const RecommendationSection = ({ recommendations, loading, error, FilmSliderComponent }: RecommendationSectionProps) => {
+const RecommendationSection = ({ recommendations, loading, error, FilmSliderComponent, isMobile }: RecommendationSectionProps) => {
   const [selectedGroup, setSelectedGroup] = useState<number>(0);
   
   // Navigate to previous recommendation group
@@ -98,7 +99,7 @@ const RecommendationSection = ({ recommendations, loading, error, FilmSliderComp
           </TextLoop>
         </h1>
         
-        {recommendations.length > 1 && (
+        {recommendations.length > 1 && !isMobile && (
           <div className="flex items-center gap-2">
             <button 
               onClick={goToPrevious}
@@ -120,7 +121,7 @@ const RecommendationSection = ({ recommendations, loading, error, FilmSliderComp
         )}
       </div>
       
-      {recommendations.length > 1 && (
+      {recommendations.length > 1 && !isMobile && (
         <div className="flex flex-wrap gap-2 mb-4">
           {recommendations.map((group, idx) => (
             <button
@@ -166,6 +167,7 @@ const RecommendationSection = ({ recommendations, loading, error, FilmSliderComp
                 title={group.reason || "Recommended Films"}
                 filmsData={group.films}
                 isAIEnhanced={group.isAIEnhanced}
+                isMobile={isMobile} // Pass isMobile to the FilmSliderComponent
               />
             </Suspense>
           </div>
@@ -173,7 +175,7 @@ const RecommendationSection = ({ recommendations, loading, error, FilmSliderComp
       </div>
       
       {/* Navigation dots for mobile */}
-      {recommendations.length > 1 && (
+      {recommendations.length > 1 && (isMobile || true) && (
         <div className="flex justify-center gap-1.5 mt-4">
           {recommendations.map((_, idx) => (
             <button

@@ -154,6 +154,7 @@ export default function UserFavoritesPage() {
           loading={loading}
           error={error}
           userId={user?.id}
+          isMobile={false} // Adjust based on your layout needs
         />
       )}
       

@@ -61,6 +61,7 @@ useEffect(() => {
           films={films} 
           loading={loading} 
           error={error}
+          isMobile={false}
         />
       </div>
     </main>
