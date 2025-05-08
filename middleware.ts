@@ -11,353 +11,202 @@ interface User {
   role: string;
 }
 
-interface CachedSession {
-  user: User | null;
-  expiresAt: number;
-  lastDatabaseUpdate: number;
-  deviceType?: string;
-}
-
-interface RateLimitEntry {
-  count: number;
-  lastResetTime: number;
-}
-
 const AUTH_COOKIE_NAME = COOKIE_SESSION_KEY;
 
-const ROUTE_CONFIG = {
-  admin: new Set([
-    "/admin", 
-    "/admin/upload", 
-    "/admin/delete", 
-    "/admin/edit",
-    "/admin/users",
-    "/admin/user-edit",
-  ]),
+// Simplified route configuration
+const ADMIN_ROUTES = ["/admin", "/admin/upload", "/admin/delete", "/admin/edit", "/admin/users", "/admin/user-edit"];
+const STATIC_EXTENSIONS = ['.ico', '.png', '.jpg', '.jpeg', '.svg', '.css', '.js', '.woff', '.woff2', '.ttf'];
 
-  staticExtensions: new Set([
-    '.ico', '.png', '.jpg', '.jpeg', '.svg', 
-    '.css', '.js', '.woff', '.woff2', '.ttf'
-  ])
-};
+// Minimal LRU cache implementation
+class LRUCache<K, V> {
+  private cache = new Map<K, V>();
+  private readonly maxSize: number;
 
-const RATE_LIMIT_CONFIG = {
-  MAX_REQUESTS: {
-    DESKTOP: 100,
-    MOBILE: 150,
-  },
-  TIME_WINDOW: 60000,
-  SLIDING_WINDOW_SEGMENTS: 6,
-  BLOCK_DURATION: 300000,
-};
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
 
-const SESSION_CACHE_DURATION = {
-  DESKTOP: 900000,
-  MOBILE: 1800000,
-};
-const SESSION_UPDATE_INTERVAL = 3600000;
-const MIN_DB_OPERATION_INTERVAL = {
-  DESKTOP: 1000,
-  MOBILE: 5000,
-};
-const GRACE_PERIOD = 300000;
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
 
-const userSessionCache = new Map<string, CachedSession>();
-const rateLimitCache = new Map<string, RateLimitEntry>();
-const blockedIPs = new Set<string>();
+  set(key: K, value: V): void {
+    // Remove if already exists
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    // Evict oldest if full
+    else if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+    // Add new item
+    this.cache.set(key, value);
+  }
 
+  delete(key: K): boolean {
+    return this.cache.delete(key);
+  }
+}
+
+// Lightweight session cache with limited size
+const sessionCache = new LRUCache<string, User>(500);
+const rateLimitCache = new LRUCache<string, number[]>(2000);
+
+// Simplified debug logging function
 const DEBUG = false;
-
-function debugLog(...args: any[]) {
-  if (DEBUG) {
-    console.log("[Auth Middleware]", ...args);
-  }
-}
-
-const lastDbOperationTime = {
-  global: 0,
-  byDevice: new Map<string, number>()
+const debugLog = (...args: any[]) => {
+  if (DEBUG) console.log("[Auth Middleware]", ...args);
 };
 
-function detectDeviceType(request: NextRequest): 'MOBILE' | 'DESKTOP' {
-  const userAgent = request.headers.get('user-agent') || '';
-  const isMobile = /Mobile|Android|iPhone|iPad|iPod|Windows Phone/i.test(userAgent);
-  return isMobile ? 'MOBILE' : 'DESKTOP';
-}
-
-function getClientIP(request: NextRequest): string {
-  const headers = [
-    'x-forwarded-for',
-    'x-real-ip',
-    'cf-connecting-ip',
-    'true-client-ip'
-  ];
-  
-  for (const header of headers) {
-    const value = request.headers.get(header);
-    if (value) {
-      return value.split(',')[0].trim();
-    }
-  }
-  
-  return 'unknown';
-}
-
-function checkRateLimit(ip: string, deviceType: 'MOBILE' | 'DESKTOP', currentTime: number): boolean {
-  if (ip === '127.0.0.1' || ip === 'localhost') {
-    return true;
-  }
-
-  if (blockedIPs.has(ip)) {
-    debugLog(`Blocked IP attempt: ${ip}`);
-    return false;
-  }
-
-  const entry = rateLimitCache.get(ip) || { 
-    count: 0, 
-    lastResetTime: currentTime 
-  };
-
-  const segmentDuration = RATE_LIMIT_CONFIG.TIME_WINDOW / RATE_LIMIT_CONFIG.SLIDING_WINDOW_SEGMENTS;
-  const currentSegment = Math.floor((currentTime - entry.lastResetTime) / segmentDuration);
-
-  if (currentTime - entry.lastResetTime >= RATE_LIMIT_CONFIG.TIME_WINDOW) {
-    entry.count = 0;
-    entry.lastResetTime = currentTime;
-  }
-
-  entry.count++;
-
-  rateLimitCache.set(ip, entry);
-
-  const maxRequests = RATE_LIMIT_CONFIG.MAX_REQUESTS[deviceType];
-
-  if (entry.count > maxRequests) {
-    blockedIPs.add(ip);
-    
-    setTimeout(() => {
-      blockedIPs.delete(ip);
-      rateLimitCache.delete(ip);
-    }, RATE_LIMIT_CONFIG.BLOCK_DURATION);
-
-    debugLog(`Rate limit exceeded for IP: ${ip} (${deviceType})`);
-    return false;
-  }
-
-  return true;
-}
-
-async function middlewareAuth(request: NextRequest, cookies: Cookies, currentTime: number, deviceType: 'MOBILE' | 'DESKTOP') {
-  const sessionToken = cookies.get(AUTH_COOKIE_NAME)?.value;
-  const pathname = request.nextUrl.pathname;
-  
-  debugLog(`Auth check for ${pathname} - Token exists: ${!!sessionToken} - Device: ${deviceType}`);
-  
-  if (!sessionToken) {
-    if (isProtectedRoute(pathname)) {
-      debugLog(`No auth token, redirecting from protected route: ${pathname}`);
-      return NextResponse.redirect(new URL("/sign-in", request.url));
-    }
-    return null;
-  }
-  
-  const cachedSession = userSessionCache.get(sessionToken);
-  debugLog(`Cache status for ${pathname}: ${cachedSession ? 'HIT' : 'MISS'}`);
-  
-  let user: User | null = null;
-  
-  const cacheDuration = SESSION_CACHE_DURATION[deviceType];
-  
-  if (cachedSession && currentTime < cachedSession.expiresAt) {
-    user = cachedSession.user;
-    debugLog(`Using cached user data for ${deviceType}: ${JSON.stringify(user)}`);
-    
-    if (cachedSession.deviceType !== deviceType) {
-      userSessionCache.set(sessionToken, {
-        ...cachedSession,
-        deviceType
-      });
-    }
-  } else {
-    const deviceKey = `${deviceType}-${sessionToken.substring(0,8)}`;
-    const lastDeviceDbTime = lastDbOperationTime.byDevice.get(deviceKey) || 0;
-    const dbThrottleInterval = MIN_DB_OPERATION_INTERVAL[deviceType];
-    
-    const shouldQueryDb = currentTime - lastDeviceDbTime > dbThrottleInterval &&
-                          currentTime - lastDbOperationTime.global > MIN_DB_OPERATION_INTERVAL.DESKTOP;
-    
-    if (shouldQueryDb) {
-      lastDbOperationTime.global = currentTime;
-      lastDbOperationTime.byDevice.set(deviceKey, currentTime);
-      
-      const cookiesObject: Record<string, string> = {};
-      for (const cookie of request.cookies.getAll()) {
-        cookiesObject[cookie.name] = cookie.value;
-      }
-      
-      try {
-        debugLog(`Retrieving user from database for token: ${sessionToken.substring(0, 10)}... (${deviceType})`);
-        user = await getUserFromSession(cookiesObject);
-        debugLog(`User from database: ${JSON.stringify(user)}`);
-        
-        if (user) {
-          userSessionCache.set(sessionToken, {
-            user,
-            expiresAt: currentTime + cacheDuration,
-            lastDatabaseUpdate: currentTime,
-            deviceType
-          });
-          debugLog(`Updated user cache for: ${user.id} (${deviceType})`);
-        } else {
-          debugLog(`Invalid session, clearing token: ${sessionToken.substring(0, 10)}...`);
-          userSessionCache.delete(sessionToken);
-          cookies.delete(AUTH_COOKIE_NAME);
-        }
-      } catch (error) {
-        debugLog("Session retrieval error:", error);
-        if (cachedSession) {
-          user = cachedSession.user;
-          debugLog(`Falling back to cached user during error: ${JSON.stringify(user)}`);
-        }
-      }
-    } else if (cachedSession) {
-      user = cachedSession.user;
-      debugLog(`Using expired cache with grace period (${deviceType}): ${JSON.stringify(user)}`);
-      userSessionCache.set(sessionToken, {
-        ...cachedSession,
-        expiresAt: currentTime + GRACE_PERIOD,
-        deviceType
-      });
-    }
-  }
-
-  for (const route of ROUTE_CONFIG.admin) {
-    if (pathname.startsWith(route)) {
-      if (!user) {
-        debugLog(`No user found for admin route ${pathname}, redirecting to sign-in`);
-        return NextResponse.redirect(new URL("/sign-in", request.url));
-      }
-      
-      if (user.role !== "admin") {
-        debugLog(`User ${user.id} with role ${user.role} not authorized for admin route: ${pathname}`);
-        return NextResponse.redirect(new URL("/", request.url));
-      }
-      
-      debugLog(`Admin ${user.id} authorized for admin route: ${pathname}`);
-      break;
-    }
-  }
-  
-  return null;
-}
-
-function shouldSkipMiddleware(pathname: string, request: NextRequest): boolean {
-  if (pathname.startsWith('/_next') || 
-      pathname.startsWith('/api/public') ||
+// Check if path matches a static resource pattern
+function isStaticResource(pathname: string): boolean {
+  if (pathname.startsWith('/_next/') || 
+      pathname.startsWith('/api/public/') || 
       pathname.startsWith('/static/')) {
     return true;
   }
   
-  const lastDotIndex = pathname.lastIndexOf('.');
-  if (lastDotIndex !== -1 && lastDotIndex > pathname.lastIndexOf('/')) {
-    const extension = pathname.slice(lastDotIndex);
-    if (ROUTE_CONFIG.staticExtensions.has(extension)) {
-      return true;
-    }
-  }
-  
-  return pathname === '/' && !request.cookies.has(AUTH_COOKIE_NAME);
+  const extension = pathname.slice(pathname.lastIndexOf('.'));
+  return STATIC_EXTENSIONS.includes(extension);
 }
 
-function isProtectedRoute(pathname: string): boolean {
-  return pathname.startsWith('/admin');
+// Simplified rate limit check with mobile awareness
+function checkRateLimit(ip: string, isMobile: boolean): boolean {
+  // Skip for localhost
+  if (ip === '127.0.0.1' || ip === 'localhost') return true;
+
+  const now = Date.now();
+  const limit = isMobile ? 300 : 200;
+  const window = 60000; // 1 minute
+  
+  // Get or initialize timestamps array
+  let timestamps = rateLimitCache.get(ip) || [];
+  
+  // Filter out old timestamps and add current one
+  timestamps = [...timestamps.filter(t => now - t < window), now];
+  rateLimitCache.set(ip, timestamps);
+  
+  // Check if over limit
+  return timestamps.length <= limit;
+}
+
+// Simplified device detection
+function isMobileDevice(request: NextRequest): boolean {
+  const ua = request.headers.get('user-agent') || '';
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+}
+
+// Get user from cache first, then database if needed
+async function getUser(sessionToken: string, cookies: Record<string, string>): Promise<User | null> {
+  // Try cache first
+  const cachedUser = sessionCache.get(sessionToken);
+  if (cachedUser) {
+    return cachedUser;
+  }
+  
+  // Cache miss - try database
+  try {
+    const user = await getUserFromSession(cookies);
+    if (user) {
+      sessionCache.set(sessionToken, user);
+    }
+    return user;
+  } catch (error) {
+    debugLog("Error getting user:", error);
+    return null;
+  }
 }
 
 export async function middleware(request: NextRequest) {
-  const currentTime = Date.now();
   const pathname = request.nextUrl.pathname;
   
-  if (shouldSkipMiddleware(pathname, request)) {
+  // Skip middleware for static resources (most efficient check first)
+  if (isStaticResource(pathname)) {
     return NextResponse.next();
   }
   
-  const deviceType = detectDeviceType(request);
-  const clientIP = getClientIP(request);
-
-  if (!checkRateLimit(clientIP, deviceType, currentTime)) {
+  // Skip for public homepage without auth cookie
+  if (pathname === '/' && !request.cookies.has(AUTH_COOKIE_NAME)) {
+    return NextResponse.next();
+  }
+  
+  // Get client info
+  const clientIP = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                   request.headers.get('x-real-ip') || 
+                   'unknown';
+  const isMobile = isMobileDevice(request);
+  
+  // Basic rate limiting
+  if (!checkRateLimit(clientIP, isMobile)) {
     return new NextResponse(null, {
       status: 429,
       headers: {
         'Content-Type': 'text/plain',
-        'Retry-After': Math.ceil(RATE_LIMIT_CONFIG.BLOCK_DURATION / 1000).toString()
+        'Retry-After': '120'
       }
     });
   }
-
-  debugLog(`Processing ${deviceType} request for: ${pathname}`);
-
-  const cookies: Cookies = {
-    set: (key, value, options) => {
-      request.cookies.set({ ...options, name: key, value });
-      return Promise.resolve();
-    },
-    get: (key) => request.cookies.get(key),
-    delete: (key) => request.cookies.delete(key)
-  };
   
-  const authResponse = await middlewareAuth(request, cookies, currentTime, deviceType);
-  if (authResponse) return authResponse;
+  // Check authentication for protected routes
+  const sessionToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   
+  // For admin routes, verify authentication
+  if (ADMIN_ROUTES.some(route => pathname.startsWith(route))) {
+    // No session token means redirect to sign-in
+    if (!sessionToken) {
+      return NextResponse.redirect(new URL("/sign-in", request.url));
+    }
+    
+    // Get cookies as object for getUserFromSession
+    const cookiesObject: Record<string, string> = {};
+    for (const cookie of request.cookies.getAll()) {
+      cookiesObject[cookie.name] = cookie.value;
+    }
+    
+    // Get user from cache or database
+    const user = await getUser(sessionToken, cookiesObject);
+    
+    // Handle authentication failures
+    if (!user) {
+      return NextResponse.redirect(new URL("/sign-in", request.url));
+    }
+    
+    // Check admin role
+    if (user.role !== "admin") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+  
+  // Create response and occasionally update session
   const response = NextResponse.next();
   
-  const sessionToken = cookies.get(AUTH_COOKIE_NAME)?.value;
-  if (sessionToken) {
-    const cachedSession = userSessionCache.get(sessionToken);
+  // Only update session occasionally to reduce DB load
+  // Use 10% probability instead of time tracking
+  if (sessionToken && Math.random() < 0.1) {
+    const cookies: Cookies = {
+      set: (key, value, options) => {
+        request.cookies.set({ ...options, name: key, value });
+        return Promise.resolve();
+      },
+      get: (key) => request.cookies.get(key),
+      delete: (key) => request.cookies.delete(key)
+    };
     
-    const updateInterval = deviceType === 'MOBILE' ? 
-      SESSION_UPDATE_INTERVAL : SESSION_UPDATE_INTERVAL;
-    
-    if (
-      cachedSession && 
-      currentTime - cachedSession.lastDatabaseUpdate > updateInterval / 2 &&
-      currentTime - lastDbOperationTime.global > MIN_DB_OPERATION_INTERVAL[deviceType]
-    ) {
-      const deviceKey = `${deviceType}-${sessionToken.substring(0,8)}`;
-      lastDbOperationTime.global = currentTime;
-      lastDbOperationTime.byDevice.set(deviceKey, currentTime);
-      
-      if (deviceType === 'MOBILE') {
-        queueMicrotask(async () => {
-          try {
-            await updateUserSessionExpiration(cookies);
-            
-            const session = userSessionCache.get(sessionToken);
-            if (session) {
-              userSessionCache.set(sessionToken, {
-                ...session,
-                lastDatabaseUpdate: Date.now(),
-                deviceType
-              });
-            }
-          } catch (error) {
-            debugLog("Session update error:", error);
-          }
-        });
-      } else {
-        updateUserSessionExpiration(cookies).then(() => {
-          const session = userSessionCache.get(sessionToken);
-          if (session) {
-            userSessionCache.set(sessionToken, {
-              ...session,
-              lastDatabaseUpdate: Date.now(),
-              deviceType
-            });
-          }
-        }).catch(error => {
-          debugLog("Session update error:", error);
-        });
-      }
-    }
+    // Don't await - let it happen in the background
+    Promise.resolve().then(() => {
+      updateUserSessionExpiration(cookies).catch(err => 
+        debugLog("Session update error:", err)
+      );
+    });
   }
   
   return response;

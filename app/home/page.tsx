@@ -13,7 +13,7 @@ import RecentlyAdded from "../components/RecentlyAdded";
 import FilmSlider from "@/app/components/FilmComponents/DynamicFilmSlider";
 import RecommendationSection from "@/app/components/RecommendationSection";
 
-// Simple interface definitions
+// Interface definitions
 interface Film {
   id: number;
   imageUrl: string;
@@ -37,7 +37,7 @@ interface RecommendationGroup {
   isCustomCategory?: boolean;
 }
 
-// Simple film categories data
+// Film categories data
 const filmCategories = [
   { id: "popular", title: "POPULAR FILMS", displayTitles: ["POPULAR FILMS", "TRENDING NOW"], categoryFilter: undefined, limit: 10 },
   { id: "comedy", title: "COMEDY FILMS", displayTitles: ["COMEDY FILMS", "LAUGH OUT LOUD"], categoryFilter: "comedy", limit: 8 },
@@ -52,9 +52,10 @@ const HomePage = () => {
   const { user, isAuthenticated, isLoading } = useUser();
   const [recommendations, setRecommendations] = useState<RecommendationGroup[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   
-  // Simple mobile detection
+  // Mobile detection
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -68,22 +69,45 @@ const HomePage = () => {
     };
   }, []);
   
-  // Simple recommendations fetch
+  // Fetch recommendations from API
   useEffect(() => {
-    if (!user?.id) {
-      setRecommendationsLoading(false);
-      return;
+    async function fetchRecommendations() {
+      if (!user?.id) {
+        setRecommendationsLoading(false);
+        return;
+      }
+      
+      setRecommendationsLoading(true);
+      setRecommendationsError(null);
+      
+      try {
+        // Fetch recommendations from our API endpoint
+        const response = await fetch(`/api/recommendations/${user.id}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch recommendations: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Process recommendations data
+        // Add AI Enhanced flag to recommendations from the hybrid algorithm
+        const enhancedRecommendations = data.map((group: RecommendationGroup, index: number) => ({
+          ...group,
+          // First group is always AI enhanced in our hybrid system
+          isAIEnhanced: index === 0,
+        }));
+        
+        setRecommendations(enhancedRecommendations);
+      } catch (error) {
+        console.error("Error fetching recommendations:", error);
+        setRecommendationsError(error instanceof Error ? error.message : "Failed to load recommendations");
+      } finally {
+        setRecommendationsLoading(false);
+      }
     }
     
-    // Mock recommendation fetch
-    setTimeout(() => {
-      setRecommendations([{
-        reason: "Based on your viewing history",
-        films: [],
-        isAIEnhanced: true
-      }]);
-      setRecommendationsLoading(false);
-    }, 500);
+    fetchRecommendations();
   }, [user?.id]);
   
   // Handle loading state
@@ -134,7 +158,7 @@ const HomePage = () => {
           <RecommendationSection
             recommendations={recommendations}
             loading={recommendationsLoading}
-            error={null}
+            error={recommendationsError}
             FilmSliderComponent={FilmSliderWrapper}
             isMobile={isMobile}
           />
