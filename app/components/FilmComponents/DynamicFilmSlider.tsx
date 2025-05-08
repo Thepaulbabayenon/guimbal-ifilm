@@ -44,14 +44,6 @@ interface Film {
   watchlistId?: string | null;
 }
 
-interface FilmSliderProps {
-  title: string;
-  categoryFilter?: string;
-  limit?: number;
-  filmsData?: (Film | RecommendedFilm)[];
-  isMobile?: boolean; // Added isMobile prop
-}
-
 interface RecommendedFilm {
   id: number;
   title: string;
@@ -59,9 +51,32 @@ interface RecommendedFilm {
   releaseYear: number;
   duration: number;
   averageRating: number | null;
+  category?: string;
+  overview?: string;
+  ageRating?: number;
+  videoSource?: string;
+  trailerUrl?: string;
+  inWatchlist?: boolean;
+  watchlistId?: string | null;
 }
 
-const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData, isMobile = false }: FilmSliderProps) => {
+interface FilmSliderProps {
+  title: string;
+  categoryFilter?: string;
+  limit?: number;
+  filmsData?: (Film | RecommendedFilm)[];
+  isMobile?: boolean;
+  onFilmClick?: (film: Film | RecommendedFilm) => void; // Added this prop
+}
+
+const FilmSlider = ({ 
+  title, 
+  categoryFilter, 
+  limit = 10, 
+  filmsData, 
+  isMobile = false,
+  onFilmClick 
+}: FilmSliderProps) => {
   const { user, isAuthenticated, isLoading: authLoading } = useUser();
   const userId = user?.id;
 
@@ -208,9 +223,27 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData, isMobile = f
   }, [filmsData]);
 
   const handleFilmClick = useCallback((film: Film | RecommendedFilm) => {
-    setSelectedFilm(film as Film);
-    setIsModalOpen(true);
-  }, []);
+    // If custom onFilmClick handler is provided, use it
+    if (onFilmClick) {
+      onFilmClick(film);
+      return;
+    }
+    
+    // Otherwise use default behavior - open modal
+    // Make sure we have all the properties needed for the modal
+    // Cast film to Film type if needed
+    if (
+      'overview' in film && 
+      'videoSource' in film && 
+      'trailerUrl' in film && 
+      'ageRating' in film
+    ) {
+      setSelectedFilm(film as Film);
+      setIsModalOpen(true);
+    } else {
+      console.warn("Film data doesn't have all required properties for modal view");
+    }
+  }, [onFilmClick]);
 
   const handleToggleWatchlist = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, film: Film | RecommendedFilm) => {
     e.preventDefault();
@@ -436,6 +469,7 @@ const FilmSlider = ({ title, categoryFilter, limit = 10, filmsData, isMobile = f
         )}
       </Carousel>
 
+      {/* Only show modal when film has required properties */}
       {selectedFilm && isModalOpen && (
         <PlayVideoModal
           title={selectedFilm.title}

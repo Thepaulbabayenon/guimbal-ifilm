@@ -426,133 +426,135 @@ async function processRecommendationGroup(group: any, context: any, groupIndex: 
 /**
  * Create an AI-specific recommendation category
  */
+/**
+ * Create an AI-specific recommendation category
+ */
 async function createAISpecificCategory(userData: any, context: any) {
-    // Ensure we have valid data to work with
-    const preferredCategories = context.preferredCategories || [];
-    const watchedFilmIds = context.watchedFilmIds || [];
-    
-    // Create cache key using safe values
-    const cacheKey = `ai:category:${preferredCategories.slice(0, 3).join(',')}:${watchedFilmIds.length}`;
-    let aiCategory = recommendationsCache.get<any>(cacheKey);
-    
-    if (aiCategory === undefined) {
-      try {
-        // Get top categories
-        const topCategories = preferredCategories.slice(0, 3);
-        
-        if (topCategories.length === 0) {
-          return null;
-        }
-        
-        // Find films in preferred categories that user hasn't watched
-        const safeCategoriesFilter = topCategories.length > 0 
-          ? inArray(film.category, topCategories)
-          : sql`1=1`; // Fallback if no categories
-        
-        // Fixed SQL query - properly handle the watchedFilmIds array
-        let newRecommendations;
-        if (watchedFilmIds.length > 0) {
-          // Convert watchedFilmIds to a parameterized array for proper SQL insertion
-          // Use a proper SQL subquery for NOT IN to avoid syntax errors
-          newRecommendations = await db
-            .select({
-              id: film.id,
-              title: film.title,
-              imageUrl: film.imageUrl,
-              overview: film.overview,
-              category: film.category,
-              releaseYear: film.releaseYear,
-              averageRating: film.averageRating,
-            })
-            .from(film)
-            .where(
-              and(
-                safeCategoriesFilter,
-                gt(film.averageRating, 3.5),
-                // Use a safer approach for NOT IN with many values
-                sql`${film.id} NOT IN (SELECT unnest(ARRAY[${sql.join(watchedFilmIds)}]))`
-              )
-            )
-            .orderBy(desc(film.averageRating))
-            .limit(12);
-        } else {
-          // If no watched films, skip that filter
-          newRecommendations = await db
-            .select({
-              id: film.id,
-              title: film.title,
-              imageUrl: film.imageUrl,
-              overview: film.overview,
-              category: film.category,
-              releaseYear: film.releaseYear,
-              averageRating: film.averageRating,
-            })
-            .from(film)
-            .where(
-              and(
-                safeCategoriesFilter,
-                gt(film.averageRating, 3.5)
-              )
-            )
-            .orderBy(desc(film.averageRating))
-            .limit(12);
-        }
-        
-        // Only create a category if we have enough films
-        if (newRecommendations.length >= 4) {
-          // Generate an explanation for this category
-          let explanation;
-          try {
-            const completion = await aiLimit(async () => {
-              // Safely access high-rated films
-              const highlyRatedFilms = context.highlyRatedFilms || [];
-              const watchlistFilms = context.watchlistFilms || [];
-              
-              return await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
-                messages: [
-                  {
-                    role: "system",
-                    content: "Create a personalized, enthusiastic one-sentence recommendation under 80 characters."
-                  },
-                  {
-                    role: "user",
-                    content: `Create a personalized recommendation for a user who enjoys ${topCategories.join(', ')} films. 
-                      Some films they've rated highly include: ${highlyRatedFilms.slice(0, 3).join(', ')}.
-                      Films on their watchlist include: ${watchlistFilms.slice(0, 3).join(', ')}.
-                      The recommendation should explain why they might enjoy a collection of ${topCategories[0]} and ${topCategories[1] || topCategories[0]} films.`
-                  }
-                ],
-                temperature: 0.8,
-                max_tokens: 80
-              });
-            });
-            
-            explanation = completion.choices[0]?.message?.content?.replace(/^["']|["']$/g, '') || 
-              `AI-curated selection based on your preference for ${topCategories.join(', ')}`;
-          } catch (openaiError) {
-            console.error("❌ OpenAI API error in category creation:", openaiError);
-            explanation = `Specially selected ${topCategories[0]} films just for you`;
-          }
-          
-          aiCategory = {
-            reason: explanation,
-            films: newRecommendations.slice(0, 8),
-            isAIEnhanced: true,
-            isCustomCategory: true
-          };
-          
-          // Cache this category
-          recommendationsCache.set(cacheKey, aiCategory, 7200); // 2 hours
-        }
-      } catch (error) {
-        console.error("❌ Error generating AI category:", error);
+  // Ensure we have valid data to work with
+  const preferredCategories = context.preferredCategories || [];
+  const watchedFilmIds = context.watchedFilmIds || [];
+  
+  // Create cache key using safe values
+  const cacheKey = `ai:category:${preferredCategories.slice(0, 3).join(',')}:${watchedFilmIds.length}`;
+  let aiCategory = recommendationsCache.get<any>(cacheKey);
+  
+  if (aiCategory === undefined) {
+    try {
+      // Get top categories
+      const topCategories = preferredCategories.slice(0, 3);
+      
+      if (topCategories.length === 0) {
         return null;
       }
+      
+      // Find films in preferred categories that user hasn't watched
+      const safeCategoriesFilter = topCategories.length > 0 
+        ? inArray(film.category, topCategories)
+        : sql`1=1`; // Fallback if no categories
+      
+      // Fixed SQL query to properly handle exclusion of watched films
+      let newRecommendations;
+      if (watchedFilmIds.length > 0) {
+        // Use a simpler approach with NOT IN that won't cause syntax errors
+        newRecommendations = await db
+          .select({
+            id: film.id,
+            title: film.title,
+            imageUrl: film.imageUrl,
+            overview: film.overview,
+            category: film.category,
+            releaseYear: film.releaseYear,
+            averageRating: film.averageRating,
+          })
+          .from(film)
+          .where(
+            and(
+              safeCategoriesFilter,
+              gt(film.averageRating, 3.5),
+              // Instead of using a complex subquery, use NOT IN directly
+              sql`${film.id} NOT IN (${sql.join(watchedFilmIds)})`
+            )
+          )
+          .orderBy(desc(film.averageRating))
+          .limit(12);
+      } else {
+        // If no watched films, skip that filter
+        newRecommendations = await db
+          .select({
+            id: film.id,
+            title: film.title,
+            imageUrl: film.imageUrl,
+            overview: film.overview,
+            category: film.category,
+            releaseYear: film.releaseYear,
+            averageRating: film.averageRating,
+          })
+          .from(film)
+          .where(
+            and(
+              safeCategoriesFilter,
+              gt(film.averageRating, 3.5)
+            )
+          )
+          .orderBy(desc(film.averageRating))
+          .limit(12);
+      }
+      
+      // Only create a category if we have enough films
+      if (newRecommendations.length >= 4) {
+        // Generate an explanation for this category
+        let explanation;
+        try {
+          const completion = await aiLimit(async () => {
+            // Safely access high-rated films
+            const highlyRatedFilms = context.highlyRatedFilms || [];
+            const watchlistFilms = context.watchlistFilms || [];
+            
+            return await openai.chat.completions.create({
+              model: "gpt-3.5-turbo",
+              messages: [
+                {
+                  role: "system",
+                  content: "Create a personalized, enthusiastic one-sentence recommendation under 80 characters."
+                },
+                {
+                  role: "user",
+                  content: `Create a personalized recommendation for a user who enjoys ${topCategories.join(', ')} films. 
+                    Some films they've rated highly include: ${highlyRatedFilms.slice(0, 3).join(', ')}.
+                    Films on their watchlist include: ${watchlistFilms.slice(0, 3).join(', ')}.
+                    The recommendation should explain why they might enjoy a collection of ${topCategories[0]} and ${topCategories[1] || topCategories[0]} films.`
+                }
+              ],
+              temperature: 0.8,
+              max_tokens: 80
+            });
+          });
+          
+          explanation = completion.choices[0]?.message?.content?.replace(/^["']|["']$/g, '') || 
+            `AI-curated selection based on your preference for ${topCategories.join(', ')}`;
+        } catch (openaiError) {
+          console.error("❌ OpenAI API error in category creation:", openaiError);
+          explanation = `Specially selected ${topCategories[0]} films just for you`;
+        }
+        
+        aiCategory = {
+          reason: explanation,
+          films: newRecommendations.slice(0, 8),
+          isAIEnhanced: true,
+          isCustomCategory: true
+        };
+        
+        // Cache this category
+        recommendationsCache.set(cacheKey, aiCategory, 7200); // 2 hours
+      }
+    } catch (error) {
+      console.error("❌ Error generating AI category:", error);
+      return null;
     }
-    
-    return aiCategory;
   }
+  
+  return aiCategory;
+}
 
 /**
  * Increment AI usage metric for monitoring

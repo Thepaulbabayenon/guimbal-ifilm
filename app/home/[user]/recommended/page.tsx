@@ -14,7 +14,7 @@ export default function RecommendationsPageWrapper() {
   return (
     <main className="flex min-h-screen flex-col">
       <Suspense fallback={<RecommendationsLoading />}>
-        <RecommendedPage />
+        <RecommendedPage/>
       </Suspense>
     </main>
   );

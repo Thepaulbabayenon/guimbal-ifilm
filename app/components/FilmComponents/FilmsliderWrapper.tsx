@@ -32,6 +32,8 @@ interface FilmSliderWrapperProps {
   limit?: number
   films?: Film[]
   isAIEnhanced?: boolean
+  onFilmClick?: (film: Film) => void
+  isMobile?: boolean  // Added isMobile prop
 }
 
 // Empty recommendations message component
@@ -130,7 +132,7 @@ const instanceIds = new Map();
 let instanceCounter = 0;
 
 // Wrapper component that handles error states and provides fallback
-const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced }: FilmSliderWrapperProps) => {
+const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced, onFilmClick, isMobile }: FilmSliderWrapperProps) => {
   const [error, setError] = useState<string | null>(null)
   const [key, setKey] = useState(0) // Used to force remount on retry
   const [isMounted, setIsMounted] = useState(false)
@@ -239,6 +241,8 @@ const FilmSliderWrapper = ({ title, categoryFilter, limit, films, isAIEnhanced }
     limit,
     filmsData: processedFilms || undefined,
     isAIEnhanced,
+    onFilmClick,  // Pass the onFilmClick handler to FilmSlider
+    isMobile,     // Pass the isMobile flag to FilmSlider
     // Add a unique identifier to help with caching
     instanceId
   };

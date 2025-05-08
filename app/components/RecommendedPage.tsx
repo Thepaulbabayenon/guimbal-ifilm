@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import FilmSlider from "@/app/components/FilmComponents/DynamicFilmSlider";
-import { useUser } from "@/app/auth/nextjs/useUser";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { Logo } from "./Logo";
+import { TextLoop } from "@/components/ui/text-loop";
+import PlayVideoModal from "./PlayVideoModal";
+import { useUser } from "@/app/auth/nextjs/useUser";
+
+// Import the correct FilmSlider component - make sure to use the same one as HomePage
+import FilmSliderWrapper from "@/app/components/FilmComponents/FilmsliderWrapper";
 
 // Types
 interface RecommendedFilm {
@@ -17,6 +21,9 @@ interface RecommendedFilm {
   averageRating: number | null;
   category?: string;
   overview?: string;
+  trailerUrl?: string;
+  videoSource?: string;
+  ageRating?: number;
 }
 
 interface RecommendationGroup {
@@ -26,13 +33,19 @@ interface RecommendationGroup {
   isCustomCategory?: boolean;
 }
 
-interface RecommendationResponse {
-  recommendations: RecommendationGroup[];
-  meta: {
-    cached: boolean;
-    processingTime: number;
-    aiEnhanced: boolean;
-  };
+// Film type expected by PlayVideoModal - ensure this matches what the component expects
+interface Film {
+  id: number;
+  title: string;
+  imageUrl?: string;
+  overview: string;
+  trailerUrl: string;
+  videoSource: string;
+  releaseYear: number;
+  ageRating?: number;
+  duration: number;
+  ratings: number | null;
+  category: string;
 }
 
 // Loading skeleton components
@@ -93,7 +106,29 @@ const RecommendedPage = () => {
   const [recommendationGroups, setRecommendationGroups] = useState<RecommendationGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [meta, setMeta] = useState<RecommendationResponse["meta"] | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [refreshTimestamp, setRefreshTimestamp] = useState<number | null>(null);
+  
+  // State for video modal
+  const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [userRating, setUserRating] = useState<number>(0);
+  const [showingTrailer, setShowingTrailer] = useState(true);
+  const [hasRefreshedRatings, setHasRefreshedRatings] = useState(false);
+    
+  // Simple mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
   
   // Function to fetch recommendations
   const fetchRecommendations = async (refresh = false) => {
@@ -103,17 +138,15 @@ const RecommendedPage = () => {
     setError(null);
     
     try {
-      // Use AI-enhanced recommendations if available
-      const useAI = true;
-      // Add refresh parameter if needed
-      const url = `/api/recommendations?userId=${user.id}&useAI=${useAI}${refresh ? '&refresh=true' : ''}`;
+      // Use the correct endpoint with userId in the path
+      const url = `/api/recommendations/${user.id}`;
       
-      const response = await axios.get<RecommendationResponse>(url);
+      const response = await axios.get(url);
       const data = response.data;
       
-      if (data.recommendations && Array.isArray(data.recommendations)) {
-        setRecommendationGroups(data.recommendations);
-        setMeta(data.meta);
+      if (data && Array.isArray(data)) {
+        setRecommendationGroups(data);
+        setRefreshTimestamp(Date.now());
       } else {
         setRecommendationGroups([]);
         setError("Recommendations data is invalid");
@@ -137,6 +170,83 @@ const RecommendedPage = () => {
       setIsLoading(false);
     }
   }, [isAuthenticated, user?.id, authLoading]);
+  
+  // Handler for opening the video modal
+  const handleFilmClick = (film: RecommendedFilm) => {
+    // Convert RecommendedFilm to the Film type expected by PlayVideoModal
+    const convertedFilm: Film = {
+      id: film.id,
+      title: film.title,
+      imageUrl: film.imageUrl,
+      overview: film.overview || "",
+      trailerUrl: film.trailerUrl || "",
+      videoSource: film.videoSource || "",
+      releaseYear: film.releaseYear,
+      ageRating: film.ageRating,
+      duration: film.duration,
+      ratings: film.averageRating,
+      category: film.category || "",
+    };
+    
+    setSelectedFilm(convertedFilm);
+    setShowingTrailer(true); // Reset to trailer view when opening new film
+    setUserRating(0); // Reset rating for new film selection
+    setIsVideoModalOpen(true);
+    setHasRefreshedRatings(false);
+  };
+
+  // Handler for closing the video modal
+  const handleCloseVideoModal = () => {
+    setIsVideoModalOpen(false);
+  };
+
+  // Function to toggle between trailer and full movie
+  const toggleVideoSource = () => {
+    setShowingTrailer(!showingTrailer);
+  };
+
+  // Function to mark film as watched (if implemented in backend)
+  const markAsWatched = async (userId: string, filmId: number) => {
+    try {
+      await axios.post(`/api/films/${filmId}/watched-films`, { 
+        userId, 
+        filmId, 
+        watchedDuration: 60 
+      });
+      console.log("Film marked as watched");
+      // You could update local state here if needed
+    } catch (error) {
+      console.error("Error marking film as watched:", error);
+    }
+  };
+
+  // Function to refresh ratings after user rates a film
+  const refreshRating = async (filmId?: number) => {
+    if (!filmId) return;
+    
+    try {
+      // Refresh the average rating for the specific film
+      const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+      
+      if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+        // Update the film's rating in our local state
+        setRecommendationGroups(prevGroups => 
+          prevGroups.map(group => ({
+            ...group,
+            films: group.films.map(film => 
+              film.id === filmId
+                ? { ...film, averageRating: avgResponse.data.averageRating }
+                : film
+            )
+          }))
+        );
+        
+        setHasRefreshedRatings(true);
+      }
+    } catch (error) {
+      console.error("Error refreshing rating:", error);
+    }
+  };
 
   // Show loading skeleton during initial load
   if (authLoading || isLoading) {
@@ -172,35 +282,33 @@ const RecommendedPage = () => {
 
   // Render recommendations
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-8">
-        <Logo />
+    <div className="pt-12 sm:pt-16 lg:pt-20 pb-6 sm:pb-10 px-3 sm:px-4 md:px-6 lg:px-8">
+      <Logo />
       <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-          Recommended For You
+        <h1 className={isMobile ? "text-xl font-bold text-gray-400 mb-2" : "text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6"}>
+          {!isMobile ? (
+            <TextLoop interval={5}>
+              <span>RECOMMENDED FOR YOU</span>
+              <span>PICKS FOR YOU</span>
+            </TextLoop>
+          ) : (
+            <span>RECOMMENDED FOR YOU</span>
+          )}
         </h1>
         <p className="text-gray-400">
           Personalized recommendations based on your watching history and preferences
         </p>
         
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          {meta && meta.aiEnhanced && (
-            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-900/30 text-blue-300 border border-blue-700">
-              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              AI-Enhanced
-            </div>
-          )}
-          
-          {meta?.cached && (
+        {refreshTimestamp && (
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-900/30 text-green-300 border border-green-700">
               <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              Cached ({meta.processingTime}ms)
+              Last updated: {new Date(refreshTimestamp).toLocaleTimeString()}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <motion.div 
@@ -210,20 +318,26 @@ const RecommendedPage = () => {
         transition={{ duration: 0.5 }}
       >
         {recommendationGroups.map((group, index) => (
-          <div key={index} className="recommendation-group">
-            <FilmSlider
-              title={group.reason || "Recommended Films"}
-              filmsData={group.films}
-              limit={group.films.length}
-            />
+          <div key={index} className="recommendation-group mt-4 sm:mt-6">
+            <h1 className={isMobile ? "text-xl font-bold text-gray-400 mb-2" : "text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6"}>
+              {!isMobile && group.reason ? (
+                <TextLoop interval={5}>
+                  <span>{group.reason.toUpperCase()}</span>
+                  <span>JUST FOR YOU</span>
+                </TextLoop>
+              ) : (
+                <span>{group.reason.toUpperCase()}</span>
+              )}
+            </h1>
             
-            {group.isAIEnhanced && (
-              <div className="mt-1 flex justify-end">
-                <span className="text-xs text-blue-400 italic">
-                  AI-curated selection
-                </span>
-              </div>
-            )}
+            {/* Use FilmSliderWrapper instead of FilmSlider directly to match HomePage */}
+            <FilmSliderWrapper
+              title={group.reason}
+              films={group.films}
+              onFilmClick={handleFilmClick}
+              isMobile={isMobile}
+              limit={isMobile ? Math.min(6, group.films.length) : group.films.length}
+            />
           </div>
         ))}
       </motion.div>
@@ -247,6 +361,31 @@ const RecommendedPage = () => {
           <span>{isLoading ? "Refreshing..." : "Refresh Recommendations"}</span>
         </button>
       </div>
+      
+      {/* VideoModal Component - with proper Film type and all required props */}
+      {selectedFilm && (
+        <PlayVideoModal
+          // Modal state
+          state={isVideoModalOpen}
+          changeState={setIsVideoModalOpen}
+          
+          film={selectedFilm}
+          
+          // User data and actions
+          userId={user?.id}
+          filmId={selectedFilm.id}
+          userRating={userRating}
+          setUserRating={setUserRating}
+          markAsWatched={markAsWatched}
+          watchTimerDuration={30000} 
+          
+          toggleVideoSource={toggleVideoSource}
+          showingTrailer={showingTrailer}
+          
+          // Rating refresh functionality
+          refreshRating={refreshRating}
+        />
+      )}
     </div>
   );
 };
