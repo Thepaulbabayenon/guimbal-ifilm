@@ -103,8 +103,7 @@ const nextConfig = {
   experimental: {
     // The serverActions option expects an object
     serverActions: {
-      allowedOrigins: ['localhost:3000'],
-      allowedOrigins: ['https://www.Thebantayanfilmfestival.com'],
+      allowedOrigins: ['localhost:3000', 'https://www.Thebantayanfilmfestival.com'],
     },
     // Modern settings for code splitting
     optimizeCss: true,

@@ -6,7 +6,6 @@ import { AccessDenied } from "@/app/components/AccessDenied";
 import HomePageSkeleton from "@/app/components/HomepageSkeleton";
 
 // Direct imports of components
-import { TextLoop } from "@/components/ui/text-loop";
 import FilmSliderWrapper from "@/app/components/FilmComponents/FilmsliderWrapper";
 import FilmVideo from "../components/FilmComponents/FilmVideo";
 import RecentlyAdded from "../components/RecentlyAdded";
@@ -34,7 +33,6 @@ interface RecommendationGroup {
   reason: string;
   films: Film[];
   isAIEnhanced?: boolean;
-  isCustomCategory?: boolean;
 }
 
 // Film categories data
@@ -71,6 +69,8 @@ const HomePage = () => {
   
   // Fetch recommendations from API
   useEffect(() => {
+    let isMounted = true;
+    
     async function fetchRecommendations() {
       if (!user?.id) {
         setRecommendationsLoading(false);
@@ -81,8 +81,15 @@ const HomePage = () => {
       setRecommendationsError(null);
       
       try {
-        // Fetch recommendations from our API endpoint
-        const response = await fetch(`/api/recommendations/${user.id}`);
+        // Fetch recommendations from our API endpoint with a timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        
+        const response = await fetch(`/api/recommendations/${user.id}`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch recommendations: ${response.status}`);
@@ -90,24 +97,39 @@ const HomePage = () => {
         
         const data = await response.json();
         
-        // Process recommendations data
-        // Add AI Enhanced flag to recommendations from the hybrid algorithm
-        const enhancedRecommendations = data.map((group: RecommendationGroup, index: number) => ({
-          ...group,
-          // First group is always AI enhanced in our hybrid system
-          isAIEnhanced: index === 0,
-        }));
-        
-        setRecommendations(enhancedRecommendations);
+        // Make sure component is still mounted before updating state
+        if (isMounted) {
+          // Process recommendations data
+          // Mark the first group as AI enhanced (from our hybrid algorithm)
+          const enhancedRecommendations = data.map((group: RecommendationGroup, index: number) => ({
+            ...group,
+            isAIEnhanced: index === 0, // First group is always AI enhanced in our hybrid system
+            films: group.films.filter((film: Film) => film && film.id) // Filter out any null/invalid films
+          })).filter((group: RecommendationGroup) => group.films.length > 0); // Only include groups with films
+          
+          setRecommendations(enhancedRecommendations);
+        }
       } catch (error) {
         console.error("Error fetching recommendations:", error);
-        setRecommendationsError(error instanceof Error ? error.message : "Failed to load recommendations");
+        if (isMounted) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            setRecommendationsError("Request timed out. Please try again later.");
+          } else {
+            setRecommendationsError(error instanceof Error ? error.message : "Failed to load recommendations");
+          }
+        }
       } finally {
-        setRecommendationsLoading(false);
+        if (isMounted) {
+          setRecommendationsLoading(false);
+        }
       }
     }
     
     fetchRecommendations();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
   
   // Handle loading state
@@ -130,29 +152,18 @@ const HomePage = () => {
       {/* Recently Added Section */}
       <div className="mt-4 sm:mt-6">
         <h1 className={isMobile ? "text-xl font-bold text-gray-400 mb-2" : "text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6"}>
-          {!isMobile ? (
-            <TextLoop interval={5}>
-              <span>RECENTLY ADDED</span>
-              <span>FRESH FINDS</span>
-            </TextLoop>
-          ) : (
-            <span>RECENTLY ADDED</span>
-          )}
+          RECENTLY ADDED
         </h1>
         <RecentlyAdded />
       </div>
       
       {/* Personalized Recommendations Section */}
-      {isAuthenticated && (
+      {isAuthenticated && recommendations.length > 0 && (
         <div className="mt-4 sm:mt-6">
           <h1 className={isMobile ? "text-xl font-bold text-gray-400 mb-2" : "text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6"}>
-            {!isMobile ? (
-              <TextLoop interval={5}>
-                <span>RECOMMENDED FOR YOU</span>
-                <span>PICKS FOR YOU</span>
-              </TextLoop>
-            ) : (
-              <span>RECOMMENDED FOR YOU</span>
+            <span>RECOMMENDED FOR YOU</span>
+            {!recommendationsLoading && recommendations.some(group => group.isAIEnhanced) && (
+              <span className="ml-2 text-sm text-blue-400 font-normal">AI Enhanced</span>
             )}
           </h1>
           <RecommendationSection
@@ -169,15 +180,7 @@ const HomePage = () => {
       {filmCategories.map((category) => (
         <div key={category.id} className="mt-4 sm:mt-6">
           <h1 className={isMobile ? "text-xl font-bold text-gray-400 mb-2" : "text-2xl sm:text-3xl font-bold text-gray-400 mb-3 sm:mb-4 md:mb-6"}>
-            {!isMobile && category.displayTitles.length > 1 ? (
-              <TextLoop interval={5}>
-                {category.displayTitles.map((title, i) => (
-                  <span key={`${category.id}-${i}`}>{title}</span>
-                ))}
-              </TextLoop>
-            ) : (
-              <span>{category.title}</span>
-            )}
+            {category.title}
           </h1>
           <FilmSlider
             title={category.title}

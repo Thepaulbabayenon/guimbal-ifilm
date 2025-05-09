@@ -53,18 +53,6 @@ const RecommendationSection = ({ recommendations, loading, error, FilmSliderComp
     e.stopPropagation();
     setSelectedGroup(prev => (prev + 1) % recommendations.length);
   };
-  
-  // Auto-rotate through recommendation groups every 30 seconds
-  useEffect(() => {
-    if (recommendations.length <= 1) return;
-    
-    const interval = setInterval(() => {
-      setSelectedGroup(prev => (prev + 1) % recommendations.length);
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, [recommendations.length]);
-  
   if (loading) {
     return (
       <div className="h-[240px] flex items-center justify-center mb-10">

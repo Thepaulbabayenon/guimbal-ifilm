@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { CiHeart, CiPlay1, CiStar } from "react-icons/ci";
+import { usePathname } from "next/navigation";
 import axios from "axios";
 import { AxiosError } from "axios"; 
 import { useAuth } from "@/app/auth/nextjs/useUser";
@@ -39,7 +40,8 @@ export function FilmCard({
   
   const auth = useAuth();
   const userId = auth?.user?.id;
-  
+  const getToken = auth?.getToken;
+
   // Component state
   const [open, setOpen] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
@@ -49,53 +51,28 @@ export function FilmCard({
   const [isSavingWatchlist, setIsSavingWatchlist] = useState(false);
   const [isSavingRating, setIsSavingRating] = useState(false);
   const [loading, setLoading] = useState(true);
-  
-  // Use refs to prevent unnecessary re-renders and API calls
   const dataFetchedRef = useRef(false);
-  const isMountedRef = useRef(true);
-  const saveRatingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pathName = usePathname();
 
-  // Clean up function for component unmount
+  // Fetch watchlist status and user data on component mount - with optimization
   useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      
-      if (saveRatingTimeoutRef.current) {
-        clearTimeout(saveRatingTimeoutRef.current);
-        saveRatingTimeoutRef.current = null;
-      }
-    };
-  }, []);
-
-  // Fetch user data once on component mount with safeguards
-  useEffect(() => {
-    // Skip if already fetched or no user ID available
-    if (dataFetchedRef.current || !userId) {
-      if (!userId) setLoading(false);
+    // Only fetch data once
+    if (dataFetchedRef.current) return;
+    
+    if (!userId) {
+      setLoading(false);
       return;
     }
 
-    const controller = new AbortController();
-    const signal = controller.signal;
-
     const fetchUserData = async () => {
       try {
-        // Use Promise.all with AbortController for cancelability
+        // Use Promise.all to fetch data concurrently
         const [watchlistResponse, ratingResponse, avgResponse] = await Promise.all([
-          axios.get(`/api/films/${filmId}/watchlist`, { 
-            params: { userId },
-            signal
-          }),
-          axios.get(`/api/films/${filmId}/user-rating`, { 
-            params: { userId },
-            signal
-          }),
-          axios.get(`/api/films/${filmId}/average-rating`, { signal })
+          axios.get(`/api/films/${filmId}/watchlist`, { params: { userId } }),
+          axios.get(`/api/films/${filmId}/user-rating`, { params: { userId } }),
+          axios.get(`/api/films/${filmId}/average-rating`)
         ]);
 
-        // Only update state if component is still mounted
-        if (!isMountedRef.current) return;
-        
         // Process watchlist data
         if (watchlistResponse.data) {
           setInWatchlist(watchlistResponse.data.inWatchlist);
@@ -117,73 +94,38 @@ export function FilmCard({
         // Mark data as fetched
         dataFetchedRef.current = true;
       } catch (error) {
-        if (!axios.isCancel(error)) {
-          console.error("Error fetching user data:", error);
-          if (isMountedRef.current) {
-            setAverageRating(initialRatings);
-          }
-        }
+        console.error("Error fetching user data:", error);
+        setAverageRating(initialRatings);
       } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
     fetchUserData();
-
-    // Clean up function to abort fetch on unmount
-    return () => {
-      controller.abort();
-    };
   }, [filmId, initialRatings, userId]);
 
-  // Mark film as watched - memoized with useCallback to prevent recreating on each render
-  const markAsWatched = useCallback(async () => {
-    if (!userId || !isMountedRef.current) return;
-
+  // Mark film as watched - no changes needed here, as it's a one-time operation
+  const markAsWatched = async (userId: string, filmId: number) => {
     try {
+      if (!userId) {
+        console.error("User ID is not available.");
+        return;
+      }
+
       await axios.post(
         `/api/films/${filmId}/watched-films`, 
         { userId, filmId }, 
         { headers: { "Content-Type": "application/json" } }
       );
+      console.log(`Film ${filmId} marked as watched for user ${userId}`);
     } catch (error) {
       console.error("Error marking film as watched:", error);
     }
-  }, [userId, filmId]);
+  };
 
-  // Save rating with debounce - optimized with useCallback
-  const saveRating = useCallback(async (rating: number) => {
-    if (!userId || !isMountedRef.current) return;
-    
-    try {
-      setIsSavingRating(true);
-      
-      // Save user rating
-      await axios.post(
-        `/api/films/${filmId}/user-rating`, 
-        { userId, rating }, 
-        { headers: { "Content-Type": "application/json" } }
-      );
-
-      // Update average rating only if component is still mounted
-      if (isMountedRef.current) {
-        const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
-        if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
-          setAverageRating(avgResponse.data.averageRating);
-        }
-      }
-    } catch (error) {
-      console.error("Error saving user rating:", error);
-    } finally {
-      if (isMountedRef.current) {
-        setIsSavingRating(false);
-      }
-    }
-  }, [userId, filmId]);
-
-  // Handle rating changes with debounce to prevent excessive API calls
+  // Save user rating when changed - using debounce to prevent excessive API calls
+  const saveRatingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
     if (!userId || userRating === 0) return;
 
@@ -193,8 +135,27 @@ export function FilmCard({
     }
 
     // Set a new timeout to save the rating after a delay
-    saveRatingTimeoutRef.current = setTimeout(() => {
-      saveRating(userRating);
+    saveRatingTimeoutRef.current = setTimeout(async () => {
+      try {
+        setIsSavingRating(true);
+        
+        // Save user rating
+        await axios.post(
+          `/api/films/${filmId}/user-rating`, 
+          { userId, rating: userRating }, 
+          { headers: { "Content-Type": "application/json" } }
+        );
+
+        // Update average rating
+        const avgResponse = await axios.get(`/api/films/${filmId}/average-rating`);
+        if (avgResponse.data && avgResponse.data.averageRating !== undefined) {
+          setAverageRating(avgResponse.data.averageRating);
+        }
+      } catch (error) {
+        console.error("Error saving user rating:", error);
+      } finally {
+        setIsSavingRating(false);
+      }
     }, 500); // 500ms debounce
 
     // Clean up function
@@ -203,10 +164,9 @@ export function FilmCard({
         clearTimeout(saveRatingTimeoutRef.current);
       }
     };
-  }, [userRating, saveRating, userId]);
+  }, [userRating, filmId, userId]);
 
-  // Toggle watchlist with optimistic UI update
-  const handleToggleWatchlist = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleToggleWatchlist = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent event bubbling
 
@@ -216,7 +176,7 @@ export function FilmCard({
     }
 
     // Prevent multiple clicks
-    if (isSavingWatchlist || !isMountedRef.current) return;
+    if (isSavingWatchlist) return;
     
     setIsSavingWatchlist(true);
     const previousWatchlistState = inWatchlist;
@@ -226,77 +186,46 @@ export function FilmCard({
       setInWatchlist(!previousWatchlistState);
 
       if (previousWatchlistState) {
-        // Remove from watchlist
+        // Remove from watchlist using the filmId directly in the URL
         await axios.delete(`/api/watchlist/${filmId}`);
         
         // Reset the watchlist ID
-        if (isMountedRef.current) {
-          setWatchlistId(null);
-        }
+        setWatchlistId(null);
       } else {
         // Add to watchlist
-        await axios.post('/api/watchlist', {
+        const response = await axios.post('/api/watchlist', {
           userId,
           filmId
         });
+        
+        if (response.data && response.data.success) {
+          console.log("Successfully added to watchlist");
+        }
       }
     } catch (error) {
       // Rollback on error
-      if (isMountedRef.current) {
-        setInWatchlist(previousWatchlistState);
-        
-        const axiosError = error as AxiosError;
-        console.error("Watchlist error:", axiosError.response?.data || error);
-        alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
-      }
+      setInWatchlist(previousWatchlistState);
+      const axiosError = error as AxiosError;
+      
+      console.error("Watchlist error:", axiosError.response?.data || error);
+      alert(`Failed: ${(axiosError.response?.data as any)?.error || "Please try again"}`);
     } finally {
-      if (isMountedRef.current) {
-        setIsSavingWatchlist(false);
-      }
+      setIsSavingWatchlist(false);
     }
-  }, [filmId, inWatchlist, isSavingWatchlist, userId]);
+  };
 
-  // Handle rating click - prevent actions while saving
-  const handleRatingClick = useCallback((newRating: number) => {
-    if (isSavingRating || !isMountedRef.current) return;
+  // Handle rating click - optimized to prevent multiple API calls
+  const handleRatingClick = (newRating: number) => {
+    if (isSavingRating) return;
 
     if (!userId) {
       alert("Please log in to rate films.");
       return;
     }
 
-    // Update state - the useEffect will handle the API call with debounce
+    // Just update the state - the useEffect will handle the API call with debounce
     setUserRating(newRating);
-  }, [isSavingRating, userId]);
-
-  // Modal management functions - memoized with useCallback
-  const handleOpenModal = useCallback(() => {
-    if (!isMountedRef.current) return;
-    
-    setOpen(true);
-    if (userId) markAsWatched();
-    
-    if (onOpenModal) {
-      onOpenModal(videoSource, trailerUrl);
-    }
-  }, [userId, markAsWatched, onOpenModal, videoSource, trailerUrl]);
-
-  const handleCloseModal = useCallback(() => {
-    if (!isMountedRef.current) return;
-    
-    setOpen(false);
-    if (onCloseModal) onCloseModal();
-  }, [onCloseModal]);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      // Clean up video playback when component unmounts
-      if (open) {
-        handleCloseModal();
-      }
-    };
-  }, [open, handleCloseModal]);
+  };
 
   // Format average rating safely
   const safeAverageRating = typeof averageRating === "number" && !isNaN(averageRating) 
@@ -322,7 +251,7 @@ export function FilmCard({
     </div>
   );
 
-  // Memoized film details renderer
+  // Render film details
   const renderFilmDetails = () => (
     <>
       <h1 className="font-bold text-lg line-clamp-1">{title}</h1>
@@ -335,22 +264,44 @@ export function FilmCard({
             <CiStar
               key={star}
               className={`w-4 h-4 cursor-pointer ${userRating >= star ? "text-green-400" : "text-gray-400"}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleRatingClick(star);
-              }}
+              onClick={() => handleRatingClick(star)}
             />
           ))}
         </div>
       </div>
       <p className="line-clamp-1 text-sm text-gray-200 font-light">{overview}</p>
       <p className="font-normal text-sm mt-2">
-        Average Rating: {isNaN(safeAverageRating) ? "N/A" : safeAverageRating.toFixed(1)} / 5
+        Average Rating: {isNaN(safeAverageRating) ? "N/A" : safeAverageRating.toFixed(2)} / 5
       </p>
       {videoSource && <p className="font-normal text-xs text-gray-400 mt-1">Source: {videoSource}</p>}
     </>
   );
+
+  // Handle modal state changes
+  const handleOpenModal = () => {
+    setOpen(true);
+    if (userId) markAsWatched(userId, filmId);
+    if (onOpenModal) {
+      // Pass videoSource as the primary source 
+      onOpenModal(videoSource, trailerUrl);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setOpen(false);
+    if (onCloseModal) onCloseModal();
+  };
+
+  // Make this component aware of modal close events
+  useEffect(() => {
+    // This effect manages the modal open state
+    return () => {
+      // Clean up video playback when component unmounts
+      if (open) {
+        handleCloseModal();
+      }
+    };
+  }, []);
 
   return (
     <>
