@@ -11,9 +11,10 @@ interface FilmLayoutProps {
   loading: boolean;
   error: string | null;
   userId?: string;
-  isMobile: boolean; // Added isMobile property to fix the TypeScript error
+  isMobile: boolean;
 }
 
+// Memoize FilmItem to prevent unnecessary re-renders
 const FilmItem = memo(({ 
   film, 
   rating, 
@@ -26,10 +27,9 @@ const FilmItem = memo(({
   const [imageError, setImageError] = useState(false);
   
   // Handle image loading errors
-  const handleImageError = () => {
-    console.error(`Failed to load image for film: ${film.title}`);
+  const handleImageError = useCallback(() => {
     setImageError(true);
-  };
+  }, []);
   
   // Use a placeholder image if the original image fails to load
   const imageSrc = imageError ? '/placeholder-movie.png' : film.imageUrl;
@@ -91,6 +91,7 @@ const FilmItem = memo(({
 FilmItem.displayName = "FilmItem";
 
 const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, error, userId, isMobile }) => {
+  // Main state
   const [filmRatings, setFilmRatings] = useState<Record<number, number>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
@@ -99,26 +100,44 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
   const [currentVideoSource, setCurrentVideoSource] = useState<string | undefined>(undefined);
   const [currentTrailerUrl, setCurrentTrailerUrl] = useState<string | undefined>(undefined);
   
-  // Use refs to track data loading status
-  const dataFetchedRef = useRef(false);
+  // Refs to prevent memory leaks and track component lifecycle
   const isMountedRef = useRef(true);
+  const dataFetchedRef = useRef(false);
   const pendingRatingUpdates = useRef<Record<number, number>>({});
+  const ratingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const userRatingFetchedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
-  // Prevent memory leaks on unmount
+  // Clean up resources on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      
+      if (ratingTimeoutRef.current) {
+        clearTimeout(ratingTimeoutRef.current);
+      }
+      
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []);
-  
-  // Optimized batch fetching of ratings - runs only once when films are loaded
+
+  // Batch fetch ratings with optimizations - only runs once
   useEffect(() => {
-    if (films.length === 0 || dataFetchedRef.current) return;
+    // Skip if no films, already fetched, or component unmounted
+    if (films.length === 0 || dataFetchedRef.current || !isMountedRef.current) return;
+
+    // Create abort controller for cleanup
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     const fetchRatings = async () => {
       try {
+        dataFetchedRef.current = true; // Set flag early to prevent duplicate fetches
+        
         // Process films in batches to prevent UI freezing
-        const batchSize = 20; // Increased batch size for efficiency
+        const batchSize = 20;
         const batches = Math.ceil(films.length / batchSize);
         const newRatings: Record<number, number> = {};
         
@@ -129,9 +148,9 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
           const end = Math.min(start + batchSize, films.length);
           const batch = films.slice(start, end);
           
-          // Use Promise.all to parallelize requests within each batch
+          // Create batch of promises with the abort signal
           const batchPromises = batch.map(film => 
-            axios.get(`/api/films/${film.id}/average-rating`)
+            axios.get(`/api/films/${film.id}/average-rating`, { signal })
               .then(response => ({
                 id: film.id,
                 rating: response.data?.averageRating
@@ -156,60 +175,80 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
               }
             }
           });
+          
+          // Introduce small delay between batches to prevent freezing
+          if (i < batches - 1 && isMountedRef.current) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
         }
         
         if (isMountedRef.current) {
           setFilmRatings(newRatings);
-          dataFetchedRef.current = true;
         }
       } catch (error) {
-        console.error("Error fetching ratings:", error);
+        if (!axios.isCancel(error)) {
+          console.error("Error fetching ratings:", error);
+        }
       }
     };
 
     fetchRatings();
   }, [films]);
 
-  // Load user rating when a film is selected - with optimization
-  const userRatingFetchedRef = useRef(false);
-  
+  // Fetch user rating when a film is selected - optimized
   useEffect(() => {
-    if (!selectedFilm || !userId) return;
+    if (!selectedFilm || !userId || !isMountedRef.current) return;
     
     // Reset the ref when a new film is selected
     userRatingFetchedRef.current = false;
     
+    // Create new abort controller
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    
     const fetchUserRating = async () => {
-      // Prevent duplicate API calls
       if (userRatingFetchedRef.current) return;
       
       try {
         const response = await axios.get(`/api/films/${selectedFilm.id}/user-rating`, {
-          params: { userId }
+          params: { userId },
+          signal
         });
         
         if (isMountedRef.current) {
           if (response.data && response.data.rating !== undefined) {
             setUserRating(response.data.rating);
           } else {
-            setUserRating(0); // Reset if no rating exists
+            setUserRating(0);
           }
           userRatingFetchedRef.current = true;
         }
       } catch (error) {
-        console.error("Error fetching user rating:", error);
-        if (isMountedRef.current) {
-          setUserRating(0); // Reset on error
+        if (!axios.isCancel(error)) {
+          console.error("Error fetching user rating:", error);
+          if (isMountedRef.current) {
+            setUserRating(0);
+          }
         }
       }
     };
     
     fetchUserRating();
+    
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [selectedFilm, userId]);
 
-  // Memoized film click handler
+  // Memoized handlers to prevent unnecessary re-creation
   const handleFilmClick = useCallback((film: Film) => {
-    console.log("Film clicked:", film.title);
+    if (!isMountedRef.current) return;
+    
     setSelectedFilm(film);
     setModalOpen(true);
     setShowingTrailer(false);
@@ -217,16 +256,13 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
     setCurrentTrailerUrl(film.trailerUrl);
   }, []);
 
-  // Toggle between trailer and full video
   const toggleVideoSource = useCallback(() => {
+    if (!isMountedRef.current) return;
     setShowingTrailer(prevState => !prevState);
   }, []);
 
-  // Debounced rating handler to prevent excessive API calls
-  const ratingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
   const handleSetUserRating = useCallback((rating: number) => {
-    if (!selectedFilm || !userId) return;
+    if (!selectedFilm || !userId || !isMountedRef.current) return;
     
     // Update UI immediately for better user experience
     setUserRating(rating);
@@ -239,24 +275,33 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
       clearTimeout(ratingTimeoutRef.current);
     }
     
-    // Set new timeout to process the rating
+    // Set new timeout to process the rating with debounce
     ratingTimeoutRef.current = setTimeout(async () => {
+      if (!isMountedRef.current) return;
+      
       const filmId = selectedFilm.id;
       const pendingRating = pendingRatingUpdates.current[filmId];
       
       if (pendingRating === undefined) return;
       
       try {
+        // Create abort controller for this request
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
+        
         // Save the user rating
         await axios.post(`/api/films/${filmId}/ratings`, {
           userId,
           filmId,
           rating: pendingRating
-        });
+        }, { signal });
         
         // Update the average rating
         if (isMountedRef.current) {
-          const response = await axios.get(`/api/films/${filmId}/average-rating`);
+          const response = await axios.get(`/api/films/${filmId}/average-rating`, { signal });
           if (response.data?.averageRating !== undefined) {
             setFilmRatings(prev => ({
               ...prev,
@@ -265,29 +310,36 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
           }
         }
       } catch (error) {
-        console.error("Error with rating operation:", error);
+        if (!axios.isCancel(error)) {
+          console.error("Error with rating operation:", error);
+        }
       } finally {
         // Clear the pending update
         delete pendingRatingUpdates.current[filmId];
       }
-    }, 500); // 500ms debounce
+    }, 500);
   }, [selectedFilm, userId]);
 
   // Memoized watched handler
   const markAsWatched = useCallback((userId: string, filmId: number) => {
-    if (!userId) return;
+    if (!userId || !isMountedRef.current) return;
     
-    // Don't await this operation since it's not critical for UI updates
-    axios.post(`/api/films/${filmId}/watched-films`, { 
-      userId, 
-      filmId 
-    })
-    .then(() => console.log(`Film ${filmId} marked as watched by user ${userId}`))
-    .catch(error => console.error("Error marking film as watched:", error));
+    // Use a background task approach to avoid waiting
+    const markWatched = async () => {
+      try {
+        await axios.post(`/api/films/${filmId}/watched-films`, { userId, filmId });
+      } catch (error) {
+        console.error("Error marking film as watched:", error);
+      }
+    };
+    
+    markWatched();
   }, []);
 
-  // Add a smart refresh rating function that only makes API call when needed
+  // Refresh rating function - optimized with signal
   const refreshRating = useCallback(async (filmId?: number) => {
+    if (!isMountedRef.current) return;
+    
     try {
       const id = filmId || selectedFilm?.id;
       if (!id) return;
@@ -297,7 +349,14 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
         return;
       }
 
-      const response = await axios.get(`/api/films/${id}/average-rating`);
+      // Create abort controller
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
+      const response = await axios.get(`/api/films/${id}/average-rating`, { signal });
       if (isMountedRef.current && response.data?.averageRating !== undefined) {
         setFilmRatings(prev => ({
           ...prev,
@@ -305,16 +364,20 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
         }));
       }
     } catch (error) {
-      console.error("Error refreshing rating:", error);
+      if (!axios.isCancel(error)) {
+        console.error("Error refreshing rating:", error);
+      }
     }
   }, [selectedFilm]);
 
-  // Reset userRating when modal closes
+  // Modal close handler - prevent memory leaks
   const handleModalClose = useCallback(() => {
+    if (!isMountedRef.current) return;
+    
     setModalOpen(false);
-    // Don't immediately reset selectedFilm to prevent UI flicker
-    // Allow a small delay for the modal closing animation
-    setTimeout(() => {
+    
+    // Use a short delay for the modal closing animation
+    const closeTimer = setTimeout(() => {
       if (isMountedRef.current) {
         setSelectedFilm(null);
         setUserRating(0);
@@ -322,18 +385,12 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
         setCurrentTrailerUrl(undefined);
       }
     }, 300);
+    
+    // Clean up the timer if component unmounts during the delay
+    return () => clearTimeout(closeTimer);
   }, []);
 
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (ratingTimeoutRef.current) {
-        clearTimeout(ratingTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Mobile UI adjustments based on isMobile prop
+  // Dynamic CSS classes based on device type
   const gridClassNames = isMobile 
     ? "grid grid-cols-1 sm:grid-cols-2 px-3 mt-6 gap-4" 
     : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-5 sm:px-0 mt-10 gap-6";
@@ -343,7 +400,7 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
     : "text-gray-400 text-4xl font-bold mt-10 px-5 sm:px-0";
 
   return (
-    <div className="recently-added-container mb-20">
+    <div className="recently-added-container mb-20" data-testid="film-layout">
       {/* Title Section */}
       <div className="flex items-center justify-center">
         <h1 className={titleClassNames}>
@@ -360,45 +417,59 @@ const FilmLayout: React.FC<FilmLayoutProps> = ({ title, films = [], loading, err
 
       {/* Error Handling */}
       {error && (
-        <div className="text-center text-red-500 mt-4">
-          {error}
+        <div className="text-center text-red-500 mt-6 px-4">
+          <p>Error: {error}</p>
+          <button 
+            className="mt-2 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
         </div>
       )}
 
-      {/* Film Grid - with responsive adjustments based on isMobile */}
-      <div className={gridClassNames}>
-        {films.map((film, index) => (
-          <FilmItem
-            key={`${film.id}-${index}`} 
-            film={film}
-            rating={filmRatings[film.id] || film.initialRatings}
-            onClick={() => handleFilmClick(film)}
-          />
-        ))}
-      </div>
+      {/* Empty State */}
+      {!loading && !error && films.length === 0 && (
+        <div className="text-center text-gray-400 mt-6 px-4">
+          <p>No films found in this category.</p>
+        </div>
+      )}
+
+      {/* Film Grid */}
+      {!loading && !error && films.length > 0 && (
+        <div className={gridClassNames}>
+          {films.map((film) => (
+            <FilmItem 
+              key={film.id} 
+              film={film} 
+              rating={filmRatings[film.id] || film.initialRatings} 
+              onClick={() => handleFilmClick(film)} 
+            />
+          ))}
+        </div>
+      )}
 
       {/* Video Modal */}
       {selectedFilm && (
         <VideoModal
+          isOpen={modalOpen}
+          onClose={handleModalClose}
           title={selectedFilm.title}
           overview={selectedFilm.overview}
-          trailerUrl={currentTrailerUrl || selectedFilm.trailerUrl || ""}
-          videoSource={currentVideoSource || selectedFilm.videoSource}
-          state={modalOpen}
-          changeState={handleModalClose}
+          mainVideoUrl={currentVideoSource}
+          trailerUrl={currentTrailerUrl || ""}
+          showingTrailer={showingTrailer}
+          toggleVideo={toggleVideoSource}
+          userRating={userRating}
+          averageRating={filmRatings[selectedFilm.id] || selectedFilm.initialRatings}
+          onSetRating={handleSetUserRating}
+          onMarkWatched={userId ? () => markAsWatched(userId, selectedFilm.id) : undefined}
           releaseYear={selectedFilm.releaseYear}
           ageRating={selectedFilm.ageRating}
-          duration={selectedFilm.time}
-          ratings={filmRatings[selectedFilm.id] || selectedFilm.initialRatings}
-          setUserRating={handleSetUserRating}
-          userRating={userRating}
+          runningTime={selectedFilm.time}
+          refreshRating={() => refreshRating(selectedFilm.id)}
           userId={userId}
           filmId={selectedFilm.id}
-          markAsWatched={markAsWatched}
-          category={selectedFilm.category || "Uncategorized"}
-          refreshRating={refreshRating}
-          toggleVideoSource={toggleVideoSource}
-          showingTrailer={showingTrailer}
         />
       )}
     </div>

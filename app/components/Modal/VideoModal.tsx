@@ -12,59 +12,55 @@ import {
 import { FaStar, FaRegStar, FaExpand, FaCompress } from "react-icons/fa";
 import { MdMovie, MdMovieFilter } from "react-icons/md";
 
+// Updated interface to match FilmLayout's usage
 export interface VideoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
   title: string;
   overview: string;
+  mainVideoUrl?: string;
   trailerUrl: string;
-  videoSource?: string;
-  state: boolean;
-  changeState: (state: boolean) => void;
   releaseYear: number;
   ageRating?: number;
-  duration?: number;
-  ratings: number | null | undefined;
-  setUserRating: (rating: number) => void;
-  userRating?: number;
+  runningTime?: number;
+  averageRating: number;
+  userRating: number;
+  onSetRating: (rating: number) => void;
+  onMarkWatched?: () => void;
   userId?: string;
-  filmId?: number;
-  markAsWatched?: (userId: string, filmId: number) => void;
-  watchTimerDuration?: number;
-  category: string;
-  refreshRating?: (filmId?: number) => Promise<void>;
-  toggleVideoSource?: () => void;
-  showingTrailer?: boolean;
+  filmId: number;
+  refreshRating?: () => void;
+  toggleVideo: () => void;
+  showingTrailer: boolean;
 }
 
 type ModalSize = 'small' | 'desktop' | 'fullscreen';
 
-export function VideoModal({
-  changeState,
-  overview,
-  state,
+const VideoModal: React.FC<VideoModalProps> = ({
+  isOpen,
+  onClose,
   title,
+  overview,
+  mainVideoUrl,
   trailerUrl,
-  videoSource,
-  ageRating,
-  duration,
   releaseYear,
-  ratings,
-  setUserRating,
+  ageRating,
+  runningTime,
+  averageRating,
   userRating = 0,
+  onSetRating,
+  onMarkWatched,
   userId,
   filmId,
-  markAsWatched,
-  watchTimerDuration = 30000,
-  category,
   refreshRating,
-  toggleVideoSource,
-  showingTrailer = true,
-}: VideoModalProps) {
+  toggleVideo,
+  showingTrailer,
+}) => {
   // State hooks
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [hasWatched, setHasWatched] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [internalShowingTrailer, setInternalShowingTrailer] = useState(showingTrailer !== undefined ? showingTrailer : true);
   const [modalSize, setModalSize] = useState<ModalSize>('desktop');
   const [isMobile, setIsMobile] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{text: string, type: 'success' | 'error' | null}>({text: '', type: null});
@@ -74,9 +70,7 @@ export function VideoModal({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<ReactPlayer>(null);
   const feedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Ensure ratings is a number
-  const ratingsValue = typeof ratings === 'number' ? ratings : 0;
+  const watchTimerDuration = 30000; // 30 seconds before marking as watched
   
   // Size configurations with responsiveness
   const sizeConfigs = {
@@ -137,19 +131,10 @@ export function VideoModal({
         return;
       }
       
-      const response = await axios.post(`/api/films/${filmId}/user-rating`, {
-        rating,
-        userId
-      });
+      // Call the parent component's rating handler
+      onSetRating(rating);
+      showFeedback("Your rating has been submitted.", "success");
       
-      if (response.data.success) {
-        setUserRating(rating);
-        showFeedback("Your rating has been submitted.", "success");
-        
-        if (refreshRating) {
-          await refreshRating();
-        }
-      }
     } catch (error) {
       console.error("Error setting film rating:", error);
       showFeedback("Failed to submit rating. Please try again.", "error");
@@ -168,58 +153,30 @@ export function VideoModal({
     }
   };
 
-  // Handle video source toggling
-  const handleToggleVideoSource = () => {
-    if (toggleVideoSource) {
-      // Use parent component's toggle function if provided
-      toggleVideoSource();
-    } else if (videoSource) {
-      // Otherwise use internal state
-      setInternalShowingTrailer(!internalShowingTrailer);
-    }
-    
-    // Reset player position
-    if (playerRef.current) {
-      playerRef.current.seekTo(0);
-    }
-  };
-
-  // Get the current video URL based on state
-  const getCurrentVideoUrl = () => {
-    // Use external state if provided, otherwise use internal state
-    const isShowingTrailer = toggleVideoSource ? showingTrailer : internalShowingTrailer;
-    return (!videoSource || isShowingTrailer) ? trailerUrl : videoSource;
-  };
-
   // Animation and state effects
   useEffect(() => {
-    setIsPlaying(state);
-  }, [state]);
+    setIsPlaying(isOpen);
+  }, [isOpen]);
 
   useEffect(() => {
-    if (state) {
+    if (isOpen) {
       gsap.fromTo(
         dialogRef.current,
         { opacity: 0, scale: 0.92 },
         { opacity: 1, scale: 1, duration: 0.4, ease: "power2.out" }
       );
     }
-  }, [state]);
+  }, [isOpen]);
 
   // Mark film as watched after a certain duration
   useEffect(() => {
-    if (state && !hasWatched && userId && filmId && markAsWatched) {
+    if (isOpen && !hasWatched && onMarkWatched) {
       timerRef.current = setTimeout(() => {
-        axios
-          .post("/api/films/[filmId]/watched-films", { userId, filmId, watchedDuration: 60 })
-          .then(() => {
-            markAsWatched(userId, filmId);
-            setHasWatched(true);
-            showFeedback("Film added to your watched list", "success");
-          })
-          .catch((error) => {
-            console.error("Error marking film as watched:", error);
-          });
+        if (onMarkWatched) {
+          onMarkWatched();
+          setHasWatched(true);
+          showFeedback("Film added to your watched list", "success");
+        }
       }, watchTimerDuration);
     }
 
@@ -228,7 +185,7 @@ export function VideoModal({
         clearTimeout(timerRef.current);
       }
     };
-  }, [state, hasWatched, markAsWatched, userId, filmId, watchTimerDuration]);
+  }, [isOpen, hasWatched, onMarkWatched]);
 
   // Clean up feedback timer when component unmounts
   useEffect(() => {
@@ -246,8 +203,8 @@ export function VideoModal({
       if (playerRef.current) {
         playerRef.current.seekTo(0);
       }
+      onClose();
     }
-    changeState(newState);
   };
 
   // Get current dimensions based on modal size and device type
@@ -286,9 +243,11 @@ export function VideoModal({
   const playerHeight = getPlayerHeight();
 
   // Format duration in hours and minutes
-  const formatDuration = (durationInHours: number) => {
-    const hours = Math.floor(durationInHours);
-    const minutes = Math.round((durationInHours - hours) * 60);
+  const formatDuration = (durationInMinutes?: number) => {
+    if (!durationInMinutes) return '';
+    
+    const hours = Math.floor(durationInMinutes / 60);
+    const minutes = durationInMinutes % 60;
     
     if (hours === 0) {
       return `${minutes}m`;
@@ -299,11 +258,13 @@ export function VideoModal({
     }
   };
 
-  // Determine if we're showing trailer or full movie for the UI
-  const isShowingTrailer = toggleVideoSource ? showingTrailer : internalShowingTrailer;
+  // Get the current video URL based on showingTrailer prop
+  const getCurrentVideoUrl = () => {
+    return showingTrailer ? trailerUrl : (mainVideoUrl || '');
+  };
 
   return (
-    <Dialog open={state} onOpenChange={handleDialogChange}>
+    <Dialog open={isOpen} onOpenChange={handleDialogChange}>
       <DialogContent
         ref={dialogRef}
         className={`overflow-y-auto transition-all duration-300 bg-black text-white 
@@ -338,10 +299,10 @@ export function VideoModal({
             <div className={`flex gap-x-3 items-center flex-wrap mb-3 text-gray-300 ${isMobile ? 'text-xs' : 'text-sm'}`}>
               <span className="font-medium">{releaseYear}</span>
               {ageRating && <span className="border py-0.5 px-2 border-gray-500 rounded-md">{ageRating}+</span>}
-              {duration && <span>{formatDuration(duration)}</span>}
+              {runningTime && <span>{formatDuration(runningTime)}</span>}
               <div className="flex items-center">
                 <FaStar className="text-yellow-400 mr-1" size={isMobile ? 12 : 14} />
-                <span className="font-medium">{ratingsValue.toFixed(1)}</span>
+                <span className="font-medium">{averageRating.toFixed(1)}</span>
               </div>
             </div>
             
@@ -352,13 +313,13 @@ export function VideoModal({
           
           <div className="flex items-center gap-2">
             {/* Video source toggle button */}
-            {videoSource && (
+            {mainVideoUrl && (
               <button 
-                onClick={handleToggleVideoSource} 
+                onClick={toggleVideo} 
                 className="p-2 rounded-md bg-gray-800 hover:bg-gray-700 transition-colors flex items-center gap-1"
-                title={isShowingTrailer ? "Watch full movie" : "Watch trailer"}
+                title={showingTrailer ? "Watch full movie" : "Watch trailer"}
               >
-                {isShowingTrailer ? (
+                {showingTrailer ? (
                   <><MdMovie size={isMobile ? 14 : 16} /> <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>Movie</span></>
                 ) : (
                   <><MdMovieFilter size={isMobile ? 14 : 16} /> <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>Trailer</span></>
@@ -411,7 +372,7 @@ export function VideoModal({
           
           {/* Video source indicator */}
           <div className="absolute top-2 right-2 bg-black bg-opacity-50 p-1 px-2 rounded text-xs">
-            {isShowingTrailer ? "Trailer" : "Movie"}
+            {showingTrailer ? "Trailer" : "Movie"}
           </div>
         </div>
 
@@ -444,6 +405,6 @@ export function VideoModal({
       </DialogContent>
     </Dialog>
   );
-}
+};
 
 export default VideoModal;
