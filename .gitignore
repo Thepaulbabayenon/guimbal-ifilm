@@ -15,6 +15,7 @@
 
 # production
 /build
+/GuimbalIFilM
 
 # unlighthouse
 /unlighthouse

@@ -281,3 +281,126 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: "Failed to fetch recommendations" });
   }
 }
+
+
+
+# Minimal Movie Recommendation System
+
+```
+FUNCTION GetRecommendations(userId)
+    // Try methods in order, fall back as needed
+    TRY RETURN HybridRecommendation(userId)
+    ON FAIL TRY RETURN SimpleRecommend(userId)
+    ON FAIL RETURN GetTopRated()
+END FUNCTION
+
+FUNCTION HybridRecommendation(userId)
+    // Get recommendations from three strategies
+    films1 = MatrixFactorization(userId)
+    films2 = CollaborativeFiltering(userId)
+    films3 = ContentBasedFiltering(userId)
+    
+    // Determine weights based on user data
+    weights = CalculateWeights(userId)
+    
+    // Combine and score recommendations
+    results = CombineWithWeights(films1, films2, films3, weights)
+    
+    RETURN CreateCategories(results)
+END FUNCTION
+
+FUNCTION MatrixFactorization(userId)
+    // Matrix factorization using user-item ratings
+    TrainFactorModel()
+    RETURN PredictTopFilms(userId, 12)
+END FUNCTION
+
+FUNCTION CollaborativeFiltering(userId)
+    // Find similar users based on watch history
+    similarUsers = FindSimilarUsers(userId)
+    
+    // Return films liked by similar users
+    RETURN GetFilmsFromSimilarUsers(similarUsers, userId)
+END FUNCTION
+
+FUNCTION ContentBasedFiltering(userId)
+    // Extract preferences from user history
+    prefs = GetUserPreferences(userId)
+    
+    // Find matching unwatched films
+    RETURN FindSimilarFilms(prefs)
+END FUNCTION
+```
+
+// FILM RECOMMENDATION SYSTEM - HYBRID APPROACH
+
+function getRecommendations(userId):
+  try:
+    // 1. Try the most comprehensive approach first
+    recommendations = hybridRecommendation(userId)
+    return recommendations
+  catch:
+    // 2. Fallback approaches in order of decreasing complexity
+    try: return matrixFactorizationRecommendations(userId)
+    catch: try: return collaborativeFilteringRecommendations(userId)
+    catch: try: return contentBasedRecommendations(userId)
+    catch: return topRatedFilms() // Final fallback
+
+function hybridRecommendation(userId):
+  // Get recommendations from all three approaches in parallel
+  [matrixResults, collabResults, contentResults] = runInParallel([
+    matrixFactorization(userId),
+    collaborativeFiltering(userId),
+    contentBasedFiltering(userId)
+  ])
+  
+  // Get user context data
+  userRatings = getUserRatingHistory(userId)
+  watchlist = getUserWatchlist(userId)
+  watchHistory = getUserWatchHistory(userId)
+  
+  // Calculate weights based on available data
+  mfWeight = hasRatingData ? 0.45 : 0.15
+  cfWeight = hasWatchHistory ? 0.35 : 0.25
+  cbWeight = (hasWatchlist || hasWatchHistory) ? 0.2 : 0.6
+  
+  // Create weighted scores for each film
+  filmScores = new Map()
+  
+  // Add each recommendation source with weights
+  weightedAdd(filmScores, matrixResults, mfWeight)
+  weightedAdd(filmScores, collabResults, cfWeight)
+  weightedAdd(filmScores, contentResults, cbWeight)
+  
+  // Sort films by weighted scores and get top results
+  recommendedFilms = sortByScore(filmScores).slice(0, 32)
+  
+  // Personalize category names based on user data
+  categories = createPersonalizedCategories(userRatings, watchHistory)
+  
+  // Group recommendations into 4 categories with 8 films each
+  return createRecommendationGroups(recommendedFilms, categories)
+
+function matrixFactorization(userId):
+  // 1. Get all user-film ratings
+  // 2. Create user and item latent factor matrices
+  // 3. Train model using SGD (Stochastic Gradient Descent)
+  // 4. Predict ratings for films user hasn't seen
+  // 5. Return top predictions
+
+function collaborativeFiltering(userId):
+  // 1. Get films user has interacted with
+  // 2. Find similar users based on overlapping film interactions
+  // 3. Get films watched by similar users but not by current user
+  // 4. Rank by average rating and popularity
+  // 5. Return top recommendations
+
+function contentBasedFiltering(userId):
+  // 1. Get films user has watched
+  // 2. Extract preferences (categories, years, ratings)
+  // 3. Find films with similar attributes that user hasn't seen
+  // 4. Rank by similarity and popularity
+  // 5. Return top recommendations
+
+function getTopRatedFilms():
+  // Return most popular films as fallback
